@@ -44,24 +44,40 @@ cancerLine = do
     return (title, url)
 
 factoid :: Parser CoucouCmd
-factoid = do
-    name <- T.pack <$> some (satisfy (not . isSpace))
-    CoucouCmdFactoid name IncFactoid <$ string "++" <|>
-        CoucouCmdFactoid name DecFactoid <$ string "--" <|>
-        do space
-           factoidType <- setFactoid <|> return GetFactoid
-           return $ CoucouCmdFactoid name factoidType
+factoid = try counterFactoid <|> try setFactoid <|> getFactoid
 
-setFactoid :: Parser CmdFactoidType
+counterFactoid :: Parser CoucouCmd
+counterFactoid = do
+    name <- factoidName (string "++" <|> string "--")
+    space
+    (string "++" >> return (CoucouCmdFactoid name IncFactoid) <* space <* eof) <|>
+        (string "--" >> return (CoucouCmdFactoid name DecFactoid) <* space <* eof)
+
+setFactoid :: Parser CoucouCmd
 setFactoid = do
-    operator <- string "=" <|> string ":=" <|> string "+="
+    let operatorParser = string "=" <|> string ":=" <|> string "+="
+    name <- factoidName operatorParser
+    operator <- operatorParser
     space
     val <- T.pack <$> many anyChar
+    eof
     if T.null val
-        then return DeleteFactoid
+        then return $ CoucouCmdFactoid name DeleteFactoid
         else do
             let op
                     | operator == "=" = SetFactoid
                     | operator == ":=" = ResetFactoid
                     | otherwise = AugmentFactoid
-            return $ op val
+            return $ CoucouCmdFactoid name (op val)
+
+factoidName :: Parser String -> Parser Text
+factoidName limit =
+    T.pack <$>
+    someTill (satisfy (not . isSpace)) (try $ space >> lookAhead limit)
+
+getFactoid :: Parser CoucouCmd
+getFactoid = do
+    name <- T.pack <$> some (satisfy (not . isSpace))
+    space
+    eof
+    return $ CoucouCmdFactoid name GetFactoid
