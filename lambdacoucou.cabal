@@ -38,3 +38,4 @@ executable lambdacoucou
                      , scientific >= 0.3.4 && < 0.3.5
                      , microlens >= 0.4.7 && < 0.4.8
                      , stm >= 2.4.4 && < 2.4.5
+                     , async >= 2.1.1 && < 2.2

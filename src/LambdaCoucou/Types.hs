@@ -3,7 +3,8 @@ module LambdaCoucou.Types where
 import System.Random (StdGen)
 import Data.Monoid ((<>))
 import Data.Text (Text, unpack)
-import GHC.Conc.Sync (TVar)
+import Control.Concurrent.STM.TVar (TVar)
+import Control.Concurrent.STM.TBQueue (TBQueue)
 import Data.HashMap.Strict (HashMap)
 import Data.Vector (Vector)
 import Data.Aeson
@@ -25,11 +26,15 @@ instance FromJSON Factoid where
         Just i -> return $ Counter i
     parseJSON _ = mempty
 
+instance ToJSON Factoid where
+    toJSON (Facts v) = toJSON v
+    toJSON (Counter n) = toJSON n
 
 
 data BotState = BotState
     { _stdGen :: TVar StdGen
     , _factoids :: TVar Factoids
+    , _writerQueue :: TBQueue Factoids
     }
 
 data CoucouCmd
@@ -54,16 +59,22 @@ instance Show CoucouCmd where
     -- show (CoucouCmdCoucou _) = "Counts of coucou"
     show (CoucouCmdCancer search) =
         case search of
-            Nothing -> "A random cancer"
-            Just s -> "The first cancer matching " <> unpack s
+            Nothing -> "A random cancer."
+            Just s -> "The first cancer matching " <> unpack s <> "."
     show (CoucouCmdFactoid name factoidType) =
-        case factoidType of
-            GetFactoid -> "Get the factoid with name: " <> unpack name
-            SetFactoid val ->
-                "Set a new factoid with name: " <> unpack name <> " and val: " <>
-                unpack val
-            ResetFactoid val ->
-                "Reset factoid: " <> unpack name <> " to val: " <> unpack val
-            AugmentFactoid val ->
-                "Augment factoid: " <> unpack name <> " with val: " <> unpack val
-            DeleteFactoid -> "Delete factoid: " <> unpack name
+        let name' = unpack name
+        in case factoidType of
+               GetFactoid -> "Get the factoid with name: " <> name' <> "."
+               SetFactoid val ->
+                   "Set a new factoid with name: " <> name' <> " and val: " <>
+                   unpack val <>
+                   "."
+               ResetFactoid val ->
+                   "Reset factoid: " <> name' <> " to val: " <> unpack val <>
+                   "."
+               AugmentFactoid val ->
+                   "Augment factoid: " <> name' <> " with val: " <> unpack val <>
+                   "."
+               DeleteFactoid -> "Delete factoid: " <> name' <> "."
+               IncFactoid -> "Increment counter: " <> name' <> "."
+               DecFactoid -> "Decrement counter: " <> name' <> "."

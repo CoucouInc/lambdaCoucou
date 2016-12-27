@@ -9,11 +9,10 @@ import Data.Text (Text, pack)
 import System.Random (randomR)
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Concurrent.STM.TVar as STM
+import qualified Control.Concurrent.STM.TBQueue as Queue
 import qualified Network.IRC.Client as IRC
-import qualified Network.HTTP.Req
 import qualified Data.HashMap.Strict as Map
 import qualified Data.Vector as V
-import qualified Lens.Micro as L
 
 import qualified LambdaCoucou.Types as T
 import LambdaCoucou.Cancer (fetchCancer)
@@ -71,11 +70,14 @@ adjustCounterFactoid :: (Int -> Int)
                      -> IRC.StatefulIRC T.BotState ()
 adjustCounterFactoid op target name = do
     factoidsT <- T._factoids <$> IRC.state
+    queue <- T._writerQueue <$> IRC.state
     factoids <- 
         liftIO $
         STM.atomically $
         do STM.modifyTVar' factoidsT (Map.adjust (incdecCounter op) name)
-           STM.readTVar factoidsT
+           factoids' <- STM.readTVar factoidsT
+           Queue.writeTBQueue queue factoids'
+           return factoids'
     sendFactoid target name factoids
 
 incdecCounter :: (Int -> Int) -> T.Factoid -> T.Factoid

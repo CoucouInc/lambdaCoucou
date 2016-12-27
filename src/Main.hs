@@ -3,7 +3,9 @@
 module Main where
 
 import System.Random (getStdGen)
-import GHC.Conc.Sync (newTVarIO)
+import qualified Control.Concurrent.STM.TVar as STM
+import qualified Control.Concurrent.STM.TBQueue as STM
+import Control.Concurrent.Async (withAsync)
 import Data.Monoid ((<>))
 import Control.Monad.IO.Class (liftIO)
 import Data.ByteString (ByteString)
@@ -15,7 +17,7 @@ import qualified Network.IRC.Client as IRC
 import qualified LambdaCoucou.Types as T
 import qualified LambdaCoucou.Parser as Parser
 import qualified LambdaCoucou.Command as Cmd
-import LambdaCoucou.Factoids (readFactoids)
+import LambdaCoucou.Factoids (readFactoids, writeFactoids)
 
 main :: IO ()
 main = do
@@ -30,19 +32,22 @@ run host port nick = do
     case eitherFactoids of
         Left parseError -> error $ "Error reading factoids: " <> parseError
         Right factoids -> do
-            facts <- newTVarIO factoids
+            facts <- STM.newTVarIO factoids
             let logger = IRC.stdoutLogger
             conn <- IRC.connectWithTLS' logger host port 1
             let cfg = IRC.defaultIRCConf nick
-            let commandHandler = IRC.EventHandler "command handler" IRC.EPrivmsg commandHandlerFunc
+            let commandHandler =
+                    IRC.EventHandler "command handler" IRC.EPrivmsg commandHandlerFunc
             let cfg' =
                     cfg
                     { IRC._eventHandlers = commandHandler : IRC._eventHandlers cfg
                     , IRC._channels = ["#gougoutest"]
                     }
-            stdGen <- getStdGen >>= newTVarIO
-            let initialState = T.BotState stdGen facts
-            IRC.startStateful conn cfg' initialState
+            stdGen <- getStdGen >>= STM.newTVarIO
+            writerQueue <- STM.newTBQueueIO 10
+            let initialState = T.BotState stdGen facts writerQueue
+            withAsync (writeFactoids writerQueue) $
+                \_ -> IRC.startStateful conn cfg' initialState
 
 
 commandHandlerFunc :: IRC.UnicodeEvent -> IRC.StatefulIRC T.BotState ()
