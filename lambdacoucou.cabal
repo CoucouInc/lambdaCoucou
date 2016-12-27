@@ -36,3 +36,5 @@ executable lambdacoucou
                      , vector >= 0.11.0 && < 0.11.1
                      , aeson >= 0.11.2 && < 0.11.3
                      , scientific >= 0.3.4 && < 0.3.5
+                     , microlens >= 0.4.7 && < 0.4.8
+                     , stm >= 2.4.4 && < 2.4.5

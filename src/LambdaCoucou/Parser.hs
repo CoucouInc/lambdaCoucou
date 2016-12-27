@@ -10,8 +10,6 @@ import qualified Data.Text as T
 
 import LambdaCoucou.Types (CoucouCmd(..), CmdFactoidType(..))
 
-type CoucouParser a = Parsec Dec Text a
-
 testStuff :: Text -> IO ()
 testStuff = print . parseCommand
 
@@ -19,13 +17,13 @@ parseCommand :: Text -> Either (ParseError Char Dec) CoucouCmd
 parseCommand raw = parse commandParser "" raw
 
 -- if it doesn't start with the special character, ignore the command
-commandParser :: CoucouParser CoucouCmd
+commandParser :: Parser CoucouCmd
 commandParser = (char 'λ' *> commandParser' <* space) <|> pure CoucouCmdNop
 
-commandParser' :: CoucouParser CoucouCmd
+commandParser' :: Parser CoucouCmd
 commandParser' = try cancer <|> factoid
 
-cancer :: CoucouParser CoucouCmd
+cancer :: Parser CoucouCmd
 cancer = do
     string "cancer"
     space
@@ -45,16 +43,16 @@ cancerLine = do
     url <- T.pack <$> manyTill anyChar eol
     return (title, url)
 
-factoid :: CoucouParser CoucouCmd
+factoid :: Parser CoucouCmd
 factoid = do
     name <- T.pack <$> some (satisfy (not . isSpace))
-    (string "++" >> return (CoucouCmdFactoid name IncFactoid)) <|>
-        (string "--" >> return (CoucouCmdFactoid name DecFactoid)) <|>
+    CoucouCmdFactoid name IncFactoid <$ string "++" <|>
+        CoucouCmdFactoid name DecFactoid <$ string "--" <|>
         do space
            factoidType <- setFactoid <|> return GetFactoid
            return $ CoucouCmdFactoid name factoidType
 
-setFactoid :: CoucouParser CmdFactoidType
+setFactoid :: Parser CmdFactoidType
 setFactoid = do
     operator <- string "=" <|> string ":=" <|> string "+="
     space

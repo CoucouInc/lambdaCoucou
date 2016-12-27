@@ -28,7 +28,8 @@ instance FromJSON Factoid where
 
 
 data BotState = BotState
-    {_stdGen :: TVar StdGen
+    { _stdGen :: TVar StdGen
+    , _factoids :: TVar Factoids
     }
 
 data CoucouCmd

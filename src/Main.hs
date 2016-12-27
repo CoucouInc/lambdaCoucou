@@ -15,6 +15,7 @@ import qualified Network.IRC.Client as IRC
 import qualified LambdaCoucou.Types as T
 import qualified LambdaCoucou.Parser as Parser
 import qualified LambdaCoucou.Command as Cmd
+import LambdaCoucou.Factoids (readFactoids)
 
 main :: IO ()
 main = do
@@ -25,18 +26,23 @@ main = do
 
 run :: ByteString -> Int -> Text -> IO ()
 run host port nick = do
-    let logger = IRC.stdoutLogger
-    conn <- IRC.connectWithTLS' logger host port 1
-    let cfg = IRC.defaultIRCConf nick
-    let commandHandler = IRC.EventHandler "command handler" IRC.EPrivmsg commandHandlerFunc
-    let cfg' =
-            cfg
-            { IRC._eventHandlers = commandHandler : IRC._eventHandlers cfg
-            , IRC._channels = ["#gougoutest"]
-            }
-    stdGen <- getStdGen >>= newTVarIO
-    let initialState = T.BotState stdGen
-    IRC.startStateful conn cfg' initialState
+    eitherFactoids <- readFactoids
+    case eitherFactoids of
+        Left parseError -> error $ "Error reading factoids: " <> parseError
+        Right factoids -> do
+            facts <- newTVarIO factoids
+            let logger = IRC.stdoutLogger
+            conn <- IRC.connectWithTLS' logger host port 1
+            let cfg = IRC.defaultIRCConf nick
+            let commandHandler = IRC.EventHandler "command handler" IRC.EPrivmsg commandHandlerFunc
+            let cfg' =
+                    cfg
+                    { IRC._eventHandlers = commandHandler : IRC._eventHandlers cfg
+                    , IRC._channels = ["#gougoutest"]
+                    }
+            stdGen <- getStdGen >>= newTVarIO
+            let initialState = T.BotState stdGen facts
+            IRC.startStateful conn cfg' initialState
 
 
 commandHandlerFunc :: IRC.UnicodeEvent -> IRC.StatefulIRC T.BotState ()
