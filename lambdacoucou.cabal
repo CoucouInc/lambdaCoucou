@@ -19,6 +19,8 @@ executable lambdacoucou
   default-language:    Haskell2010
   other-modules: LambdaCoucou.Parser
                , LambdaCoucou.Types
+               , LambdaCoucou.Cancer
+               , LambdaCoucou.Command
   -- ghc-options: -Wall
   ghc-options: -fwarn-incomplete-patterns
   build-depends:       base >= 4.7 && < 5
@@ -30,3 +32,7 @@ executable lambdacoucou
                      , containers >= 0.5.7 && < 0.5.8
                      , req >= 0.1.0 && < 0.2
                      , random >= 1.1 && < 1.2
+                     , unordered-containers >= 0.2.7 && < 0.2.8
+                     , vector >= 0.11.0 && < 0.11.1
+                     , aeson >= 0.11.2 && < 0.11.3
+                     , scientific >= 0.3.4 && < 0.3.5

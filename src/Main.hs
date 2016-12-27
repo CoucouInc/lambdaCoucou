@@ -35,7 +35,7 @@ run host port nick = do
             , IRC._channels = ["#gougoutest"]
             }
     stdGen <- getStdGen >>= newTVarIO
-    let initialState = T.BotState "testing" stdGen
+    let initialState = T.BotState stdGen
     IRC.startStateful conn cfg' initialState
 
 
