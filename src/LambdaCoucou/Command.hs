@@ -35,13 +35,16 @@ handleCommand target (T.CoucouCmdFactoid name factoidType) = do
     factoidsT <- T._factoids <$> IRC.state
     factoids <- liftIO $ STM.readTVarIO factoidsT
     case factoidType of
-        T.GetFactoid -> sendFactoid target name factoids
+        T.GetFactoid -> sendFactoid target name
         T.IncFactoid -> adjustCounterFactoid succ target name
         T.DecFactoid -> adjustCounterFactoid pred target name
         T.SetFactoid val -> setFactoid target name factoids val
+        -- T.AugmentFactoid val -> augmentFactoid target name factoids val
 
-sendFactoid :: Text -> Text -> T.Factoids -> IRC.StatefulIRC T.BotState ()
-sendFactoid target name factoids =
+sendFactoid :: Text -> Text -> IRC.StatefulIRC T.BotState ()
+sendFactoid target name = do
+    factoidsT <- T._factoids <$> IRC.state
+    factoids <- liftIO $ STM.readTVarIO factoidsT
     case Map.lookup name factoids of
         Nothing -> return ()
         Just fact ->
@@ -85,7 +88,7 @@ adjustCounterFactoid op target name = do
             else do
                 Queue.writeTBQueue queue factoids'
                 return $ Just factoids'
-    forM_ factoids (sendFactoid target name)
+    forM_ factoids (const $ sendFactoid target name)
 
 incdecCounter :: (Int -> Int) -> T.Factoid -> T.Factoid
 incdecCounter op (T.Counter n) = T.Counter $! op n
@@ -117,3 +120,19 @@ setFactoid target name factoids val =
                     STM.writeTVar factoidsT factoids'
                     Queue.writeTBQueue (T._writerQueue state) factoids'
             IRC.send $ IRC.Privmsg target (Right "C'est noté !")
+
+-- augmentFactoid :: Text
+--                -> Text
+--                -> T.Factoids
+--                -> Text
+--                -> IRC.StatefulIRC T.BotState ()
+-- augmentFactoid target name factoids val =
+--     case Map.lookup name factoids of
+--         Nothing -> return ()
+--         Just fact -> do
+--             let factList =
+--                     case fact of
+--                         T.Facts fs -> fs
+--                         T.Counter n -> (V.singleton (pack $ show n))
+--             let fact' = T.Facts $ V.snoc factList val
+--             return ()
