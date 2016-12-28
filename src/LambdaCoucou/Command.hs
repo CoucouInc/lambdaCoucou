@@ -5,7 +5,8 @@ module LambdaCoucou.Command where
 import Control.Monad (unless, forM_)
 import Data.Monoid ((<>))
 import Control.Monad.IO.Class (liftIO)
-import Data.Text (Text, pack)
+import Data.Text (Text, pack, unpack)
+import Text.Read (readMaybe)
 import System.Random (randomR)
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Concurrent.STM.TVar as STM
@@ -37,6 +38,7 @@ handleCommand target (T.CoucouCmdFactoid name factoidType) = do
         T.GetFactoid -> sendFactoid target name factoids
         T.IncFactoid -> adjustCounterFactoid succ target name
         T.DecFactoid -> adjustCounterFactoid pred target name
+        T.SetFactoid val -> setFactoid target name factoids val
 
 sendFactoid :: Text -> Text -> T.Factoids -> IRC.StatefulIRC T.BotState ()
 sendFactoid target name factoids =
@@ -88,3 +90,30 @@ adjustCounterFactoid op target name = do
 incdecCounter :: (Int -> Int) -> T.Factoid -> T.Factoid
 incdecCounter op (T.Counter n) = T.Counter $! op n
 incdecCounter _ f = f
+
+setFactoid :: Text -> Text -> T.Factoids -> Text -> IRC.StatefulIRC T.BotState ()
+setFactoid target name factoids val =
+    case Map.lookup name factoids of
+        Just (T.Counter _) ->
+            IRC.send $
+            IRC.Privmsg
+                target
+                (Right "Nope ! (There is already a factoid for that.)")
+        Just (T.Facts facts) -> do
+            let msg =
+                    if length facts > 1
+                        then "Nope ! (There are existing factoids for that.)"
+                        else "Nope ! (There is already a factoid for that.)"
+            IRC.send $ IRC.Privmsg target (Right msg)
+        Nothing -> do
+            state <- IRC.state
+            let factoidsT = T._factoids state
+            let mbCounter = readMaybe (unpack val)
+            let fact = maybe (T.Facts (V.singleton val)) T.Counter mbCounter
+            liftIO $
+                STM.atomically $ do
+                    factoids <- STM.readTVar factoidsT
+                    let factoids' = Map.insert name fact factoids
+                    STM.writeTVar factoidsT factoids'
+                    Queue.writeTBQueue (T._writerQueue state) factoids'
+            IRC.send $ IRC.Privmsg target (Right "C'est noté !")
