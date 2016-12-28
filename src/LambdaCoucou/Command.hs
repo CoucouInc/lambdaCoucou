@@ -122,8 +122,12 @@ setFactoid target name val = do
 deleteFactoid :: Text -> Text -> IRC.StatefulIRC T.BotState ()
 deleteFactoid target name = do
     factoidsT <- T._factoids <$> IRC.state
-    liftIO . STM.atomically $ STM.modifyTVar' factoidsT (Map.delete name)
-    IRC.send $ IRC.Privmsg target (Right "C'est noté !")
+    writerQ <- T._writerQueue <$> IRC.state
+    liftIO . STM.atomically $ do
+        STM.modifyTVar' factoidsT (Map.delete name)
+        factoids' <- STM.readTVar factoidsT
+        Queue.writeTBQueue writerQ factoids'
+    IRC.send $ IRC.Privmsg target (Right "C'est effacé !")
 
 -- not quite thread safe, but hell with it
 resetFactoid :: Text -> Text -> Text -> IRC.StatefulIRC T.BotState ()
