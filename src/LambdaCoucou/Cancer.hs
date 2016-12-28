@@ -44,7 +44,7 @@ getCancer = do
     let decoded = decodeUtf8' (responseBody bs)
     case decoded of
         Left parseError -> do
-            liftIO $ print "Error decoding quickcancer response"
+            liftIO $ putStrLn $ "Error decoding quickcancer response: " <> show parseError
             return Nothing
         Right rawCancer ->
             case parseCancer rawCancer of

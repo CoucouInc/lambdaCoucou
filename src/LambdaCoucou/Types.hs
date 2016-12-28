@@ -10,8 +10,6 @@ import Data.Vector (Vector)
 import Data.Aeson
 import qualified Data.Scientific as Sci
 
-import qualified Network.IRC.Client as IRC
-
 type Factoids = HashMap Text Factoid
 
 data Factoid

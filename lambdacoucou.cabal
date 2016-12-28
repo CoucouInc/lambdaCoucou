@@ -21,8 +21,8 @@ executable lambdacoucou
                , LambdaCoucou.Types
                , LambdaCoucou.Cancer
                , LambdaCoucou.Command
-  -- ghc-options: -Wall
-  ghc-options: -fwarn-incomplete-patterns
+               , LambdaCoucou.Factoids
+  ghc-options: -Wall -O2
   build-depends:       base >= 4.7 && < 5
                      , irc-client >= 0.4.4 && < 0.4.5
                      , text >= 1.2.2 && < 1.2.3

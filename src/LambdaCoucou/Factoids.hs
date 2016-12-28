@@ -2,7 +2,6 @@ module LambdaCoucou.Factoids where
 
 import Control.Monad (forever)
 import qualified Control.Concurrent.STM as STM
-import qualified Control.Concurrent.STM.TBQueue as STM
 import qualified Data.ByteString.Lazy as BS
 import LambdaCoucou.Types (Factoids)
 
