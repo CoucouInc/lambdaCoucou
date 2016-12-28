@@ -2,7 +2,7 @@
 
 module LambdaCoucou.Command where
 
-import Control.Monad (unless)
+import Control.Monad (unless, forM_)
 import Data.Monoid ((<>))
 import Control.Monad.IO.Class (liftIO)
 import Data.Text (Text, pack)
@@ -73,13 +73,18 @@ adjustCounterFactoid op target name = do
     queue <- T._writerQueue <$> IRC.state
     factoids <- 
         liftIO $
-        STM.atomically $
-        do STM.modifyTVar' factoidsT (Map.adjust (incdecCounter op) name)
-           factoids' <- STM.readTVar factoidsT
-           Queue.writeTBQueue queue factoids'
-           return factoids'
-    sendFactoid target name factoids
+        STM.atomically $ do
+            factoids <- STM.readTVar factoidsT
+            let factoids' = Map.adjust (incdecCounter op) name factoids
+            STM.writeTVar factoidsT factoids'
+            factoids' <- STM.readTVar factoidsT
+            if factoids == factoids'
+            then return Nothing
+            else do
+                Queue.writeTBQueue queue factoids'
+                return $ Just factoids'
+    forM_ factoids (sendFactoid target name)
 
 incdecCounter :: (Int -> Int) -> T.Factoid -> T.Factoid
-incdecCounter op (T.Counter n) = T.Counter $ op n
+incdecCounter op (T.Counter n) = T.Counter $! op n
 incdecCounter _ f = f
