@@ -19,13 +19,13 @@ parseCommand raw = parse commandParser "" raw
 
 -- if it doesn't start with the special character, ignore the command
 commandParser :: Parser CoucouCmd
-commandParser = (prefix *> commandParser' <* space) <|> try incCoucou <|> pure CoucouCmdNop
+commandParser = try (prefix *> commandParser' <* space) <|> try incCoucou <|> pure CoucouCmdNop
 
 prefix :: Parser Char
 prefix = char 'λ' <|> char '>'
 
 commandParser' :: Parser CoucouCmd
-commandParser' = try getCoucou <|> try cancer <|> try factoid
+commandParser' = try getCoucou <|> try cancer <|> factoid
 
 cancer :: Parser CoucouCmd
 cancer = do
