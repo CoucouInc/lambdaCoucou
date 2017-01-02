@@ -17,7 +17,7 @@ import qualified Network.IRC.Client as IRC
 import qualified LambdaCoucou.Types as T
 import qualified LambdaCoucou.Parser as Parser
 import qualified LambdaCoucou.Command as Cmd
-import LambdaCoucou.Factoids (readFactoids, writeFactoids)
+import LambdaCoucou.Db (readSocial, readFactoids, updateDb)
 
 main :: IO ()
 main = do
@@ -28,26 +28,20 @@ main = do
 
 run :: ByteString -> Int -> Text -> IO ()
 run host port nick = do
-    eitherFactoids <- readFactoids
-    case eitherFactoids of
-        Left parseError -> error $ "Error reading factoids: " <> parseError
-        Right factoids -> do
-            facts <- STM.newTVarIO factoids
-            let logger = IRC.stdoutLogger
-            conn <- IRC.connectWithTLS' logger host port 1
-            let cfg = IRC.defaultIRCConf nick
-            let commandHandler =
-                    IRC.EventHandler "command handler" IRC.EPrivmsg commandHandlerFunc
-            let cfg' =
-                    cfg
-                    { IRC._eventHandlers = commandHandler : IRC._eventHandlers cfg
-                    , IRC._channels = ["#gougoutest"]
-                    }
-            stdGen <- getStdGen >>= STM.newTVarIO
-            writerQueue <- STM.newTBQueueIO 10
-            let initialState = T.BotState stdGen facts writerQueue
-            withAsync (writeFactoids writerQueue) $
-                \_ -> IRC.startStateful conn cfg' initialState
+    let logger = IRC.stdoutLogger
+    conn <- IRC.connectWithTLS' logger host port 1
+    let cfg = IRC.defaultIRCConf nick
+    let commandHandler =
+            IRC.EventHandler "command handler" IRC.EPrivmsg commandHandlerFunc
+    let cfg' =
+            cfg
+            { IRC._eventHandlers = commandHandler : IRC._eventHandlers cfg
+            , IRC._channels = ["#gougoutest"]
+            }
+    state <- initialState
+    let writerQueue = T._writerQueue state
+    withAsync (updateDb writerQueue) $
+        \_ -> IRC.startStateful conn cfg' state
 
 
 commandHandlerFunc :: IRC.UnicodeEvent -> IRC.StatefulIRC T.BotState ()
@@ -61,5 +55,25 @@ commandHandlerFunc ev = do
                     liftIO . print $ "parse error: " <> Error.parseErrorPretty err
                 Right cmd -> do
                     liftIO $ print $ "got command: " <> show cmd
-                    Cmd.handleCommand target cmd
-    return ()
+                    Cmd.handleCommand ev target cmd
+
+
+initialState :: IO T.BotState
+initialState = do
+    eitherFactoids <- readFactoids
+    eitherSocial <- readSocial
+    case (eitherFactoids, eitherSocial) of
+        (Left parseError, _) -> error $ "Error reading factoids: " <> parseError
+        (_, Left parseError) -> error $ "Error reading social db: " <> parseError
+        (Right factoids, Right socialDb) -> do
+            facts <- STM.newTVarIO factoids
+            social <- STM.newTVarIO socialDb
+            stdGen <- getStdGen >>= STM.newTVarIO
+            writerQueue <- STM.newTBQueueIO 10
+            return
+                T.BotState
+                { T._stdGen = stdGen
+                , T._factoids = facts
+                , T._socialDb = social
+                , T._writerQueue = writerQueue
+                }

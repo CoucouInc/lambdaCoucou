@@ -22,7 +22,10 @@ executable lambdacoucou
                , LambdaCoucou.Cancer
                , LambdaCoucou.Command
                , LambdaCoucou.Factoids
-  ghc-options: -Wall -O2
+               , LambdaCoucou.Social
+               , LambdaCoucou.Connection
+               , LambdaCoucou.Db
+  ghc-options: -Wall -O2 -Wno-unused-do-bind -Wno-orphans
   build-depends:       base >= 4.7 && < 5
                      , irc-client >= 0.4.4 && < 0.4.5
                      , text >= 1.2.2 && < 1.2.3

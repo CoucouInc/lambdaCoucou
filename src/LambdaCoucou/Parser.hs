@@ -2,6 +2,7 @@
 
 module LambdaCoucou.Parser where
 
+import Control.Monad (void)
 import Data.Char (isSpace)
 import Text.Megaparsec
 import Text.Megaparsec.Text
@@ -18,10 +19,13 @@ parseCommand raw = parse commandParser "" raw
 
 -- if it doesn't start with the special character, ignore the command
 commandParser :: Parser CoucouCmd
-commandParser = (char 'λ' *> commandParser' <* space) <|> pure CoucouCmdNop
+commandParser = (prefix *> commandParser' <* space) <|> try incCoucou <|> pure CoucouCmdNop
+
+prefix :: Parser Char
+prefix = char 'λ' <|> char '>'
 
 commandParser' :: Parser CoucouCmd
-commandParser' = try cancer <|> factoid
+commandParser' = try getCoucou <|> try cancer <|> try factoid
 
 cancer :: Parser CoucouCmd
 cancer = do
@@ -81,3 +85,23 @@ getFactoid = do
     space
     eof
     return $ CoucouCmdFactoid name GetFactoid
+
+
+getCoucou :: Parser CoucouCmd
+getCoucou = do
+    string "coucou"
+    target <-
+        try (many spaceChar *> eof *> return Nothing) -- (only space afterwards)
+         <|>
+        (some spaceChar >> (Just <$> nick)) -- (at least one space then a nick)
+    return $ CoucouCmdGetCoucou target
+
+incCoucou :: Parser CoucouCmd
+incCoucou = do
+    space
+    try (string "coucou" <* (eof <|> void spaceChar)) <|>
+        manyTill anyChar (string " coucou" <* (eof <|> void (some spaceChar)))
+    return CoucouCmdIncCoucou
+
+nick :: Parser Text
+nick = T.pack <$> some alphaNumChar
