@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Main where
+module LambdaCoucou.Run where
 
 import System.Random (getStdGen)
 import qualified Control.Concurrent.STM.TVar as STM
@@ -19,13 +19,6 @@ import qualified LambdaCoucou.Parser as Parser
 import qualified LambdaCoucou.Command as Cmd
 import LambdaCoucou.Db (readSocial, readFactoids, updateDb)
 
-main :: IO ()
-main = do
-    let host = "chat.freenode.net"
-    let port = 6697
-    let nick = "lambdacoucou"
-    run host port nick
-
 run :: ByteString -> Int -> Text -> IO ()
 run host port nick = do
     let logger = IRC.stdoutLogger
@@ -37,6 +30,7 @@ run host port nick = do
             cfg
             { IRC._eventHandlers = commandHandler : IRC._eventHandlers cfg
             , IRC._channels = ["#gougoutest"]
+            , IRC._ctcpVer = "λcoucou, a haskell bot in beta"
             }
     state <- initialState
     let writerQueue = T._writerQueue state
