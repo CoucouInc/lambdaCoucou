@@ -33,13 +33,11 @@ updateDb queue = forever $ do
 writeFactoids :: T.Factoids -> IO ()
 writeFactoids newFactoids = do
     let bs = JSON.encode newFactoids
-    putStrLn "Saving json to file"
     BS.writeFile factoidsPath bs
 
 writeSocial :: T.SocialRecords -> IO ()
 writeSocial newSocials = do
     let bs = JSON.encode newSocials
-    putStrLn "Saving json to file"
     BS.writeFile socialPath bs
 
 updateFactoids :: T.WriterQueue -> T.Factoids -> STM ()

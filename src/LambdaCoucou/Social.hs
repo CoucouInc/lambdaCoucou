@@ -8,24 +8,32 @@ import Control.Monad.IO.Class (liftIO)
 import Data.Maybe (fromMaybe)
 import qualified Control.Concurrent.STM as STM
 import qualified Network.IRC.Client as IRC
+import qualified Network.IRC.Client.Types as IRC
 import qualified Data.HashMap.Strict as Map
+import qualified Data.Time.Clock as Time
 
 import qualified LambdaCoucou.Types as T
 import LambdaCoucou.Connection (sendPrivMsg)
 import LambdaCoucou.Db (updateSocials)
 
+makeDefaultUsr :: IO T.SocialRecord
+makeDefaultUsr = do
+    t <- Time.getCurrentTime
+    return $
+        T.SocialRecord
+        { T._coucous = 0
+        , T._lastSeen = t
+        }
+
 incCoucou :: IRC.Source Text -> Text -> IRC.StatefulIRC T.BotState ()
 incCoucou (IRC.Channel _chanName user) _ = do
     liftIO . print $ "incCoucou count for " <> user <> " " <> pack (show T.CoucouCmdIncCoucou)
     state <- IRC.state
+    defaultUsr <- liftIO makeDefaultUsr
     let socialT = T._socialDb state
     liftIO $
         STM.atomically $
         do social <- STM.readTVar socialT
-           let defaultUsr =
-                   T.SocialRecord
-                   { T._coucous = 0
-                   }
            let socialUsr = Map.lookupDefault defaultUsr user social
            -- TODO maybe bring some lens here ?
            let socialUsr' =
@@ -57,3 +65,27 @@ sendCoucouCount' user target mbNick = do
             let count = T._coucous socialRec
             let payload = coucouTarget <> " est un coucouteur niveau " <> (pack . show $ count)
             sendPrivMsg target payload
+
+updateLastSeen :: IRC.Source Text -> IRC.StatefulIRC T.BotState ()
+updateLastSeen (IRC.User nick) = updateLastSeen' nick
+updateLastSeen (IRC.Channel _ nick) = updateLastSeen' nick
+updateLastSeen _ = return ()
+
+updateLastSeen' :: Text -> IRC.StatefulIRC T.BotState ()
+updateLastSeen' nick = do
+    state <- IRC.state
+    defaultUsr <- liftIO makeDefaultUsr
+    t <- liftIO Time.getCurrentTime
+    liftIO $
+        STM.atomically $
+        do socials <- STM.readTVar (T._socialDb state)
+           let usr' =
+                   case Map.lookup nick socials of
+                       Nothing -> defaultUsr
+                       Just socialRecord ->
+                           socialRecord
+                           { T._lastSeen = t
+                           }
+           let socials' = Map.insert nick usr' socials
+           STM.writeTVar (T._socialDb state) socials'
+           updateSocials (T._writerQueue state) socials'

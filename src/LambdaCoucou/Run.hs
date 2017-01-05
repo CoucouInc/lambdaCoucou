@@ -17,6 +17,7 @@ import qualified Network.IRC.Client as IRC
 import qualified LambdaCoucou.Types as T
 import qualified LambdaCoucou.Parser as Parser
 import qualified LambdaCoucou.Command as Cmd
+import LambdaCoucou.Social (updateLastSeen)
 import LambdaCoucou.Db (readSocial, readFactoids, updateDb)
 
 run :: ByteString -> Int -> Text -> IO ()
@@ -43,7 +44,8 @@ commandHandlerFunc ev = do
     let (IRC.Privmsg target eitherMessage) = IRC._message ev
     case eitherMessage of
         Left _ -> return () -- CTCP
-        Right raw ->
+        Right raw -> do
+            updateLastSeen (IRC._source ev)
             case Parser.parseCommand raw of
                 Left err ->
                     liftIO . print $ "parse error: " <> Error.parseErrorPretty err

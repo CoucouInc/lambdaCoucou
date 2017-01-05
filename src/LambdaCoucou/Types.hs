@@ -11,6 +11,7 @@ import Data.HashMap.Strict (HashMap)
 import Data.Vector (Vector)
 import Data.Aeson
 import Data.Aeson.Types (typeMismatch)
+import Data.Time.Clock (UTCTime)
 import qualified Data.Scientific as Sci
 
 type Factoids = HashMap Text Factoid
@@ -36,21 +37,23 @@ type SocialRecords = HashMap Text SocialRecord
 
 data SocialRecord = SocialRecord
     { _coucous :: !Int
+    , _lastSeen :: !UTCTime
     } deriving (Show)
 
 instance ToJSON SocialRecord where
-    toJSON r = object ["coucous" .= _coucous r]
+    toJSON r = object ["coucous" .= _coucous r, "lastSeen" .= toJSON (_lastSeen r)]
 
 instance FromJSON SocialRecord where
     parseJSON =
         withObject "social record" $
         \o -> do
             coucous <- o .: "coucous"
+            lastSeen <- o .: "lastSeen"
             case coucous of
                 (Number n) ->
                     case Sci.toBoundedInteger n of
                         Nothing -> error ("not a number for coucous: " ++ show n)
-                        Just i -> return $ SocialRecord i
+                        Just i -> return $ SocialRecord i lastSeen
                 _ -> typeMismatch "Invalid value for social record" coucous
 
 type WriterQueue = TBQueue (Either Factoids SocialRecords)
