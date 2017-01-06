@@ -11,7 +11,6 @@ import Data.HashMap.Strict (HashMap)
 import Data.Vector (Vector)
 import Data.Aeson
 import Data.Aeson.Types (typeMismatch)
-import Data.Time.Clock (UTCTime)
 import qualified Data.Scientific as Sci
 
 type Factoids = HashMap Text Factoid
@@ -34,10 +33,11 @@ instance ToJSON Factoid where
     toJSON (Counter n) = toJSON n
 
 type SocialRecords = HashMap Text SocialRecord
+type Timestamp = Integer
 
 data SocialRecord = SocialRecord
     { _coucous :: !Int
-    , _lastSeen :: !UTCTime
+    , _lastSeen :: !Timestamp
     } deriving (Show)
 
 instance ToJSON SocialRecord where
@@ -67,12 +67,12 @@ data BotState = BotState
 
 data CoucouCmd
     = CoucouCmdNop
-      -- | CoucouCmdCoucou (Maybe Text) -- Maybe nickname
     | CoucouCmdCancer !(Maybe Text) -- Maybe substring
     | CoucouCmdFactoid !Text
                        CmdFactoidType
     | CoucouCmdGetCoucou !(Maybe Text) -- Maybe nick of user to query
     | CoucouCmdIncCoucou
+    | CoucouCmdLastSeen !Text
     deriving (Eq)
 
 data CmdFactoidType
@@ -105,3 +105,4 @@ instance Show CoucouCmd where
     show (CoucouCmdGetCoucou (Just nick)) = "Show count of coucou for " <> unpack nick
     show (CoucouCmdGetCoucou Nothing) = "Show count of coucou for the sender of the message"
     show CoucouCmdIncCoucou = "Increment coucou count for sender of this message"
+    show (CoucouCmdLastSeen nick) = "How long since " <> unpack nick <> " has been seen ?"

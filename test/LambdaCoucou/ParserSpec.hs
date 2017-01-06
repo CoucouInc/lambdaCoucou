@@ -5,7 +5,7 @@ module LambdaCoucou.ParserSpec (main, spec) where
 import Test.Hspec
 import Test.Hspec.Megaparsec
 
-import Text.Megaparsec (parse)
+import Text.Megaparsec (parse, string)
 import qualified LambdaCoucou.Parser as P
 import qualified LambdaCoucou.Types as T
 
@@ -39,6 +39,11 @@ spec = do
             P.parseCommand "λcancer  foo" `shouldParse` T.CoucouCmdCancer (Just "foo")
 
     describe "factoids command parser" $ do
+        describe "factoid names" $ do
+            it "parse factoid name according to delimiter" $
+                parse (P.factoidName (string "foo")) "" "factfoo" `shouldParse` "fact"
+            it "fails on blacklisted names" $
+                parse (P.factoidName (string "++")) "" `shouldFailOn` "seen"
         describe "counters" $ do
             it "parses counter++" $ do
                 P.parseCommand "λfoo++" `shouldParse` T.CoucouCmdFactoid "foo" T.IncFactoid
@@ -65,3 +70,8 @@ spec = do
         it "doesn't increase coucou count if not full word" $ do
             parse P.getCoucou "" `shouldFailOn` "foocoucou bar"
             parse P.getCoucou "" `shouldFailOn` "foo coucoubar"
+    describe "last seen parser" $ do
+        it "parses correct command with nick" $
+            P.parseCommand "λseen foonick " `shouldParse` T.CoucouCmdLastSeen "foonick"
+        it "doesn't parse command if no nick follows" $
+            P.parseCommand "λseen" `shouldParse` T.CoucouCmdNop

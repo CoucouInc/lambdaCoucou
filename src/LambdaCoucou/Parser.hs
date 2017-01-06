@@ -2,6 +2,7 @@
 
 module LambdaCoucou.Parser where
 
+import Data.Monoid ((<>))
 import Control.Monad (void)
 import Data.Char (isSpace)
 import Text.Megaparsec
@@ -25,7 +26,7 @@ prefix :: Parser Char
 prefix = char 'λ' <|> char '>'
 
 commandParser' :: Parser CoucouCmd
-commandParser' = try getCoucou <|> try cancer <|> factoid
+commandParser' = try getCoucou <|> try lastSeen <|> try cancer <|> factoid
 
 cancer :: Parser CoucouCmd
 cancer = do
@@ -74,14 +75,20 @@ setFactoid = do
                     | otherwise = AugmentFactoid
             return $ CoucouCmdFactoid name (op val)
 
+-- reserved name, these cannot be used for factoids
+factoidBlackList :: [Text]
+factoidBlackList = ["seen"]
+
 factoidName :: Parser String -> Parser Text
-factoidName limit =
-    T.pack <$>
-    someTill (satisfy (not . isSpace)) (try $ space >> lookAhead limit)
+factoidName limit = do
+    name <- T.pack <$> someTill (satisfy (not . isSpace)) (try $ space >> lookAhead limit)
+    if name `elem` factoidBlackList
+    then fail $ T.unpack $ "Reserved keyword " <> name
+    else return name
 
 getFactoid :: Parser CoucouCmd
 getFactoid = do
-    name <- T.pack <$> some (satisfy (not . isSpace))
+    name <- factoidName (many spaceChar)
     space
     eof
     return $ CoucouCmdFactoid name GetFactoid
@@ -105,3 +112,10 @@ incCoucou = do
 
 nick :: Parser Text
 nick = T.pack <$> some alphaNumChar
+
+lastSeen :: Parser CoucouCmd
+lastSeen = do
+    string "seen"
+    some spaceChar
+    n <- nick
+    return $ CoucouCmdLastSeen n

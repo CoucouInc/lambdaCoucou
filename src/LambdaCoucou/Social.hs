@@ -2,15 +2,15 @@
 
 module LambdaCoucou.Social where
 
+import Prelude hiding (null)
 import Data.Monoid ((<>))
-import Data.Text (Text, pack)
+import Data.Text (Text, pack, intercalate, null)
 import Control.Monad.IO.Class (liftIO)
 import Data.Maybe (fromMaybe)
 import qualified Control.Concurrent.STM as STM
 import qualified Network.IRC.Client as IRC
-import qualified Network.IRC.Client.Types as IRC
 import qualified Data.HashMap.Strict as Map
-import qualified Data.Time.Clock as Time
+import qualified Data.DateTime as Time
 
 import qualified LambdaCoucou.Types as T
 import LambdaCoucou.Connection (sendPrivMsg)
@@ -18,8 +18,8 @@ import LambdaCoucou.Db (updateSocials)
 
 makeDefaultUsr :: IO T.SocialRecord
 makeDefaultUsr = do
-    t <- Time.getCurrentTime
-    return $
+    t <- Time.toSeconds <$> Time.getCurrentTime
+    return
         T.SocialRecord
         { T._coucous = 0
         , T._lastSeen = t
@@ -75,7 +75,7 @@ updateLastSeen' :: Text -> IRC.StatefulIRC T.BotState ()
 updateLastSeen' nick = do
     state <- IRC.state
     defaultUsr <- liftIO makeDefaultUsr
-    t <- liftIO Time.getCurrentTime
+    t <- Time.toSeconds <$> liftIO Time.getCurrentTime
     liftIO $
         STM.atomically $
         do socials <- STM.readTVar (T._socialDb state)
@@ -89,3 +89,38 @@ updateLastSeen' nick = do
            let socials' = Map.insert nick usr' socials
            STM.writeTVar (T._socialDb state) socials'
            updateSocials (T._writerQueue state) socials'
+
+prettyPlural :: Integer -> Text -> Text
+prettyPlural 0 _ = ""
+prettyPlural 1 t = "1 " <> t
+prettyPlural n t = pack (show n) <> " " <> t <> "s"
+
+prettyPrintDiffTime :: Integer -> Text
+prettyPrintDiffTime t =
+    let mt = 60
+        ht = mt * 60
+        dt = ht * 24
+        d = t `div` dt
+        h = (t - d * dt) `div` ht
+        m = (t - d * dt - h * ht) `div` mt
+        s = t `mod` 60
+    in if t == 0
+           then "just now"
+           else intercalate
+                    ", "
+                    (filter
+                         (not . null)
+                         [prettyPlural d "day", prettyPlural h "hour", prettyPlural m "minute", prettyPlural s "second"]) <>
+                " ago."
+
+sendLastSeen :: IRC.UnicodeEvent -> Text -> IRC.StatefulIRC T.BotState ()
+sendLastSeen ev nick = do
+    state <- IRC.state
+    socials <- liftIO $ STM.readTVarIO (T._socialDb state)
+    now <- Time.toSeconds <$> liftIO Time.getCurrentTime
+    case Map.lookup nick socials of
+        Nothing -> IRC.reply ev "Who ?"
+        Just record -> do
+            let diff = now - T._lastSeen record
+            let payload = nick <> " has been seen " <> prettyPrintDiffTime diff
+            IRC.reply ev payload

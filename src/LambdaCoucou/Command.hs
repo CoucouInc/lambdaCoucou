@@ -12,13 +12,11 @@ import LambdaCoucou.Cancer (fetchCancer)
 import LambdaCoucou.Factoids
        (sendFactoid, adjustCounterFactoid, setFactoid, resetFactoid,
         deleteFactoid, augmentFactoid)
-import LambdaCoucou.Social (incCoucou, sendCoucouCount)
+import LambdaCoucou.Social (incCoucou, sendCoucouCount, sendLastSeen)
 import LambdaCoucou.Connection (sendPrivMsg)
 
 
 handleCommand :: IRC.UnicodeEvent -> Text -> T.CoucouCmd -> IRC.StatefulIRC T.BotState ()
-
--- handleCommand :: Text -> T.CoucouCmd -> IRC.StatefulIRC T.BotState ()
 handleCommand _ _ T.CoucouCmdNop = return ()
 handleCommand _ target (T.CoucouCmdCancer search) = do
     liftIO . print $ "cancer maybe with search: " <> show search
@@ -41,3 +39,4 @@ handleCommand _ target (T.CoucouCmdFactoid name factoidType) = do
         T.AugmentFactoid val -> augmentFactoid target name val
 handleCommand ev target T.CoucouCmdIncCoucou = incCoucou (IRC._source ev) target
 handleCommand ev target (T.CoucouCmdGetCoucou mbNick) = sendCoucouCount (IRC._source ev) target mbNick
+handleCommand ev _ (T.CoucouCmdLastSeen nick) = sendLastSeen ev nick
