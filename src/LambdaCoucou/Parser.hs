@@ -111,7 +111,7 @@ incCoucou = do
     return CoucouCmdIncCoucou
 
 nick :: Parser Text
-nick = T.pack <$> some alphaNumChar
+nick = T.pack <$> some (satisfy (not . isSpace))
 
 lastSeen :: Parser CoucouCmd
 lastSeen = do

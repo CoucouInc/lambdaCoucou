@@ -73,5 +73,7 @@ spec = do
     describe "last seen parser" $ do
         it "parses correct command with nick" $
             P.parseCommand "λseen foonick " `shouldParse` T.CoucouCmdLastSeen "foonick"
+        it "parses correct command with nick and underscore" $
+            P.parseCommand "λseen foo_nick " `shouldParse` T.CoucouCmdLastSeen "foo_nick"
         it "doesn't parse command if no nick follows" $
             P.parseCommand "λseen" `shouldParse` T.CoucouCmdNop
