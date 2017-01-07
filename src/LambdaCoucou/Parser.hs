@@ -29,9 +29,23 @@ commandParser' = try getCoucou <|> try lastSeen <|> try cancer <|> factoid
 cancer :: Parser CoucouCmd
 cancer = do
     string "cancer"
-    space
-    search <- Just . T.pack <$> some (alphaNumChar <|> spaceChar) <|> return Nothing
-    return $ CoucouCmdCancer search
+    try randomCancer <|> (some spaceChar >> (try searchCancer <|> try hlCancer <|> searchHlCancer))
+    where
+        randomCancer = return (CoucouCmdCancer Nothing Nothing) <* end
+        searchCancer = do -- searchParser >>= \s -> return $ CoucouCmdCancer (Just s) Nothing <* end
+            s <- searchParser
+            end
+            return $ CoucouCmdCancer (Just s) Nothing
+        hlCancer = CoucouCmdCancer Nothing <$> maybeHl <* end
+        searchHlCancer = do
+            s <- searchParser
+            some spaceChar
+            hl <- maybeHl
+            end
+            return $ CoucouCmdCancer (Just s) hl
+        searchParser = T.pack <$> some (satisfy (not . isSpace))
+        end = space <* eof
+
 
 parseCancer :: Text -> Either (ParseError Char Dec) [(Text, Text)]
 parseCancer raw = parse cancerParser "" raw
@@ -91,7 +105,7 @@ validFactoidName name =
 
 -- reserved name, these cannot be used for factoids
 factoidBlackList :: [Text]
-factoidBlackList = ["seen"]
+factoidBlackList = ["seen", "cancer"]
 
 factoidName :: Maybe (Parser String) -> Parser Text
 factoidName mbLimit = do
@@ -102,13 +116,14 @@ factoidName mbLimit = do
     else return name
 
 word :: Parser Text
-word = T.pack <$> manyTill (satisfy (not . isSpace)) (void spaceChar <|> eof)
+-- word = T.pack <$> someTill (satisfy (not . isSpace)) (void spaceChar <|> eof)
+word = T.pack <$> someTill (satisfy (not . isSpace)) (void spaceChar <|> eof)
 
 getFactoid :: Parser CoucouCmd
 getFactoid = do
     name <- word >>= validFactoidName
     space
-    mbHl <- optional (char '>' >> space >> word)
+    mbHl <- maybeHl
     space
     eof
     return $ CoucouCmdFactoid name (GetFactoid mbHl)
@@ -133,9 +148,17 @@ incCoucou = do
 nick :: Parser Text
 nick = T.pack <$> some (satisfy (not . isSpace))
 
+maybeHl :: Parser (Maybe Text)
+maybeHl = optional (char '>' >> space >> nick)
+
 lastSeen :: Parser CoucouCmd
 lastSeen = do
     string "seen"
     some spaceChar
     n <- nick
-    return $ CoucouCmdLastSeen n
+    try (space >> eof >> return (CoucouCmdLastSeen n Nothing)) <|>
+        do some spaceChar
+           mbHl <- maybeHl
+           space
+           eof
+           return $ CoucouCmdLastSeen n mbHl

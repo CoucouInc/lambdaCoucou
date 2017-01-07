@@ -18,20 +18,19 @@ import qualified Network.IRC.Client as IRC
 import qualified LambdaCoucou.Types as T
 import LambdaCoucou.Db (updateFactoids)
 
-getFactoid :: Text -> Maybe Text -> IRC.StatefulIRC T.BotState (Maybe Text)
-getFactoid name mbHl = do
+getFactoid :: Text -> IRC.StatefulIRC T.BotState (Maybe Text)
+getFactoid name = do
     factoidsT <- T._factoids <$> IRC.state
     factoids <- liftIO $ STM.readTVarIO factoidsT
-    let prefix = fromMaybe "" ((<> ": ") <$> mbHl)
-    liftIO $ print $ "get factoid " <> name <> " with hl: " <> prefix
+    liftIO $ print $ "get factoid " <> name
     case Map.lookup name factoids of
         Nothing -> return Nothing
         Just fact ->
             case fact of
                 T.Counter n ->
-                    let payload = prefix <> name <> ": " <> pack (show n)
+                    let payload = name <> ": " <> pack (show n)
                     in return (Just payload)
-                T.Facts facts -> (fmap . fmap) (\t -> prefix <> t) (getRandomFactoid facts)
+                T.Facts facts -> getRandomFactoid facts
 
 
 getRandomFactoid :: V.Vector Text -> IRC.StatefulIRC T.BotState (Maybe Text)

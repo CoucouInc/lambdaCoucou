@@ -67,12 +67,12 @@ data BotState = BotState
 
 data CoucouCmd
     = CoucouCmdNop
-    | CoucouCmdCancer !(Maybe Text) -- Maybe substring
+    | CoucouCmdCancer !(Maybe Text) !(Maybe Text) -- Maybe search substr, Maybe nick to hl
     | CoucouCmdFactoid !Text
                        CmdFactoidType
-    | CoucouCmdGetCoucou !(Maybe Text) -- Maybe nick of user to query
+    | CoucouCmdGetCoucou !(Maybe Text) -- Maybe nick to hl
     | CoucouCmdIncCoucou
-    | CoucouCmdLastSeen !Text
+    | CoucouCmdLastSeen !Text !(Maybe Text) -- Maybe nick to hl
     deriving (Eq)
 
 data CmdFactoidType
@@ -88,10 +88,10 @@ data CmdFactoidType
 instance Show CoucouCmd where
     show CoucouCmdNop = "no op"
     -- show (CoucouCmdCoucou _) = "Counts of coucou"
-    show (CoucouCmdCancer search) =
+    show (CoucouCmdCancer search mbHl) =
         case search of
-            Nothing -> "A random cancer."
-            Just s -> "The first cancer matching " <> unpack s <> "."
+            Nothing -> "A random cancer for nick " <> show mbHl <> "."
+            Just s -> "The first cancer matching " <> unpack s <> " for " <> show mbHl <> "."
     show (CoucouCmdFactoid name factoidType) =
         let name' = unpack name
         in case factoidType of
@@ -105,4 +105,5 @@ instance Show CoucouCmd where
     show (CoucouCmdGetCoucou (Just nick)) = "Show count of coucou for " <> unpack nick
     show (CoucouCmdGetCoucou Nothing) = "Show count of coucou for the sender of the message"
     show CoucouCmdIncCoucou = "Increment coucou count for sender of this message"
-    show (CoucouCmdLastSeen nick) = "How long since " <> unpack nick <> " has been seen ?"
+    show (CoucouCmdLastSeen nick mbHl) =
+        "How long since " <> unpack nick <> " has been seen ? (for user " <> show mbHl <> ")"
