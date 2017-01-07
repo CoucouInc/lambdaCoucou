@@ -17,32 +17,35 @@ import qualified Network.IRC.Client as IRC
 import qualified LambdaCoucou.Types as T
 import LambdaCoucou.Db (updateFactoids)
 
-sendFactoid :: IRC.UnicodeEvent -> Text -> IRC.StatefulIRC T.BotState ()
-sendFactoid ev name = do
+getFactoid :: Text -> IRC.StatefulIRC T.BotState (Maybe Text)
+getFactoid name = do
     factoidsT <- T._factoids <$> IRC.state
     factoids <- liftIO $ STM.readTVarIO factoidsT
     case Map.lookup name factoids of
-        Nothing -> return ()
+        Nothing -> return Nothing
         Just fact ->
             case fact of
                 T.Counter n ->
                     let payload = name <> ": " <> pack (show n)
-                    in IRC.reply ev payload
-                T.Facts facts -> sendRandomFactoid ev facts
+                    in return (Just payload)
+                -- T.Facts facts -> return $ Just <$> getRandomFactoid facts
+                T.Facts facts -> getRandomFactoid facts
 
-sendRandomFactoid :: IRC.UnicodeEvent -> V.Vector Text -> IRC.StatefulIRC T.BotState ()
-sendRandomFactoid ev facts =
-    unless (V.null facts) $
-    do genT <- T._stdGen <$> IRC.state
-       idx <-
-           liftIO $
-           STM.atomically $
-           do gen <- STM.readTVar genT
-              let (a, gen') = randomR (0, V.length facts - 1) gen
-              STM.writeTVar genT gen'
-              return a
-       let factoid = facts V.! idx
-       IRC.reply ev factoid
+
+getRandomFactoid :: V.Vector Text -> IRC.StatefulIRC T.BotState (Maybe Text)
+getRandomFactoid facts =
+    if V.null facts
+        then return Nothing
+        else do
+            genT <- T._stdGen <$> IRC.state
+            idx <-
+                liftIO $
+                STM.atomically $
+                do gen <- STM.readTVar genT
+                   let (a, gen') = randomR (0, V.length facts - 1) gen
+                   STM.writeTVar genT gen'
+                   return a
+            return . Just $ facts V.! idx
 
 adjustCounterFactoid :: (Int -> Int) -> IRC.UnicodeEvent -> Text -> IRC.StatefulIRC T.BotState ()
 adjustCounterFactoid op ev name = do

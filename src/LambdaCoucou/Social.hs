@@ -48,22 +48,23 @@ incCoucou (IRC.User _user) = return ()
 incCoucou (IRC.Server _) = return ()
 
 
-sendCoucouCount :: IRC.Source Text -> IRC.UnicodeEvent -> Maybe Text -> IRC.StatefulIRC T.BotState ()
-sendCoucouCount (IRC.Channel _ user) ev mbNick = sendCoucouCount' user ev mbNick
-sendCoucouCount (IRC.User user) ev mbNick = sendCoucouCount' user ev mbNick
-sendCoucouCount (IRC.Server _) _ _ = return ()
+getCoucouCount :: IRC.Source Text -> Maybe Text -> IRC.StatefulIRC T.BotState (Maybe Text)
+getCoucouCount (IRC.Channel _ user) mbNick = getCoucouCount' user mbNick
+getCoucouCount (IRC.User user) mbNick = getCoucouCount' user mbNick
+getCoucouCount (IRC.Server _) _ = return Nothing
 
-sendCoucouCount' :: Text -> IRC.UnicodeEvent -> Maybe Text -> IRC.StatefulIRC T.BotState ()
-sendCoucouCount' user ev mbNick = do
+getCoucouCount' :: Text -> Maybe Text -> IRC.StatefulIRC T.BotState (Maybe Text)
+getCoucouCount' user mbNick = do
     let coucouTarget = fromMaybe user mbNick
     state <- IRC.state
     socials <- liftIO $ STM.readTVarIO (T._socialDb state)
     case Map.lookup coucouTarget socials of
-        Nothing -> return ()
+        Nothing -> return Nothing
         Just socialRec -> do
             let count = T._coucous socialRec
             let payload = coucouTarget <> " est un coucouteur niveau " <> (pack . show $ count)
-            IRC.reply ev payload
+            return $ Just payload
+            -- IRC.reply ev payload
 
 updateLastSeen :: IRC.Source Text -> IRC.StatefulIRC T.BotState ()
 updateLastSeen (IRC.User nick) = updateLastSeen' nick
@@ -112,14 +113,14 @@ prettyPrintDiffTime t =
                          [prettyPlural d "day", prettyPlural h "hour", prettyPlural m "minute", prettyPlural s "second"]) <>
                 " ago."
 
-sendLastSeen :: IRC.UnicodeEvent -> Text -> IRC.StatefulIRC T.BotState ()
-sendLastSeen ev nick = do
+getLastSeen :: Text -> IRC.StatefulIRC T.BotState (Maybe Text)
+getLastSeen nick = do
     state <- IRC.state
     socials <- liftIO $ STM.readTVarIO (T._socialDb state)
     now <- Time.toSeconds <$> liftIO Time.getCurrentTime
     case Map.lookup nick socials of
-        Nothing -> IRC.reply ev "Who ?"
+        Nothing -> return (Just "Who ?")
         Just record -> do
             let diff = now - T._lastSeen record
             let payload = nick <> " has been seen " <> prettyPrintDiffTime diff
-            IRC.reply ev payload
+            return (Just payload)
