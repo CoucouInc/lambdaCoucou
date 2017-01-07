@@ -76,7 +76,7 @@ data CoucouCmd
     deriving (Eq)
 
 data CmdFactoidType
-    = GetFactoid
+    = GetFactoid !(Maybe Text) -- maybe user to hl
     | SetFactoid Text
     | ResetFactoid Text
     | AugmentFactoid Text
@@ -95,7 +95,7 @@ instance Show CoucouCmd where
     show (CoucouCmdFactoid name factoidType) =
         let name' = unpack name
         in case factoidType of
-               GetFactoid -> "Get the factoid with name: " <> name' <> "."
+               GetFactoid mbHl -> "Get the factoid with name: " <> name' <> " and hl: " <> show mbHl <> "."
                SetFactoid val -> "Set a new factoid with name: " <> name' <> " and val: " <> unpack val <> "."
                ResetFactoid val -> "Reset factoid: " <> name' <> " to val: " <> unpack val <> "."
                AugmentFactoid val -> "Augment factoid: " <> name' <> " with val: " <> unpack val <> "."

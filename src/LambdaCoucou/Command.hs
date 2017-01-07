@@ -29,7 +29,7 @@ handleCommand ev (T.CoucouCmdCancer search) = do
 handleCommand ev (T.CoucouCmdFactoid name factoidType) = do
     liftIO . putStrLn $ "factoid command"
     case factoidType of
-        T.GetFactoid -> getFactoid name >>= sendReply ev
+        T.GetFactoid mbHl -> getFactoid name mbHl >>= sendReply ev
         T.IncFactoid -> adjustCounterFactoid succ ev name
         T.DecFactoid -> adjustCounterFactoid pred ev name
         T.SetFactoid val -> setFactoid ev name val

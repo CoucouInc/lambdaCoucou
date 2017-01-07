@@ -2,10 +2,11 @@
 
 module LambdaCoucou.ParserSpec (main, spec) where
 
+import Data.Monoid ((<>))
 import Test.Hspec
 import Test.Hspec.Megaparsec
 
-import Text.Megaparsec (parse, string)
+import Text.Megaparsec (parse)
 import qualified LambdaCoucou.Parser as P
 import qualified LambdaCoucou.Types as T
 
@@ -39,11 +40,20 @@ spec = do
             P.parseCommand "λcancer  foo" `shouldParse` T.CoucouCmdCancer (Just "foo")
 
     describe "factoids command parser" $ do
-        describe "factoid names" $ do
-            it "parse factoid name according to delimiter" $
-                parse (P.factoidName (string "foo")) "" "factfoo" `shouldParse` "fact"
-            it "fails on blacklisted names" $
-                parse (P.factoidName (string "++")) "" `shouldFailOn` "seen"
+
+        -- describe "factoid names" $ do
+        --     it "parse factoid name according to delimiter" $
+        --         parse (P.factoidName (Just $ string "foo")) "" "factfoo" `shouldParse` "fact"
+        --     it "should parse «weird» characters" $ do
+        --         let factoid = "γ_éï机器-"
+        --         parse (P.factoidName Nothing) "" factoid `shouldParse` factoid
+        --     it "should only succeed on a single word" $
+        --         parse (P.factoidName Nothing) "" `shouldFailOn` "foo bar"
+        --     it "fails on blacklisted names" $
+        --         parse (P.factoidName Nothing) "" `shouldFailOn` "seen"
+        -- describe "can get a factoid name" $ do
+        --     it "parse
+
         describe "counters" $ do
             it "parses counter++" $ do
                 P.parseCommand "λfoo++" `shouldParse` T.CoucouCmdFactoid "foo" T.IncFactoid
@@ -51,7 +61,21 @@ spec = do
             it "parses counter--" $ do
                 P.parseCommand "λfoo--"  `shouldParse` T.CoucouCmdFactoid "foo" T.DecFactoid
                 P.parseCommand "λfoo--  "  `shouldParse` T.CoucouCmdFactoid "foo" T.DecFactoid
-        describe "general factoids" $ do
+            it "only parses one word" $ do
+                P.parseCommand "λfoo--  bar"  `shouldParse` T.CoucouCmdNop
+                P.parseCommand "λfoo++  bar" `shouldParse` T.CoucouCmdNop
+
+        describe "getting factoids" $ do
+            it "parse only one word" $
+                parse P.factoid "" `shouldFailOn` "λfoo bar"
+            it "parses «weird» names" $ do
+                let factoid = "γ_éï机器-"
+                let expectedCommand = T.CoucouCmdFactoid factoid (T.GetFactoid Nothing)
+                P.parseCommand ("λ" <> factoid) `shouldParse` expectedCommand
+            it "can hl user with a factoid" $
+                P.parseCommand "λfoo > bar" `shouldParse` T.CoucouCmdFactoid "foo" (T.GetFactoid (Just "bar"))
+
+        describe "setting factoids" $ do
             it "can set factoid" $
                 P.parseCommand "λfoo = 1" `shouldParse` T.CoucouCmdFactoid "foo" (T.SetFactoid "1")
             it "can reset factoid" $
@@ -61,6 +85,7 @@ spec = do
                 P.parseCommand "λfoo :=  " `shouldParse` T.CoucouCmdFactoid "foo" T.DeleteFactoid
             it "can augment factoid" $
                 P.parseCommand "λfoo +=  1" `shouldParse` T.CoucouCmdFactoid "foo" (T.AugmentFactoid "1")
+
     describe "increase coucou count" $ do
         it "picks up coucou at the beginning" $
             P.parseCommand "coucou" `shouldParse` T.CoucouCmdIncCoucou

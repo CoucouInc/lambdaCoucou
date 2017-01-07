@@ -4,6 +4,7 @@ module LambdaCoucou.Parser where
 
 import Data.Monoid ((<>))
 import Control.Monad (void)
+import Data.Maybe (fromMaybe)
 import Data.Char (isSpace)
 import Text.Megaparsec
 import Text.Megaparsec.Text
@@ -11,9 +12,6 @@ import Data.Text (Text)
 import qualified Data.Text as T
 
 import LambdaCoucou.Types (CoucouCmd(..), CmdFactoidType(..))
-
-testStuff :: Text -> IO ()
-testStuff = print . parseCommand
 
 parseCommand :: Text -> Either (ParseError Char Dec) CoucouCmd
 parseCommand raw = parse commandParser "" raw
@@ -52,16 +50,26 @@ factoid :: Parser CoucouCmd
 factoid = try counterFactoid <|> try setFactoid <|> getFactoid
 
 counterFactoid :: Parser CoucouCmd
-counterFactoid = do
-    name <- factoidName (string "++" <|> string "--")
-    space
-    (string "++" >> return (CoucouCmdFactoid name IncFactoid) <* space <* eof) <|>
-        (string "--" >> return (CoucouCmdFactoid name DecFactoid) <* space <* eof)
+counterFactoid = try counterPlus <|> counterMinus
+
+counterPlus :: Parser CoucouCmd
+counterPlus = do
+    name <- genericCounter (string "++") >>= validFactoidName
+    return (CoucouCmdFactoid name IncFactoid)
+
+counterMinus :: Parser CoucouCmd
+counterMinus = do
+    name <- genericCounter (string "--") >>= validFactoidName
+    return (CoucouCmdFactoid name DecFactoid)
+
+genericCounter :: Parser String -> Parser Text
+genericCounter limit = T.pack <$> (someTill (satisfy (not . isSpace)) limit <* space <* eof)
 
 setFactoid :: Parser CoucouCmd
 setFactoid = do
     let operatorParser = string "=" <|> string ":=" <|> string "+="
-    name <- factoidName operatorParser
+    name <- T.pack <$> someTill (satisfy (not . isSpace)) (lookAhead (some spaceChar <|> operatorParser))
+    space
     operator <- operatorParser
     space
     val <- T.pack <$> many anyChar
@@ -75,23 +83,35 @@ setFactoid = do
                     | otherwise = AugmentFactoid
             return $ CoucouCmdFactoid name (op val)
 
+validFactoidName :: Text -> Parser Text
+validFactoidName name =
+    if name `elem` factoidBlackList
+        then fail $ T.unpack $ "Reserved keyword " <> name
+        else return name
+
 -- reserved name, these cannot be used for factoids
 factoidBlackList :: [Text]
 factoidBlackList = ["seen"]
 
-factoidName :: Parser String -> Parser Text
-factoidName limit = do
-    name <- T.pack <$> someTill (satisfy (not . isSpace)) (try $ space >> lookAhead limit)
+factoidName :: Maybe (Parser String) -> Parser Text
+factoidName mbLimit = do
+    let limit = fromMaybe (many spaceChar) mbLimit
+    name <- T.pack <$> someTill (satisfy (not . isSpace)) (try $ lookAhead (some spaceChar <|> limit))
     if name `elem` factoidBlackList
     then fail $ T.unpack $ "Reserved keyword " <> name
     else return name
 
+word :: Parser Text
+word = T.pack <$> manyTill (satisfy (not . isSpace)) (void spaceChar <|> eof)
+
 getFactoid :: Parser CoucouCmd
 getFactoid = do
-    name <- factoidName (many spaceChar)
+    name <- word >>= validFactoidName
+    space
+    mbHl <- optional (char '>' >> space >> word)
     space
     eof
-    return $ CoucouCmdFactoid name GetFactoid
+    return $ CoucouCmdFactoid name (GetFactoid mbHl)
 
 
 getCoucou :: Parser CoucouCmd

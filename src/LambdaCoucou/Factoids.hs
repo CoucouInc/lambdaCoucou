@@ -8,6 +8,7 @@ import Control.Monad.IO.Class (liftIO)
 import System.Random (randomR)
 import Text.Read (readMaybe)
 import Data.Text (Text, pack, unpack)
+import Data.Maybe (fromMaybe)
 import qualified Data.Vector as V
 import qualified Control.Concurrent.STM as STM
 import qualified Data.HashMap.Strict as Map
@@ -17,19 +18,20 @@ import qualified Network.IRC.Client as IRC
 import qualified LambdaCoucou.Types as T
 import LambdaCoucou.Db (updateFactoids)
 
-getFactoid :: Text -> IRC.StatefulIRC T.BotState (Maybe Text)
-getFactoid name = do
+getFactoid :: Text -> Maybe Text -> IRC.StatefulIRC T.BotState (Maybe Text)
+getFactoid name mbHl = do
     factoidsT <- T._factoids <$> IRC.state
     factoids <- liftIO $ STM.readTVarIO factoidsT
+    let prefix = fromMaybe "" ((<> ": ") <$> mbHl)
+    liftIO $ print $ "get factoid " <> name <> " with hl: " <> prefix
     case Map.lookup name factoids of
         Nothing -> return Nothing
         Just fact ->
             case fact of
                 T.Counter n ->
-                    let payload = name <> ": " <> pack (show n)
+                    let payload = prefix <> name <> ": " <> pack (show n)
                     in return (Just payload)
-                -- T.Facts facts -> return $ Just <$> getRandomFactoid facts
-                T.Facts facts -> getRandomFactoid facts
+                T.Facts facts -> (fmap . fmap) (\t -> prefix <> t) (getRandomFactoid facts)
 
 
 getRandomFactoid :: V.Vector Text -> IRC.StatefulIRC T.BotState (Maybe Text)
