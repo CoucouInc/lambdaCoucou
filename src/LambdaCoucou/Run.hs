@@ -41,7 +41,7 @@ run host port nick = do
 
 commandHandlerFunc :: IRC.UnicodeEvent -> IRC.StatefulIRC T.BotState ()
 commandHandlerFunc ev = do
-    let (IRC.Privmsg target eitherMessage) = IRC._message ev
+    let (IRC.Privmsg _ eitherMessage) = IRC._message ev
     case eitherMessage of
         Left _ -> return () -- CTCP
         Right raw -> do
@@ -51,7 +51,7 @@ commandHandlerFunc ev = do
                     liftIO . print $ "parse error: " <> Error.parseErrorPretty err
                 Right cmd -> do
                     liftIO $ print $ "got command: " <> show cmd
-                    Cmd.handleCommand ev target cmd
+                    Cmd.handleCommand ev cmd
 
 
 initialState :: IO T.BotState

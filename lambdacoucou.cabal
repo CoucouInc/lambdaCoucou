@@ -24,7 +24,6 @@ library
                      , LambdaCoucou.Command
                      , LambdaCoucou.Factoids
                      , LambdaCoucou.Social
-                     , LambdaCoucou.Connection
                      , LambdaCoucou.Db
                      , LambdaCoucou.Run
   build-depends:       base >= 4.7 && < 5

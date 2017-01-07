@@ -4,7 +4,6 @@ module LambdaCoucou.Command where
 
 import Data.Monoid ((<>))
 import Control.Monad.IO.Class (liftIO)
-import Data.Text (Text)
 import qualified Network.IRC.Client as IRC
 
 import qualified LambdaCoucou.Types as T
@@ -13,30 +12,29 @@ import LambdaCoucou.Factoids
        (sendFactoid, adjustCounterFactoid, setFactoid, resetFactoid,
         deleteFactoid, augmentFactoid)
 import LambdaCoucou.Social (incCoucou, sendCoucouCount, sendLastSeen)
-import LambdaCoucou.Connection (sendPrivMsg)
 
 
-handleCommand :: IRC.UnicodeEvent -> Text -> T.CoucouCmd -> IRC.StatefulIRC T.BotState ()
-handleCommand _ _ T.CoucouCmdNop = return ()
-handleCommand _ target (T.CoucouCmdCancer search) = do
-    liftIO . print $ "cancer maybe with search: " <> show search
+handleCommand :: IRC.UnicodeEvent -> T.CoucouCmd -> IRC.StatefulIRC T.BotState ()
+handleCommand _ T.CoucouCmdNop = return ()
+handleCommand ev (T.CoucouCmdCancer search) = do
+    liftIO . print $ "cancer with search: " <> show search
     mbcancer <- fetchCancer search
     liftIO . print $ "got cancer: " <> show mbcancer
     case mbcancer of
         Nothing -> return ()
         Just (desc, url) -> do
             let payload = desc <> ": " <> url
-            sendPrivMsg target payload
-handleCommand _ target (T.CoucouCmdFactoid name factoidType) = do
+            IRC.reply ev payload
+handleCommand ev (T.CoucouCmdFactoid name factoidType) = do
     liftIO . putStrLn $ "factoid command"
     case factoidType of
-        T.GetFactoid -> sendFactoid target name
-        T.IncFactoid -> adjustCounterFactoid succ target name
-        T.DecFactoid -> adjustCounterFactoid pred target name
-        T.SetFactoid val -> setFactoid target name val
-        T.ResetFactoid val -> resetFactoid target name val
-        T.DeleteFactoid -> deleteFactoid target name
-        T.AugmentFactoid val -> augmentFactoid target name val
-handleCommand ev target T.CoucouCmdIncCoucou = incCoucou (IRC._source ev) target
-handleCommand ev target (T.CoucouCmdGetCoucou mbNick) = sendCoucouCount (IRC._source ev) target mbNick
-handleCommand ev _ (T.CoucouCmdLastSeen nick) = sendLastSeen ev nick
+        T.GetFactoid -> sendFactoid ev name
+        T.IncFactoid -> adjustCounterFactoid succ ev name
+        T.DecFactoid -> adjustCounterFactoid pred ev name
+        T.SetFactoid val -> setFactoid ev name val
+        T.ResetFactoid val -> resetFactoid ev name val
+        T.DeleteFactoid -> deleteFactoid ev name
+        T.AugmentFactoid val -> augmentFactoid ev name val
+handleCommand ev T.CoucouCmdIncCoucou = incCoucou (IRC._source ev) -- (IRC._source ev) target
+handleCommand ev (T.CoucouCmdGetCoucou mbNick) = sendCoucouCount (IRC._source ev) ev mbNick
+handleCommand ev (T.CoucouCmdLastSeen nick) = sendLastSeen ev nick

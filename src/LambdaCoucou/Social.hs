@@ -13,7 +13,6 @@ import qualified Data.HashMap.Strict as Map
 import qualified Data.DateTime as Time
 
 import qualified LambdaCoucou.Types as T
-import LambdaCoucou.Connection (sendPrivMsg)
 import LambdaCoucou.Db (updateSocials)
 
 makeDefaultUsr :: IO T.SocialRecord
@@ -25,8 +24,8 @@ makeDefaultUsr = do
         , T._lastSeen = t
         }
 
-incCoucou :: IRC.Source Text -> Text -> IRC.StatefulIRC T.BotState ()
-incCoucou (IRC.Channel _chanName user) _ = do
+incCoucou :: IRC.Source Text -> IRC.StatefulIRC T.BotState ()
+incCoucou (IRC.Channel _chanName user) = do
     liftIO . print $ "incCoucou count for " <> user <> " " <> pack (show T.CoucouCmdIncCoucou)
     state <- IRC.state
     defaultUsr <- liftIO makeDefaultUsr
@@ -45,17 +44,17 @@ incCoucou (IRC.Channel _chanName user) _ = do
            updateSocials (T._writerQueue state) social'
 
 -- TODO decrease coucou count if sent from private message
-incCoucou (IRC.User _user) _ = return ()
-incCoucou (IRC.Server _) _ = return ()
+incCoucou (IRC.User _user) = return ()
+incCoucou (IRC.Server _) = return ()
 
 
-sendCoucouCount :: IRC.Source Text -> Text -> Maybe Text -> IRC.StatefulIRC T.BotState ()
-sendCoucouCount (IRC.Channel _ user) target mbNick = sendCoucouCount' user target mbNick
-sendCoucouCount (IRC.User user) _ mbNick = sendCoucouCount' user user mbNick
+sendCoucouCount :: IRC.Source Text -> IRC.UnicodeEvent -> Maybe Text -> IRC.StatefulIRC T.BotState ()
+sendCoucouCount (IRC.Channel _ user) ev mbNick = sendCoucouCount' user ev mbNick
+sendCoucouCount (IRC.User user) ev mbNick = sendCoucouCount' user ev mbNick
 sendCoucouCount (IRC.Server _) _ _ = return ()
 
-sendCoucouCount' :: Text -> Text -> Maybe Text -> IRC.StatefulIRC T.BotState ()
-sendCoucouCount' user target mbNick = do
+sendCoucouCount' :: Text -> IRC.UnicodeEvent -> Maybe Text -> IRC.StatefulIRC T.BotState ()
+sendCoucouCount' user ev mbNick = do
     let coucouTarget = fromMaybe user mbNick
     state <- IRC.state
     socials <- liftIO $ STM.readTVarIO (T._socialDb state)
@@ -64,7 +63,7 @@ sendCoucouCount' user target mbNick = do
         Just socialRec -> do
             let count = T._coucous socialRec
             let payload = coucouTarget <> " est un coucouteur niveau " <> (pack . show $ count)
-            sendPrivMsg target payload
+            IRC.reply ev payload
 
 updateLastSeen :: IRC.Source Text -> IRC.StatefulIRC T.BotState ()
 updateLastSeen (IRC.User nick) = updateLastSeen' nick
