@@ -24,7 +24,7 @@ prefix :: Parser Char
 prefix = char 'λ' <|> char '>'
 
 commandParser' :: Parser CoucouCmd
-commandParser' = try getCoucou <|> try lastSeen <|> try cancer <|> factoid
+commandParser' = try getCoucou <|> try see <|> try lastSeen <|> try cancer <|> factoid
 
 cancer :: Parser CoucouCmd
 cancer = do
@@ -44,7 +44,6 @@ cancer = do
             end
             return $ CoucouCmdCancer (Just s) hl
         searchParser = T.pack <$> some (satisfy (not . isSpace))
-        end = space <* eof
 
 
 parseCancer :: Text -> Either (ParseError Char Dec) [(Text, Text)]
@@ -105,7 +104,7 @@ validFactoidName name =
 
 -- reserved name, these cannot be used for factoids
 factoidBlackList :: [Text]
-factoidBlackList = ["seen", "cancer"]
+factoidBlackList = ["see", "search", "coucou", "seen", "cancer"]
 
 factoidName :: Maybe (Parser String) -> Parser Text
 factoidName mbLimit = do
@@ -124,8 +123,7 @@ getFactoid = do
     name <- word >>= validFactoidName
     space
     mbHl <- maybeHl
-    space
-    eof
+    end
     return $ CoucouCmdFactoid name (GetFactoid mbHl)
 
 
@@ -159,6 +157,16 @@ lastSeen = do
     try (space >> eof >> return (CoucouCmdLastSeen n Nothing)) <|>
         do some spaceChar
            mbHl <- maybeHl
-           space
-           eof
+           end
            return $ CoucouCmdLastSeen n mbHl
+
+see :: Parser CoucouCmd
+see = do
+    string "see"
+    some spaceChar
+    fact <- word >>= validFactoidName
+    end
+    return $ CoucouCmdFactoid fact SeeFactoid
+
+end :: Parser ()
+end = space <* eof

@@ -3,12 +3,11 @@
 module LambdaCoucou.Factoids where
 
 import Data.Monoid ((<>))
-import Control.Monad (unless, forM_)
+import Control.Monad (forM_)
 import Control.Monad.IO.Class (liftIO)
 import System.Random (randomR)
 import Text.Read (readMaybe)
-import Data.Text (Text, pack, unpack)
-import Data.Maybe (fromMaybe)
+import Data.Text (Text, pack, unpack, intercalate)
 import qualified Data.Vector as V
 import qualified Control.Concurrent.STM as STM
 import qualified Data.HashMap.Strict as Map
@@ -31,6 +30,16 @@ getFactoid name = do
                     let payload = name <> ": " <> pack (show n)
                     in return (Just payload)
                 T.Facts facts -> getRandomFactoid facts
+
+getFactoids :: Text -> IRC.StatefulIRC T.BotState Text
+getFactoids name = do
+    factoidsT <- T._factoids <$> IRC.state
+    factoids <- liftIO $ STM.readTVarIO factoidsT
+    liftIO $ print $ "get factoids " <> name
+    return $ case Map.lookup name factoids of
+        Nothing -> "Pas de factoids pour: " <> name
+        Just (T.Counter n) -> "Counter: " <> pack (show n)
+        Just (T.Facts facts) -> intercalate " | " (V.toList facts)
 
 
 getRandomFactoid :: V.Vector Text -> IRC.StatefulIRC T.BotState (Maybe Text)

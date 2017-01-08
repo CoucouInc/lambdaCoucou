@@ -11,7 +11,7 @@ import qualified Network.IRC.Client as IRC
 import qualified LambdaCoucou.Types as T
 import LambdaCoucou.Cancer (fetchCancer)
 import LambdaCoucou.Factoids
-       (getFactoid, adjustCounterFactoid, setFactoid, resetFactoid,
+       (getFactoid, getFactoids, adjustCounterFactoid, setFactoid, resetFactoid,
         deleteFactoid, augmentFactoid)
 import LambdaCoucou.Social (incCoucou, getCoucouCount, getLastSeen)
 
@@ -39,6 +39,7 @@ handleCommand ev (T.CoucouCmdFactoid name factoidType) = do
         T.ResetFactoid val -> resetFactoid ev name val
         T.DeleteFactoid -> deleteFactoid ev name
         T.AugmentFactoid val -> augmentFactoid ev name val
+        T.SeeFactoid -> Just <$> getFactoids name >>= sendReply ev
 handleCommand ev T.CoucouCmdIncCoucou = incCoucou (IRC._source ev)
 handleCommand ev (T.CoucouCmdGetCoucou mbNick) = getCoucouCount (IRC._source ev) mbNick >>= sendReply ev
 handleCommand ev (T.CoucouCmdLastSeen nick mbHl) = prefixHlNick mbHl <$> getLastSeen nick >>= sendReply ev

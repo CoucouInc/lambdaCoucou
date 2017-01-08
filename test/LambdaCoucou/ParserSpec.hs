@@ -74,6 +74,8 @@ spec = do
                 P.parseCommand "λfoo > bar" `shouldParse` T.CoucouCmdFactoid "foo" (T.GetFactoid (Just "bar"))
             it "get factoid starting with cancer" $
                 P.parseCommand "λcancerd" `shouldParse` T.CoucouCmdFactoid "cancerd" (T.GetFactoid Nothing)
+            it "get factoid with dash inside" $
+                P.parseCommand "λfoo-bar" `shouldParse` T.CoucouCmdFactoid "foo-bar" (T.GetFactoid Nothing)
 
 
         describe "setting factoids" $ do
