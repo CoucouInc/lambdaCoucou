@@ -24,7 +24,7 @@ prefix :: Parser Char
 prefix = char 'λ' <|> char '>'
 
 commandParser' :: Parser CoucouCmd
-commandParser' = try getCoucou <|> try see <|> try lastSeen <|> try cancer <|> factoid
+commandParser' = try getCoucou <|> try see <|> try search <|> try lastSeen <|> try cancer <|> factoid
 
 cancer :: Parser CoucouCmd
 cancer = do
@@ -166,7 +166,15 @@ see = do
     some spaceChar
     fact <- word >>= validFactoidName
     end
-    return $ CoucouCmdFactoid fact SeeFactoid
+    return $ CoucouCmdFactoid fact SeeFactoids
+
+search :: Parser CoucouCmd
+search = do
+    string "search"
+    some spaceChar
+    s <- T.pack <$> some anyChar
+    end
+    return $ CoucouCmdFactoid s SearchFactoids
 
 end :: Parser ()
 end = space <* eof

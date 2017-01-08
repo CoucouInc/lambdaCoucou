@@ -83,7 +83,8 @@ data CmdFactoidType
     | DeleteFactoid
     | IncFactoid
     | DecFactoid
-    | SeeFactoid
+    | SeeFactoids
+    | SearchFactoids
     deriving (Eq, Show)
 
 instance Show CoucouCmd where
@@ -103,7 +104,8 @@ instance Show CoucouCmd where
                DeleteFactoid -> "Delete factoid: " <> name' <> "."
                IncFactoid -> "Increment counter: " <> name' <> "."
                DecFactoid -> "Decrement counter: " <> name' <> "."
-               SeeFactoid -> "List factoids for name: " <> name' <> "."
+               SeeFactoids -> "List factoids for name: " <> name' <> "."
+               SearchFactoids -> "Search factoids with content: " <> name' <> "."
     show (CoucouCmdGetCoucou (Just nick)) = "Show count of coucou for " <> unpack nick
     show (CoucouCmdGetCoucou Nothing) = "Show count of coucou for the sender of the message"
     show CoucouCmdIncCoucou = "Increment coucou count for sender of this message"

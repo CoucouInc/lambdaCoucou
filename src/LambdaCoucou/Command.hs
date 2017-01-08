@@ -11,8 +11,8 @@ import qualified Network.IRC.Client as IRC
 import qualified LambdaCoucou.Types as T
 import LambdaCoucou.Cancer (fetchCancer)
 import LambdaCoucou.Factoids
-       (getFactoid, getFactoids, adjustCounterFactoid, setFactoid, resetFactoid,
-        deleteFactoid, augmentFactoid)
+       (getFactoid, getFactoids, searchFactoids, adjustCounterFactoid,
+        setFactoid, resetFactoid, deleteFactoid, augmentFactoid)
 import LambdaCoucou.Social (incCoucou, getCoucouCount, getLastSeen)
 
 
@@ -29,8 +29,8 @@ handleCommand ev cmd@(T.CoucouCmdCancer search mbHl) = do
             let payload = prefix <> desc <> ": " <> url
             IRC.reply ev payload
 
-handleCommand ev (T.CoucouCmdFactoid name factoidType) = do
-    liftIO . putStrLn $ "factoid command"
+handleCommand ev cmd@(T.CoucouCmdFactoid name factoidType) = do
+    liftIO $ print cmd
     case factoidType of
         T.GetFactoid mbHl -> prefixHlNick mbHl <$> getFactoid name >>= sendReply ev
         T.IncFactoid -> adjustCounterFactoid succ ev name
@@ -39,7 +39,8 @@ handleCommand ev (T.CoucouCmdFactoid name factoidType) = do
         T.ResetFactoid val -> resetFactoid ev name val
         T.DeleteFactoid -> deleteFactoid ev name
         T.AugmentFactoid val -> augmentFactoid ev name val
-        T.SeeFactoid -> Just <$> getFactoids name >>= sendReply ev
+        T.SeeFactoids -> Just <$> getFactoids name >>= sendReply ev
+        T.SearchFactoids -> Just <$> searchFactoids name >>= sendReply ev
 handleCommand ev T.CoucouCmdIncCoucou = incCoucou (IRC._source ev)
 handleCommand ev (T.CoucouCmdGetCoucou mbNick) = getCoucouCount (IRC._source ev) mbNick >>= sendReply ev
 handleCommand ev (T.CoucouCmdLastSeen nick mbHl) = prefixHlNick mbHl <$> getLastSeen nick >>= sendReply ev

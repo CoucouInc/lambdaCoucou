@@ -15,14 +15,6 @@ import qualified LambdaCoucou.Types as T
 main :: IO ()
 main = hspec spec
 
--- spec :: Spec
--- spec = do
---     describe "foo" $ do
---         it "works" $ do
---             True `shouldBe` True
---         it "still works" $ do
---             False `shouldBe` False
-
 spec :: Spec
 spec = do
     describe "coucou command parser" $ do
@@ -88,6 +80,14 @@ spec = do
                 P.parseCommand "λfoo :=  " `shouldParse` T.CoucouCmdFactoid "foo" T.DeleteFactoid
             it "can augment factoid" $
                 P.parseCommand "λfoo +=  1" `shouldParse` T.CoucouCmdFactoid "foo" (T.AugmentFactoid "1")
+
+        describe "display factoids" $
+            it "can parse simple search" $
+                P.parseCommand "λsee  foo-bar " `shouldParse` T.CoucouCmdFactoid "foo-bar" T.SeeFactoids
+
+        describe "search factoids" $
+            it "can parse simple search" $
+                P.parseCommand "λsearch  foo " `shouldParse` T.CoucouCmdFactoid "foo " T.SearchFactoids
 
     describe "increase coucou count" $ do
         it "picks up coucou at the beginning" $

@@ -1,13 +1,16 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE BangPatterns #-}
 
 module LambdaCoucou.Factoids where
 
+import Prelude hiding (null)
 import Data.Monoid ((<>))
 import Control.Monad (forM_)
 import Control.Monad.IO.Class (liftIO)
 import System.Random (randomR)
 import Text.Read (readMaybe)
-import Data.Text (Text, pack, unpack, intercalate)
+import Data.List (nub)
+import Data.Text (Text, pack, unpack, intercalate, isInfixOf, toLower, null)
 import qualified Data.Vector as V
 import qualified Control.Concurrent.STM as STM
 import qualified Data.HashMap.Strict as Map
@@ -21,7 +24,6 @@ getFactoid :: Text -> IRC.StatefulIRC T.BotState (Maybe Text)
 getFactoid name = do
     factoidsT <- T._factoids <$> IRC.state
     factoids <- liftIO $ STM.readTVarIO factoidsT
-    liftIO $ print $ "get factoid " <> name
     case Map.lookup name factoids of
         Nothing -> return Nothing
         Just fact ->
@@ -35,11 +37,23 @@ getFactoids :: Text -> IRC.StatefulIRC T.BotState Text
 getFactoids name = do
     factoidsT <- T._factoids <$> IRC.state
     factoids <- liftIO $ STM.readTVarIO factoidsT
-    liftIO $ print $ "get factoids " <> name
     return $ case Map.lookup name factoids of
         Nothing -> "Pas de factoids pour: " <> name
         Just (T.Counter n) -> "Counter: " <> pack (show n)
         Just (T.Facts facts) -> intercalate " | " (V.toList facts)
+
+searchFactoids :: Text -> IRC.StatefulIRC T.BotState Text
+searchFactoids search = do
+    factoidsT <- T._factoids <$> IRC.state
+    factoids <- liftIO $ STM.readTVarIO factoidsT
+    let search' = toLower search
+    let matchingVals = Map.filter (matchSearch search') factoids
+    let matchingKeys = Map.filterWithKey (\k _v -> search' `isInfixOf` toLower k) factoids
+    let !matchingFactoids = nub $ filter (not . null) $ Map.keys matchingVals <> Map.keys matchingKeys
+    let withPrefix = fmap (\f -> "λ" <> f) matchingFactoids
+    return $ intercalate " | " withPrefix
+    where matchSearch _ (T.Counter _) = False
+          matchSearch s (T.Facts fs) = any (\f -> s `isInfixOf` toLower f) fs
 
 
 getRandomFactoid :: V.Vector Text -> IRC.StatefulIRC T.BotState (Maybe Text)
@@ -139,4 +153,3 @@ augmentFactoid ev name val = do
                    updateFactoids writerQ factoids'
                    return "C'est noté"
     IRC.reply ev msg
-
