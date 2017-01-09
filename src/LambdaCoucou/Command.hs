@@ -3,6 +3,7 @@
 module LambdaCoucou.Command where
 
 import Data.Monoid ((<>))
+import Control.Monad (unless)
 import Control.Monad.IO.Class (liftIO)
 import Data.Text (Text)
 import Data.Maybe (fromMaybe)
@@ -14,7 +15,6 @@ import LambdaCoucou.Factoids
        (getFactoid, getFactoids, searchFactoids, adjustCounterFactoid,
         setFactoid, resetFactoid, deleteFactoid, augmentFactoid)
 import LambdaCoucou.Social (incCoucou, getCoucouCount, getLastSeen)
-
 
 handleCommand :: IRC.UnicodeEvent -> T.CoucouCmd -> IRC.StatefulIRC T.BotState ()
 handleCommand _ T.CoucouCmdNop = return ()
@@ -28,30 +28,39 @@ handleCommand ev cmd@(T.CoucouCmdCancer search mbHl) = do
         Just (desc, url) -> do
             let payload = prefix <> desc <> ": " <> url
             IRC.reply ev payload
-
 handleCommand ev cmd@(T.CoucouCmdFactoid name factoidType) = do
     liftIO $ print cmd
-    case factoidType of
-        T.GetFactoid mbHl -> prefixHlNick mbHl <$> getFactoid name >>= sendReply ev
-        T.IncFactoid -> adjustCounterFactoid succ ev name
-        T.DecFactoid -> adjustCounterFactoid pred ev name
-        T.SetFactoid val -> setFactoid ev name val
-        T.ResetFactoid val -> resetFactoid ev name val
-        T.DeleteFactoid -> deleteFactoid ev name
-        T.AugmentFactoid val -> augmentFactoid ev name val
-        T.SeeFactoids -> Just <$> getFactoids name >>= sendReply ev
-        T.SearchFactoids -> Just <$> searchFactoids name >>= sendReply ev
+    unless (fromBlacklistedUser ev) $
+        case factoidType of
+            T.GetFactoid mbHl -> prefixHlNick mbHl <$> getFactoid name >>= sendReply ev
+            T.IncFactoid -> adjustCounterFactoid succ ev name
+            T.DecFactoid -> adjustCounterFactoid pred ev name
+            T.SetFactoid val -> setFactoid ev name val
+            T.ResetFactoid val -> resetFactoid ev name val
+            T.DeleteFactoid -> deleteFactoid ev name
+            T.AugmentFactoid val -> augmentFactoid ev name val
+            T.SeeFactoids -> Just <$> getFactoids name >>= sendReply ev
+            T.SearchFactoids -> Just <$> searchFactoids name >>= sendReply ev
 handleCommand ev T.CoucouCmdIncCoucou = incCoucou (IRC._source ev)
-handleCommand ev (T.CoucouCmdGetCoucou mbNick) = getCoucouCount (IRC._source ev) mbNick >>= sendReply ev
-handleCommand ev (T.CoucouCmdLastSeen nick mbHl) = prefixHlNick mbHl <$> getLastSeen nick >>= sendReply ev
-
+handleCommand ev (T.CoucouCmdGetCoucou mbNick) =
+    getCoucouCount (IRC._source ev) mbNick >>= sendReply ev
+handleCommand ev (T.CoucouCmdLastSeen nick mbHl) =
+    prefixHlNick mbHl <$> getLastSeen nick >>= sendReply ev
 
 prefixHlNick :: Maybe Text -> Maybe Text -> Maybe Text
 prefixHlNick mbHl txt =
     let prefix = fromMaybe "" ((<> ": ") <$> mbHl)
     in (\t -> prefix <> t) <$> txt
 
-
 sendReply :: IRC.UnicodeEvent -> Maybe Text -> IRC.StatefulIRC T.BotState ()
 sendReply _ Nothing = return ()
 sendReply ev (Just msg) = IRC.reply ev msg
+
+fromBlacklistedUser :: IRC.UnicodeEvent -> Bool
+fromBlacklistedUser ev =
+    case IRC._source ev of
+        IRC.Server _ -> False
+        IRC.User nick -> nick `elem` blacklistedUsers
+        IRC.Channel _ nick -> nick `elem` blacklistedUsers
+  where
+    blacklistedUsers = ["coucoubot"]
