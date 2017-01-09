@@ -24,7 +24,9 @@ prefix :: Parser Char
 prefix = char 'λ' <|> char '>'
 
 commandParser' :: Parser CoucouCmd
-commandParser' = try getCoucou <|> try see <|> try search <|> try lastSeen <|> try cancer <|> factoid
+commandParser' =
+    try getVersion <|> try getCoucou <|> try see <|> try search <|> try lastSeen <|> try cancer <|>
+    factoid
 
 cancer :: Parser CoucouCmd
 cancer = do
@@ -104,7 +106,7 @@ validFactoidName name =
 
 -- reserved name, these cannot be used for factoids
 factoidBlackList :: [Text]
-factoidBlackList = ["see", "search", "coucou", "seen", "cancer"]
+factoidBlackList = ["see", "search", "coucou", "seen", "cancer", "version"]
 
 factoidName :: Maybe (Parser String) -> Parser Text
 factoidName mbLimit = do
@@ -159,6 +161,12 @@ lastSeen = do
            mbHl <- maybeHl
            end
            return $ CoucouCmdLastSeen n mbHl
+
+getVersion :: Parser CoucouCmd
+getVersion = do
+    string "version"
+    end
+    return CoucouCmdVersion
 
 see :: Parser CoucouCmd
 see = do

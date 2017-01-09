@@ -5,7 +5,7 @@ module LambdaCoucou.Command where
 import Data.Monoid ((<>))
 import Control.Monad (unless)
 import Control.Monad.IO.Class (liftIO)
-import Data.Text (Text)
+import Data.Text (Text, pack)
 import Data.Maybe (fromMaybe)
 import qualified Network.IRC.Client as IRC
 
@@ -46,6 +46,7 @@ handleCommand ev (T.CoucouCmdGetCoucou mbNick) =
     getCoucouCount (IRC._source ev) mbNick >>= sendReply ev
 handleCommand ev (T.CoucouCmdLastSeen nick mbHl) =
     prefixHlNick mbHl <$> getLastSeen nick >>= sendReply ev
+handleCommand ev T.CoucouCmdVersion = getBotVersion >>= IRC.reply ev
 
 prefixHlNick :: Maybe Text -> Maybe Text -> Maybe Text
 prefixHlNick mbHl txt =
@@ -64,3 +65,9 @@ fromBlacklistedUser ev =
         IRC.Channel _ nick -> nick `elem` blacklistedUsers
   where
     blacklistedUsers = ["coucoubot"]
+
+getBotVersion :: IRC.StatefulIRC T.BotState Text
+getBotVersion = do
+    state <- IRC.state
+    let (sha, commitDate) = T._version state
+    return $ pack $ "Commit " <> take 6 sha <> " (" <> commitDate <> ")"

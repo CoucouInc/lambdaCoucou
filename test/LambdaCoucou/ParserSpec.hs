@@ -110,3 +110,9 @@ spec = do
             P.parseCommand "λseen foo_nick  > bar " `shouldParse` T.CoucouCmdLastSeen "foo_nick" (Just "bar")
         it "doesn't parse if only hl nick" $
             P.parseCommand "λseen > foo" `shouldParse` T.CoucouCmdNop
+
+    describe "version parser" $ do
+        it "parses version command" $
+            P.parseCommand "λversion  " `shouldParse` T.CoucouCmdVersion
+        it "doesn't parse if anything follows" $
+            P.parseCommand "λversion  foo" `shouldParse` T.CoucouCmdNop

@@ -73,6 +73,7 @@ data BotState = BotState
     , _factoids :: TVar Factoids
     , _socialDb :: TVar SocialRecords
     , _writerQueue :: WriterQueue
+    , _version :: !(String, String)
     }
 
 data CoucouCmd
@@ -85,6 +86,7 @@ data CoucouCmd
     | CoucouCmdIncCoucou
     | CoucouCmdLastSeen !Text
                         !(Maybe Text) -- Maybe nick to hl
+    | CoucouCmdVersion
     deriving (Eq)
 
 data CmdFactoidType
@@ -126,3 +128,4 @@ instance Show CoucouCmd where
     show CoucouCmdIncCoucou = "Increment coucou count for sender of this message"
     show (CoucouCmdLastSeen nick mbHl) =
         "How long since " <> unpack nick <> " has been seen ? (for user " <> show mbHl <> ")"
+    show CoucouCmdVersion = "Send git info of the bot"

@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module LambdaCoucou.Run where
 
@@ -9,6 +10,7 @@ import Control.Concurrent.Async (withAsync)
 import Data.Monoid ((<>))
 import Control.Monad.IO.Class (liftIO)
 import qualified Text.Megaparsec.Error as Error
+import Development.GitRev
 
 import qualified Network.IRC.Client as IRC
 
@@ -74,4 +76,5 @@ initialState = do
                 , T._factoids = facts
                 , T._socialDb = social
                 , T._writerQueue = writerQueue
+                , T._version = ($(gitHash), $(gitCommitDate))
                 }
