@@ -6,6 +6,7 @@ import qualified Control.Concurrent.STM as STM
 import qualified Control.Concurrent.STM.TBQueue as Queue
 import qualified Data.Aeson as JSON
 import qualified Data.ByteString.Lazy as BS
+import System.AtomicWrite.Writer.LazyByteString (atomicWriteFile)
 
 import qualified LambdaCoucou.Types as T
 
@@ -33,12 +34,12 @@ updateDb queue = forever $ do
 writeFactoids :: T.Factoids -> IO ()
 writeFactoids newFactoids = do
     let bs = JSON.encode newFactoids
-    BS.writeFile factoidsPath bs
+    atomicWriteFile factoidsPath bs
 
 writeSocial :: T.SocialRecords -> IO ()
 writeSocial newSocials = do
     let bs = JSON.encode newSocials
-    BS.writeFile socialPath bs
+    atomicWriteFile socialPath bs
 
 updateFactoids :: T.WriterQueue -> T.Factoids -> STM ()
 updateFactoids queue factoids = Queue.writeTBQueue queue (Left factoids)
