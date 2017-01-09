@@ -1,6 +1,6 @@
 module Main where
 
-import LambdaCoucou.Run (entry)
+import LambdaCoucou.Cli (entry)
 
 main :: IO ()
 main = entry

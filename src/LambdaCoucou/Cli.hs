@@ -2,21 +2,13 @@ module LambdaCoucou.Cli where
 
 import Data.Monoid ((<>))
 import Options.Applicative
-import Data.Text (Text)
 import qualified Data.Text as T (pack)
-import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as BS (pack)
+import LambdaCoucou.Types (Opts(..))
+import LambdaCoucou.Run (run)
 
-data Opts = Opts
-    { optHost :: !ByteString
-    , optPort :: !Int
-    , optNick :: !Text
-    , optChan :: !Text
-    }
-    deriving (Show)
-
-parseOptions :: IO Opts
-parseOptions = execParser optsParser
+entry :: IO ()
+entry = execParser optsParser >>= run
 
 optsParser :: ParserInfo Opts
 optsParser =

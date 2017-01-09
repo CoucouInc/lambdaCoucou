@@ -8,8 +8,6 @@ import qualified Control.Concurrent.STM.TBQueue as STM
 import Control.Concurrent.Async (withAsync)
 import Data.Monoid ((<>))
 import Control.Monad.IO.Class (liftIO)
-import Data.ByteString (ByteString)
-import Data.Text (Text, pack)
 import qualified Text.Megaparsec.Error as Error
 
 import qualified Network.IRC.Client as IRC
@@ -19,15 +17,13 @@ import qualified LambdaCoucou.Parser as Parser
 import qualified LambdaCoucou.Command as Cmd
 import LambdaCoucou.Social (updateLastSeen)
 import LambdaCoucou.Db (readSocial, readFactoids, updateDb)
-import LambdaCoucou.Cli
 
-entry :: IO ()
-entry = do
-    opts <- parseOptions
-    run (optHost opts) (optPort opts) (optNick opts) (optChan opts)
-
-run :: ByteString -> Int -> Text -> Text -> IO ()
-run host port nick chan = do
+run :: T.Opts -> IO ()
+run opts = do
+    let host = T.optHost opts
+    let port = T.optPort opts
+    let nick = T.optNick opts
+    let chan = T.optChan opts
     let logger = IRC.stdoutLogger
     conn <- IRC.connectWithTLS' logger host port 1
     let cfg = IRC.defaultIRCConf nick
