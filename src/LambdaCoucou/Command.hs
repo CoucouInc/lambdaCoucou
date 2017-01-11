@@ -14,7 +14,7 @@ import LambdaCoucou.Cancer (fetchCancer)
 import LambdaCoucou.Factoids
        (getFactoid, getFactoids, searchFactoids, adjustCounterFactoid,
         setFactoid, resetFactoid, deleteFactoid, augmentFactoid)
-import LambdaCoucou.Social (incCoucou, getCoucouCount, getLastSeen)
+import LambdaCoucou.Social (incCoucou, getCoucouCount, getLastSeen, registerTell)
 
 handleCommand :: IRC.UnicodeEvent -> T.CoucouCmd -> IRC.StatefulIRC T.BotState ()
 handleCommand _ T.CoucouCmdNop = return ()
@@ -47,6 +47,8 @@ handleCommand ev (T.CoucouCmdGetCoucou mbNick) =
 handleCommand ev (T.CoucouCmdLastSeen nick mbHl) =
     prefixHlNick mbHl <$> getLastSeen nick >>= sendReply ev
 handleCommand ev T.CoucouCmdVersion = getBotVersion >>= IRC.reply ev
+handleCommand ev (T.CoucouCmdTell nick payload mbDelay) =
+    registerTell ev nick payload mbDelay >>= sendReply ev
 
 prefixHlNick :: Maybe Text -> Maybe Text -> Maybe Text
 prefixHlNick mbHl txt =

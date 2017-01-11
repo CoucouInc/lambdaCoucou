@@ -7,6 +7,7 @@ import Data.Monoid ((<>))
 import Data.Text (Text, pack, intercalate, null)
 import Control.Monad.IO.Class (liftIO)
 import Data.Maybe (fromMaybe)
+import qualified Data.Vector as V
 import qualified Control.Concurrent.STM as STM
 import qualified Network.IRC.Client as IRC
 import qualified Data.HashMap.Strict as Map
@@ -22,6 +23,7 @@ makeDefaultUsr = do
         T.SocialRecord
         { T._coucous = 0
         , T._lastSeen = t
+        , T._toTell = V.empty
         }
 
 incCoucou :: IRC.Source Text -> IRC.StatefulIRC T.BotState ()
@@ -124,3 +126,41 @@ getLastSeen nick = do
             let diff = now - T._lastSeen record
             let payload = nick <> " has been seen " <> prettyPrintDiffTime diff
             return (Just payload)
+
+registerTell :: IRC.UnicodeEvent
+             -> Text
+             -> Text
+             -> Maybe Integer
+             -> IRC.StatefulIRC T.BotState (Maybe Text)
+registerTell ev nick payload mbDelay =
+    case IRC._source ev of
+        IRC.Server _ -> return Nothing -- shouldn't happen, but who knows
+        IRC.User sender ->
+            if sender == nick
+                then register' True
+                else return Nothing
+        IRC.Channel _ _ -> register' False
+  where
+    register' isPrivate = do
+        state <- IRC.state
+        liftIO $
+            STM.atomically $
+            do socials <- STM.readTVar (T._socialDb state)
+               let socials' = addToTell isPrivate nick payload mbDelay socials
+               STM.writeTVar (T._socialDb state) socials'
+               updateSocials (T._writerQueue state) socials'
+        return $ Just "Ok."
+
+addToTell :: Bool -> Text -> Text -> Maybe Integer -> T.SocialRecords -> T.SocialRecords
+addToTell isPrivate nick payload mbDelay = Map.adjust appendToTell nick
+  where
+    val =
+        T.ToTell
+        { T._toTellMsg = payload
+        , T._toTellIsPrivate = isPrivate
+        , T._toTellTs = fromMaybe 0 mbDelay
+        }
+    appendToTell social =
+        social
+        { T._toTell = V.snoc (T._toTell social) val
+        }

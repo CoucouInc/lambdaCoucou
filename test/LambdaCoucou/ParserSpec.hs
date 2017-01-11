@@ -116,3 +116,9 @@ spec = do
             P.parseCommand "λversion  " `shouldParse` T.CoucouCmdVersion
         it "doesn't parse if anything follows" $
             P.parseCommand "λversion  foo" `shouldParse` T.CoucouCmdNop
+
+    describe "tell message" $ do
+        it "parses tell command" $
+            P.parseCommand "λtell foo  message  " `shouldParse` T.CoucouCmdTell "foo" "message  " Nothing
+        it "needs a message" $
+            P.parseCommand "λtell foo  " `shouldParse` T.CoucouCmdNop

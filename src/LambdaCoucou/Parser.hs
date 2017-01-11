@@ -25,7 +25,8 @@ prefix = char 'λ' <|> char '>'
 
 commandParser' :: Parser CoucouCmd
 commandParser' =
-    try getVersion <|> try getCoucou <|> try see <|> try search <|> try lastSeen <|> try cancer <|>
+    try getVersion <|> try tell <|> try getCoucou <|> try see <|> try search <|> try lastSeen <|>
+    try cancer <|>
     factoid
 
 cancer :: Parser CoucouCmd
@@ -167,6 +168,15 @@ getVersion = do
     string "version"
     end
     return CoucouCmdVersion
+
+tell :: Parser CoucouCmd
+tell = do
+    string "tell"
+    some spaceChar
+    n <- nick
+    some spaceChar
+    msg <- T.pack <$> some anyChar
+    return $ CoucouCmdTell n msg Nothing
 
 see :: Parser CoucouCmd
 see = do
