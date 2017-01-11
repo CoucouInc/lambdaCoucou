@@ -17,7 +17,7 @@ import qualified Network.IRC.Client as IRC
 import qualified LambdaCoucou.Types as T
 import qualified LambdaCoucou.Parser as Parser
 import qualified LambdaCoucou.Command as Cmd
-import LambdaCoucou.Social (updateLastSeen)
+import LambdaCoucou.Social (updateLastSeen, sendTellMessages)
 import LambdaCoucou.Db (readSocial, readFactoids, updateDb)
 
 run :: T.Opts -> IO ()
@@ -50,6 +50,7 @@ commandHandlerFunc ev = do
         Left _ -> return () -- CTCP
         Right raw -> do
             updateLastSeen (IRC._source ev)
+            sendTellMessages ev
             case Parser.parseCommand raw of
                 Left err ->
                     liftIO . print $ "parse error: " <> Error.parseErrorPretty err

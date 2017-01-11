@@ -84,22 +84,26 @@ jsonToInt =
 
 data ToTell = ToTell
     { _toTellMsg :: !Text
-    , _toTellIsPrivate :: !Bool
     , _toTellTs :: !Timestamp
+    , _toTellFrom :: !Text
     } deriving (Show)
 
 instance ToJSON ToTell where
     toJSON t =
-        object ["msg" .= _toTellMsg t, "isPrivate" .= _toTellIsPrivate t, "ts" .= _toTellTs t]
+        object
+            [ "msg" .= _toTellMsg t
+            , "ts" .= _toTellTs t
+            , "from" .= _toTellFrom t
+            ]
 
 instance FromJSON ToTell where
     parseJSON =
         withObject "social record" $
         \o -> do
             msg <- o .: "msg"
-            isPrivate <- o .: "isPrivate"
             ts <- o .: "ts"
-            return $ ToTell msg isPrivate ts
+            from <- o .: "from"
+            return $ ToTell msg ts from
 
 
 type WriterQueue = TBQueue (Either Factoids SocialRecords)

@@ -5,6 +5,7 @@ module LambdaCoucou.Social where
 import Prelude hiding (null)
 import Data.Monoid ((<>))
 import Data.Text (Text, pack, intercalate, null)
+import Control.Monad (forM_)
 import Control.Monad.IO.Class (liftIO)
 import Data.Maybe (fromMaybe)
 import qualified Data.Vector as V
@@ -137,30 +138,53 @@ registerTell ev nick payload mbDelay =
         IRC.Server _ -> return Nothing -- shouldn't happen, but who knows
         IRC.User sender ->
             if sender == nick
-                then register' True
+                then register' sender
                 else return Nothing
-        IRC.Channel _ _ -> register' False
+        IRC.Channel _ sender -> register' sender
   where
-    register' isPrivate = do
+    register' source = do
         state <- IRC.state
         liftIO $
             STM.atomically $
             do socials <- STM.readTVar (T._socialDb state)
-               let socials' = addToTell isPrivate nick payload mbDelay socials
+               let socials' = addToTell source nick payload mbDelay socials
                STM.writeTVar (T._socialDb state) socials'
                updateSocials (T._writerQueue state) socials'
         return $ Just "Ok."
 
-addToTell :: Bool -> Text -> Text -> Maybe Integer -> T.SocialRecords -> T.SocialRecords
-addToTell isPrivate nick payload mbDelay = Map.adjust appendToTell nick
+addToTell :: Text -> Text -> Text -> Maybe Integer -> T.SocialRecords -> T.SocialRecords
+addToTell sender nick payload mbDelay = Map.adjust appendToTell nick
   where
     val =
         T.ToTell
         { T._toTellMsg = payload
-        , T._toTellIsPrivate = isPrivate
         , T._toTellTs = fromMaybe 0 mbDelay
+        , T._toTellFrom = sender
         }
     appendToTell social =
         social
         { T._toTell = V.snoc (T._toTell social) val
         }
+
+sendTellMessages :: IRC.UnicodeEvent -> IRC.StatefulIRC T.BotState ()
+sendTellMessages ev = case IRC._source ev of
+    IRC.Server _ -> return ()
+    IRC.User _nick -> return () -- ignore priv message atm
+    IRC.Channel _chanName nick -> do
+        state <- IRC.state
+        now <- Time.toSeconds <$> liftIO Time.getCurrentTime
+        messages <- liftIO $ STM.atomically $ do
+            socials <- STM.readTVar (T._socialDb state)
+            case Map.lookup nick socials of
+                Nothing -> return V.empty
+                Just social -> do
+                    let (msgToTell, notYet) = V.partition (\t -> T._toTellTs t <= now) (T._toTell social)
+                    let social' = social {T._toTell = notYet}
+                    let socials' = Map.insert nick social' socials
+                    STM.writeTVar (T._socialDb state) socials'
+                    updateSocials (T._writerQueue state) socials'
+                    return msgToTell
+        liftIO $ print $ "sending tell messages: " <> show messages
+        forM_ messages $ \toTell -> do
+            let msg = "(From " <> T._toTellFrom toTell <> "): " <> T._toTellMsg toTell
+            IRC.reply ev msg
