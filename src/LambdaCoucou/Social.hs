@@ -136,11 +136,8 @@ registerTell :: IRC.UnicodeEvent
 registerTell ev nick payload mbDelay =
     case IRC._source ev of
         IRC.Server _ -> return Nothing -- shouldn't happen, but who knows
-        IRC.User sender ->
-            if sender == nick
-                then register' Nothing sender
-                else return Nothing
-        IRC.Channel chanName sender -> register' (Just chanName) sender
+        IRC.User _ -> return Nothing -- Cannot λtell in private message to the bot
+        IRC.Channel chanName sender -> register' chanName sender
   where
     register' chan sender = do
         state <- IRC.state
@@ -154,7 +151,7 @@ registerTell ev nick payload mbDelay =
                updateSocials (T._writerQueue state) socials'
         return $ Just "Ok."
 
-addToTell :: Maybe Text -> Text -> Text -> Text -> Integer -> T.SocialRecords -> T.SocialRecords
+addToTell :: Text -> Text -> Text -> Text -> Integer -> T.SocialRecords -> T.SocialRecords
 addToTell chan sender nick payload delay = Map.adjust appendToTell nick
   where
     val =
@@ -190,4 +187,5 @@ sendTellMessages ev = case IRC._source ev of
         liftIO $ print $ "sending tell messages: " <> show messages
         forM_ messages $ \toTell -> do
             let msg = "(From " <> T._toTellFrom toTell <> "): " <> T._toTellMsg toTell
+            -- TODO take care of the channel parameter for toTell (?)
             IRC.reply ev msg

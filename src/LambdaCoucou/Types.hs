@@ -86,7 +86,7 @@ data ToTell = ToTell
     { _toTellMsg :: !Text
     , _toTellTs :: !Timestamp
     , _toTellFrom :: !Text
-    , _toTellOnChannel :: Maybe Text
+    , _toTellOnChannel :: Text
     } deriving (Show)
 
 instance ToJSON ToTell where
@@ -105,7 +105,7 @@ instance FromJSON ToTell where
             msg <- o .: "msg"
             ts <- o .: "ts"
             from <- o .: "from"
-            chan <- o .:? "onChannel"
+            chan <- o .: "onChannel"
             return $ ToTell msg ts from chan
 
 
