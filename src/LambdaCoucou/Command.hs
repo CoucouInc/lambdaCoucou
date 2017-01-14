@@ -59,10 +59,6 @@ prefixHlNick mbHl txt =
     let prefix = fromMaybe "" ((<> ": ") <$> mbHl)
     in (\t -> prefix <> t) <$> txt
 
-sendReply :: IRC.UnicodeEvent -> Maybe Text -> IRC.StatefulIRC T.BotState ()
-sendReply _ Nothing = return ()
-sendReply ev (Just msg) = IRC.reply ev msg
-
 fromBlacklistedUser :: IRC.UnicodeEvent -> Bool
 fromBlacklistedUser ev =
     case IRC._source ev of
@@ -77,3 +73,7 @@ getBotVersion = do
     state <- IRC.state
     let (sha, commitDate) = T._version state
     return $ pack $ "Commit " <> take 6 sha <> " (" <> commitDate <> ")"
+
+sendReply :: IRC.UnicodeEvent -> Maybe Text -> IRC.StatefulIRC T.BotState ()
+sendReply _ Nothing = return ()
+sendReply ev (Just msg) = IRC.reply ev msg

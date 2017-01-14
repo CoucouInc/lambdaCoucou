@@ -31,6 +31,7 @@ library
                      , text >= 1.2.2 && < 1.2.3
                      , bytestring >= 0.10.8 && < 0.10.9
                      , transformers >= 0.5.2 && < 0.5.3
+                     , mtl >= 2.2.1 && < 2.3
                      , megaparsec >= 5.1.2 && < 5.2
                      , containers >= 0.5.7 && < 0.5.8
                      , req >= 0.1.0 && < 0.2
@@ -40,6 +41,7 @@ library
                      , aeson >= 0.11.2 && < 0.11.3
                      , scientific >= 0.3.4 && < 0.3.5
                      , stm >= 2.4.4 && < 2.4.5
+                     , stm-chans >= 3.0.0 && < 3.0.1
                      , async >= 2.1.1 && < 2.2
                      , datetime >= 0.3.1 && < 0.4
                      , atomic-write >= 0.2.0 && < 0.2.1

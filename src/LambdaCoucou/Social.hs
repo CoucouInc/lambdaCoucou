@@ -5,17 +5,20 @@ module LambdaCoucou.Social where
 import Prelude hiding (null)
 import Data.Monoid ((<>))
 import Data.Text (Text, pack, intercalate, null)
-import Control.Monad (forM_)
+import Data.Text.Encoding (encodeUtf8)
+import Control.Monad (forM_, void)
 import Control.Monad.IO.Class (liftIO)
 import Data.Maybe (fromMaybe)
 import qualified Data.Vector as V
+import Control.Concurrent (threadDelay, forkIO)
 import qualified Control.Concurrent.STM as STM
+import qualified Control.Concurrent.STM.TBMChan as Chan
 import qualified Network.IRC.Client as IRC
 import qualified Data.HashMap.Strict as Map
 import qualified Data.DateTime as Time
 
 import qualified LambdaCoucou.Types as T
-import LambdaCoucou.Db (updateSocials)
+import qualified LambdaCoucou.Db as DB
 
 makeDefaultUsr :: IO T.SocialRecord
 makeDefaultUsr = do
@@ -30,26 +33,18 @@ makeDefaultUsr = do
 
 incCoucou :: IRC.Source Text -> IRC.StatefulIRC T.BotState ()
 incCoucou (IRC.Channel _chanName user) = do
-    liftIO . print $ "incCoucou count for " <> user <> " " <> pack (show T.CoucouCmdIncCoucou)
-    state <- IRC.state
     defaultUsr <- liftIO makeDefaultUsr
-    let socialT = T._socialDb state
-    liftIO $
-        STM.atomically $
-        do social <- STM.readTVar socialT
-           let socialUsr = Map.lookupDefault defaultUsr user social
-           -- TODO maybe bring some lens here ?
-           let socialUsr' =
-                   socialUsr
-                   { T._coucous = succ (T._coucous socialUsr)
-                   }
-           let social' = Map.insert user socialUsr' social
-           STM.writeTVar socialT social'
-           updateSocials (T._writerQueue state) social'
+    void $ updateSocialRecords (updateCoucou defaultUsr user)
 
 -- TODO decrease coucou count if sent from private message
 incCoucou (IRC.User _user) = return ()
 incCoucou (IRC.Server _) = return ()
+
+updateCoucou :: T.SocialRecord -> Text -> T.SocialRecords -> T.SocialRecords
+updateCoucou defaultUsr = Map.alter coucouPlusPlus
+  where
+    coucouPlusPlus (Just social) = Just $ social { T._coucous = succ (T._coucous social) }
+    coucouPlusPlus Nothing = Just $ defaultUsr { T._coucous = succ (T._coucous defaultUsr) }
 
 
 getCoucouCount :: IRC.Source Text -> Maybe Text -> IRC.StatefulIRC T.BotState (Maybe Text)
@@ -68,7 +63,6 @@ getCoucouCount' user mbNick = do
             let count = T._coucous socialRec
             let payload = coucouTarget <> " est un coucouteur niveau " <> (pack . show $ count)
             return $ Just payload
-            -- IRC.reply ev payload
 
 updateLastSeen :: IRC.Source Text -> IRC.StatefulIRC T.BotState ()
 updateLastSeen (IRC.User nick) = updateLastSeen' nick
@@ -77,22 +71,11 @@ updateLastSeen _ = return ()
 
 updateLastSeen' :: Text -> IRC.StatefulIRC T.BotState ()
 updateLastSeen' nick = do
-    state <- IRC.state
+    ts <- Time.toSeconds <$> liftIO Time.getCurrentTime
     defaultUsr <- liftIO makeDefaultUsr
-    t <- Time.toSeconds <$> liftIO Time.getCurrentTime
-    liftIO $
-        STM.atomically $
-        do socials <- STM.readTVar (T._socialDb state)
-           let usr' =
-                   case Map.lookup nick socials of
-                       Nothing -> defaultUsr
-                       Just socialRecord ->
-                           socialRecord
-                           { T._lastSeen = t
-                           }
-           let socials' = Map.insert nick usr' socials
-           STM.writeTVar (T._socialDb state) socials'
-           updateSocials (T._writerQueue state) socials'
+    let updateLastSeenTs (Just usr) = Just $ usr { T._lastSeen = ts }
+        updateLastSeenTs Nothing = Just defaultUsr
+    void $ updateSocialRecords (Map.alter updateLastSeenTs nick)
 
 prettyPlural :: Integer -> Text -> Text
 prettyPlural 0 _ = ""
@@ -114,7 +97,11 @@ prettyPrintDiffTime t =
                     ", "
                     (filter
                          (not . null)
-                         [prettyPlural d "day", prettyPlural h "hour", prettyPlural m "minute", prettyPlural s "second"]) <>
+                         [ prettyPlural d "day"
+                         , prettyPlural h "hour"
+                         , prettyPlural m "minute"
+                         , prettyPlural s "second"
+                         ]) <>
                 " ago."
 
 getLastSeen :: Text -> IRC.StatefulIRC T.BotState (Maybe Text)
@@ -135,93 +122,144 @@ registerTell :: IRC.UnicodeEvent
              -> Text
              -> Maybe T.Timestamp
              -> IRC.StatefulIRC T.BotState (Maybe Text)
-registerTell = registerDelayedMessage addToTell
+registerTell ev nick msg mbDelay = withChannelMessage Nothing ev $ \chan sender -> do
+    toTell <- liftIO $ makeTell chan sender msg mbDelay
+    updateSocialRecords (addToTell nick toTell)
+    return $ Just "Ok"
 
 registerRemind :: IRC.UnicodeEvent
                -> Text
                -> Text
                -> Maybe T.Timestamp
                -> IRC.StatefulIRC T.BotState (Maybe Text)
-registerRemind = registerDelayedMessage addReminder
+registerRemind ev nick msg mbDelay = withChannelMessage Nothing ev $ \chan sender -> do
+    reminder <- liftIO $ makeReminder chan sender msg mbDelay
+    updateSocialRecords (addReminder nick reminder)
+    sendReminder chan sender nick msg mbDelay
+    return $ Just "Ok"
 
--- handle the common logic between registerTell and registerRemind
--- The first argument is the specific logic to update the social records
-registerDelayedMessage
-    :: (Text -> Text -> Text -> Text -> T.Timestamp -> T.SocialRecords -> T.SocialRecords)
-    -> IRC.UnicodeEvent
-    -> Text
-    -> Text
-    -> Maybe T.Timestamp
-    -> IRC.StatefulIRC T.BotState (Maybe Text)
-registerDelayedMessage updateSocialAction ev nick payload mbDelay =
-    case IRC._source ev of
-        IRC.Server _ -> return Nothing -- shouldn't happen, but who knows
-        IRC.User _ -> return Nothing -- Cannot λtell in private message to the bot
-        IRC.Channel chanName sender -> register' chanName sender
+addToTell :: Text -> T.ToTell -> T.SocialRecords -> T.SocialRecords
+addToTell nick toTell = Map.adjust appendToTell nick
   where
-    register' chan sender = do
-        state <- IRC.state
-        now <- Time.toSeconds <$> liftIO Time.getCurrentTime
-        let delay = fromMaybe 0 $ (+ now) <$> mbDelay
-        liftIO $
-            STM.atomically $
-            do socials <- STM.readTVar (T._socialDb state)
-               let socials' = updateSocialAction chan sender nick payload delay socials
-               STM.writeTVar (T._socialDb state) socials'
-               updateSocials (T._writerQueue state) socials'
-        return $ Just "Ok."
+    appendToTell social =
+        social
+        { T._toTell = V.snoc (T._toTell social) toTell
+        }
 
-addToTell :: Text -> Text -> Text -> Text -> T.Timestamp -> T.SocialRecords -> T.SocialRecords
-addToTell chan sender nick payload delay = Map.adjust appendToTell nick
-  where
-    val =
+addReminder :: Text -> T.Remind -> T.SocialRecords -> T.SocialRecords
+addReminder nick reminder = Map.adjust appendReminders nick'
+    where
+        nick' = if nick == "me" then T._remindFrom reminder else nick
+        appendReminders social =
+            social
+            { T._reminders = V.snoc (T._reminders social) reminder
+            }
+
+makeTell :: Text -> Text -> Text -> Maybe T.Timestamp -> IO T.ToTell
+makeTell chan sender msg mbDelay = do
+    ts <- makeTs mbDelay
+    return
         T.ToTell
-        { T._toTellMsg = payload
-        , T._toTellTs = delay
+        { T._toTellMsg = msg
+        , T._toTellTs = ts
         , T._toTellFrom = sender
         , T._toTellOnChannel = chan
         }
-    appendToTell social =
-        social
-        { T._toTell = V.snoc (T._toTell social) val
+
+makeReminder :: Text -> Text -> Text -> Maybe T.Timestamp -> IO T.Remind
+makeReminder chan sender msg mbDelay = do
+    ts <- makeTs mbDelay
+    return
+        T.Remind
+        { T._remindMsg = msg
+        , T._remindTs = ts
+        , T._remindFrom = sender
+        , T._remindOnChannel = chan
         }
 
-addReminder :: Text -> Text -> Text -> Text -> T.Timestamp -> T.SocialRecords -> T.SocialRecords
-addReminder chan sender nick payload delay = Map.adjust appendReminders nick'
-    where
-        nick' = if nick == "me" then sender else nick
-        val =
-            T.Remind
-            { T._remindMsg = payload
-            , T._remindTs = delay
-            , T._remindFrom = sender
-            , T._remindOnChannel = chan
-            }
-        appendReminders social =
-            social
-            { T._reminders = V.snoc (T._reminders social) val
-            }
+-- make a timestamp from a delay
+makeTs :: Maybe T.Timestamp -> IO T.Timestamp
+makeTs delay = do
+    now <- Time.toSeconds <$> Time.getCurrentTime
+    return $ now + fromMaybe 0 delay
+
+updateSocialRecords
+    :: (T.SocialRecords -> T.SocialRecords)
+    -> IRC.StatefulIRC T.BotState T.SocialRecords
+updateSocialRecords updateSocialAction = do
+        state <- IRC.state
+        liftIO $
+            STM.atomically $
+            do socials <- STM.readTVar (T._socialDb state)
+               let socials' = updateSocialAction socials
+               STM.writeTVar (T._socialDb state) socials'
+               DB.updateSocials (T._writerQueue state) socials'
+               return socials'
+
+withChannelMessage
+    :: Monad m
+    => a -> IRC.UnicodeEvent -> (Text -> Text -> m a) -> m a
+withChannelMessage retval ev action =
+    case IRC._source ev of
+        IRC.Server _ -> return retval -- shouldn't happen, but who knows
+        IRC.User _ -> return retval
+        IRC.Channel chanName sender -> action chanName sender
 
 sendTellMessages :: IRC.UnicodeEvent -> IRC.StatefulIRC T.BotState ()
-sendTellMessages ev = case IRC._source ev of
-    IRC.Server _ -> return ()
-    IRC.User _nick -> return () -- ignore priv message atm
-    IRC.Channel _chanName nick -> do
+sendTellMessages ev =
+    withChannelMessage () ev $
+    \_chanName nick -> do
         state <- IRC.state
         now <- Time.toSeconds <$> liftIO Time.getCurrentTime
-        messages <- liftIO $ STM.atomically $ do
-            socials <- STM.readTVar (T._socialDb state)
-            case Map.lookup nick socials of
-                Nothing -> return V.empty
-                Just social -> do
-                    let (msgToTell, notYet) = V.partition (\t -> T._toTellTs t <= now) (T._toTell social)
-                    let social' = social {T._toTell = notYet}
-                    let socials' = Map.insert nick social' socials
-                    STM.writeTVar (T._socialDb state) socials'
-                    updateSocials (T._writerQueue state) socials'
-                    return msgToTell
+        messages <-
+            liftIO $
+            STM.atomically $
+            do socials <- STM.readTVar (T._socialDb state)
+               case Map.lookup nick socials of
+                   Nothing -> return V.empty
+                   Just social -> do
+                       let (msgToTell, notYet) =
+                               V.partition (\t -> T._toTellTs t <= now) (T._toTell social)
+                       let social' =
+                               social
+                               { T._toTell = notYet
+                               }
+                       let socials' = Map.insert nick social' socials
+                       STM.writeTVar (T._socialDb state) socials'
+                       DB.updateSocials (T._writerQueue state) socials'
+                       return msgToTell
         liftIO $ print $ "sending tell messages: " <> show messages
-        forM_ messages $ \toTell -> do
-            let msg = "(From " <> T._toTellFrom toTell <> "): " <> T._toTellMsg toTell
-            -- TODO take care of the channel parameter for toTell (?)
-            IRC.reply ev msg
+        forM_ messages $
+            \toTell -> do
+                let msg = "(From " <> T._toTellFrom toTell <> "): " <> T._toTellMsg toTell
+                -- TODO take care of the channel parameter for toTell (?)
+                IRC.reply ev msg
+
+sendReminder :: Text -> Text -> Text -> Text -> Maybe T.Timestamp -> IRC.StatefulIRC T.BotState ()
+sendReminder chan sender nick msg mbDelay = do
+    let delayS = fromInteger $ 1000000 * fromMaybe 0 mbDelay
+    state <- IRC.state
+    conn <- IRC.getConnectionConfig <$> IRC.ircState
+    let sendQueue = IRC._sendqueue conn
+    let payload = "(From " <> sender <> "): " <> msg
+    let ircMessage = IRC.Privmsg chan (Right payload)
+    void $ liftIO $ forkIO $ do
+        threadDelay delayS
+        now <- liftIO $ Time.toSeconds <$> Time.getCurrentTime
+        STM.atomically $ do
+            Chan.writeTBMChan sendQueue (encodeUtf8 <$> ircMessage)
+            socials <- STM.readTVar (T._socialDb state)
+            let socials' = cleanupReminders now nick socials
+            STM.writeTVar (T._socialDb state) socials'
+            DB.updateSocials (T._writerQueue state) socials'
+
+cleanupReminders :: T.Timestamp -> Text -> T.SocialRecords -> T.SocialRecords
+cleanupReminders now =
+    Map.adjust
+        (\socials ->
+              let reminders' = V.filter (\r -> T._remindTs r >= now) (T._reminders socials)
+                  socials' =
+                      socials
+                      { T._reminders = reminders'
+                      }
+              in socials')
