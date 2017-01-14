@@ -135,7 +135,7 @@ registerRemind :: IRC.UnicodeEvent
 registerRemind ev nick msg mbDelay = withChannelMessage Nothing ev $ \chan sender -> do
     reminder <- liftIO $ makeReminder chan sender msg mbDelay
     updateSocialRecords (addReminder nick reminder)
-    sendReminder chan sender nick msg mbDelay
+    sendReminder nick reminder
     return $ Just "Ok"
 
 addToTell :: Text -> T.ToTell -> T.SocialRecords -> T.SocialRecords
@@ -235,23 +235,29 @@ sendTellMessages ev =
                 -- TODO take care of the channel parameter for toTell (?)
                 IRC.reply ev msg
 
-sendReminder :: Text -> Text -> Text -> Text -> Maybe T.Timestamp -> IRC.StatefulIRC T.BotState ()
-sendReminder chan sender nick msg mbDelay = do
-    let delayS = fromInteger $ 1000000 * fromMaybe 0 mbDelay
+sendReminder :: Text -> T.Remind -> IRC.StatefulIRC T.BotState ()
+sendReminder nick reminder = do
+    now <- liftIO $ Time.toSeconds <$> Time.getCurrentTime
+    let delayS = max 0 (T._remindTs reminder - now)
+    let delayMicroS = fromInteger $ 1000000 * delayS
     state <- IRC.state
     conn <- IRC.getConnectionConfig <$> IRC.ircState
     let sendQueue = IRC._sendqueue conn
-    let payload = "(From " <> sender <> "): " <> msg
-    let ircMessage = IRC.Privmsg chan (Right payload)
+    let payload = "(From " <> T._remindFrom reminder <> "): " <> T._remindMsg reminder
+    let ircMessage = IRC.Privmsg (T._remindOnChannel reminder) (Right payload)
+    liftIO $ print $ "Sending irc message: " <> show ircMessage
     void $ liftIO $ forkIO $ do
-        threadDelay delayS
-        now <- liftIO $ Time.toSeconds <$> Time.getCurrentTime
+        threadDelay delayMicroS
+        now' <- liftIO $ Time.toSeconds <$> Time.getCurrentTime
         STM.atomically $ do
             Chan.writeTBMChan sendQueue (encodeUtf8 <$> ircMessage)
             socials <- STM.readTVar (T._socialDb state)
-            let socials' = cleanupReminders now nick socials
+            let socials' = cleanupReminders now' nick socials
             STM.writeTVar (T._socialDb state) socials'
             DB.updateSocials (T._writerQueue state) socials'
+
+sendReminderIO :: STM.TVar T.BotState -> IRC.ConnectionConfig T.BotState -> Text -> T.Remind -> IO ()
+sendReminderIO = undefined
 
 cleanupReminders :: T.Timestamp -> Text -> T.SocialRecords -> T.SocialRecords
 cleanupReminders now =
@@ -263,3 +269,11 @@ cleanupReminders now =
                       { T._reminders = reminders'
                       }
               in socials')
+
+setupReminders :: IRC.StatefulIRC T.BotState ()
+setupReminders = do
+    state <- IRC.state
+    socials <- liftIO $ STM.readTVarIO (T._socialDb state)
+    let withReminders = filter (not . V.null . T._reminders . snd) (Map.toList socials)
+    forM_ withReminders $
+        \(nick, social) -> forM_ (T._reminders social) $ \reminder -> sendReminder nick reminder

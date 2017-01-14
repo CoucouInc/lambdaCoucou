@@ -17,7 +17,7 @@ import qualified Network.IRC.Client as IRC
 import qualified LambdaCoucou.Types as T
 import qualified LambdaCoucou.Parser as Parser
 import qualified LambdaCoucou.Command as Cmd
-import LambdaCoucou.Social (updateLastSeen, sendTellMessages)
+import LambdaCoucou.Social (updateLastSeen, sendTellMessages, setupReminders)
 import LambdaCoucou.Db (readSocial, readFactoids, updateDb)
 
 run :: T.Opts -> IO ()
@@ -31,16 +31,21 @@ run opts = do
     let cfg = IRC.defaultIRCConf nick
     let commandHandler =
             IRC.EventHandler "command handler" IRC.EPrivmsg commandHandlerFunc
+    let joinHandler =
+            IRC.EventHandler "join handler" IRC.EJoin onJoinFunc
     let cfg' =
             cfg
-            { IRC._eventHandlers = commandHandler : IRC._eventHandlers cfg
+            { IRC._eventHandlers = commandHandler : joinHandler : IRC._eventHandlers cfg
             , IRC._channels = [chan]
             , IRC._ctcpVer = "λcoucou, a haskell bot in beta"
             }
     state <- initialState
     let writerQueue = T._writerQueue state
+    -- setupReminders (T._socialDb state) writerQueue conn
     withAsync (updateDb writerQueue) $
         \_ -> IRC.startStateful conn cfg' state
+
+-- setupReminders :: STM.TVar T.BotState -> IRC.ConnectionConfig T.BotState -> T.SocialRecords -> IO ()
 
 
 commandHandlerFunc :: IRC.UnicodeEvent -> IRC.StatefulIRC T.BotState ()
@@ -79,3 +84,8 @@ initialState = do
                 , T._writerQueue = writerQueue
                 , T._version = ($(gitHash), $(gitCommitDate))
                 }
+
+onJoinFunc :: IRC.UnicodeEvent -> IRC.StatefulIRC T.BotState ()
+onJoinFunc ev = case IRC._message ev of
+        IRC.Join _chan -> setupReminders
+        _ -> return ()
