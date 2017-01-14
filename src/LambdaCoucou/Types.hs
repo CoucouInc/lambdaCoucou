@@ -86,6 +86,7 @@ data ToTell = ToTell
     { _toTellMsg :: !Text
     , _toTellTs :: !Timestamp
     , _toTellFrom :: !Text
+    , _toTellOnChannel :: Maybe Text
     } deriving (Show)
 
 instance ToJSON ToTell where
@@ -94,6 +95,7 @@ instance ToJSON ToTell where
             [ "msg" .= _toTellMsg t
             , "ts" .= _toTellTs t
             , "from" .= _toTellFrom t
+            , "onChannel" .= _toTellOnChannel t
             ]
 
 instance FromJSON ToTell where
@@ -103,7 +105,8 @@ instance FromJSON ToTell where
             msg <- o .: "msg"
             ts <- o .: "ts"
             from <- o .: "from"
-            return $ ToTell msg ts from
+            chan <- o .:? "onChannel"
+            return $ ToTell msg ts from chan
 
 
 type WriterQueue = TBQueue (Either Factoids SocialRecords)

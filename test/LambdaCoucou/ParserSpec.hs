@@ -122,3 +122,35 @@ spec = do
             P.parseCommand "λtell foo  message  " `shouldParse` T.CoucouCmdTell "foo" "message  " Nothing
         it "needs a message" $
             P.parseCommand "λtell foo  " `shouldParse` T.CoucouCmdNop
+        it "parses seconds delay" $ do
+            P.parseCommand "λtell foo  in 4 seconds message"
+                `shouldParse` T.CoucouCmdTell "foo" "message" (Just 4)
+            P.parseCommand "λtell foo in 4 second message"
+                `shouldParse` T.CoucouCmdTell "foo" "message" (Just 4)
+        it "parses minutes delay" $ do
+            P.parseCommand "λtell foo  in 4 minutes message"
+                `shouldParse` T.CoucouCmdTell "foo" "message" (Just (4 * 60))
+            P.parseCommand "λtell foo in 4 minute message"
+                `shouldParse` T.CoucouCmdTell "foo" "message" (Just (4 * 60))
+        it "parses hours delay" $ do
+            P.parseCommand "λtell foo  in 4 hours message"
+                `shouldParse` T.CoucouCmdTell "foo" "message" (Just (4 * 3600))
+            P.parseCommand "λtell foo in 4 hour message"
+                `shouldParse` T.CoucouCmdTell "foo" "message" (Just (4 * 3600))
+        it "parses minutes seconds delay" $
+            P.parseCommand "λtell foo  in 2 minutes 4 seconds message"
+                `shouldParse` T.CoucouCmdTell "foo" "message" (Just (2 * 60 + 4))
+        it "parses hours seconds delay" $
+            P.parseCommand "λtell foo  in 2 hours 4 seconds message"
+                `shouldParse` T.CoucouCmdTell "foo" "message" (Just (2 * 3600 + 4))
+        it "parses hours minutes delay" $
+            P.parseCommand "λtell foo  in 2 hours 4 minutes message"
+                `shouldParse` T.CoucouCmdTell "foo" "message" (Just (2 * 3600 + 4 * 60))
+        it "parses hours minutes seconds delay" $
+            P.parseCommand "λtell foo  in 2 hours 4 minutes 10 seconds message"
+                `shouldParse` T.CoucouCmdTell "foo" "message" (Just (2 * 3600 + 4 * 60 + 10))
+        it "doesn't parse delay even with nick starting with delay command" $
+            P.parseCommand "λtell in your face" `shouldParse` T.CoucouCmdTell "in" "your face" Nothing
+        it "negative delays are considered 0" $
+            P.parseCommand "λtell foo in -10 seconds message"
+                `shouldParse` T.CoucouCmdTell "foo" "message" (Just 0)

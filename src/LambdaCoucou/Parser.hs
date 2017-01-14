@@ -11,7 +11,7 @@ import Text.Megaparsec.Text
 import Data.Text (Text)
 import qualified Data.Text as T
 
-import LambdaCoucou.Types (CoucouCmd(..), CmdFactoidType(..))
+import LambdaCoucou.Types (CoucouCmd(..), CmdFactoidType(..), Timestamp)
 
 parseCommand :: Text -> Either (ParseError Char Dec) CoucouCmd
 parseCommand raw = parse commandParser "" raw
@@ -175,8 +175,33 @@ tell = do
     some spaceChar
     n <- nick
     some spaceChar
+    d <- tellDelay
     msg <- T.pack <$> some anyChar
-    return $ CoucouCmdTell n msg Nothing
+    return $ CoucouCmdTell n msg d
+
+tellDelay :: Parser (Maybe Timestamp)
+tellDelay = try delay <|> return Nothing
+
+delay :: Parser (Maybe Timestamp)
+delay = do
+    string "in"
+    some spaceChar
+    h <- fromMaybe 0 <$> delayCmd "hour"
+    m <- fromMaybe 0 <$> delayCmd "minute"
+    s <- fromMaybe 0 <$> delayCmd "second"
+    return $ Just (max 0 (h * 3600 + m * 60 + s))
+  where
+    delayCmd :: String -> Parser (Maybe Integer)
+    delayCmd sep = try (delayUnit sep) <|> return Nothing
+    delayUnit :: String -> Parser (Maybe Integer)
+    delayUnit sep = do
+        mult <- option 1 (char '-' >> return (-1))
+        d <- read <$> some digitChar
+        some spaceChar
+        string sep
+        optional (char 's')
+        some spaceChar
+        return $ Just (mult * d)
 
 see :: Parser CoucouCmd
 see = do

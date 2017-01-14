@@ -138,28 +138,31 @@ registerTell ev nick payload mbDelay =
         IRC.Server _ -> return Nothing -- shouldn't happen, but who knows
         IRC.User sender ->
             if sender == nick
-                then register' sender
+                then register' Nothing sender
                 else return Nothing
-        IRC.Channel _ sender -> register' sender
+        IRC.Channel chanName sender -> register' (Just chanName) sender
   where
-    register' source = do
+    register' chan sender = do
         state <- IRC.state
+        now <- Time.toSeconds <$> liftIO Time.getCurrentTime
+        let delay = fromMaybe 0 $ (+ now) <$> mbDelay
         liftIO $
             STM.atomically $
             do socials <- STM.readTVar (T._socialDb state)
-               let socials' = addToTell source nick payload mbDelay socials
+               let socials' = addToTell chan sender nick payload delay socials
                STM.writeTVar (T._socialDb state) socials'
                updateSocials (T._writerQueue state) socials'
         return $ Just "Ok."
 
-addToTell :: Text -> Text -> Text -> Maybe Integer -> T.SocialRecords -> T.SocialRecords
-addToTell sender nick payload mbDelay = Map.adjust appendToTell nick
+addToTell :: Maybe Text -> Text -> Text -> Text -> Integer -> T.SocialRecords -> T.SocialRecords
+addToTell chan sender nick payload delay = Map.adjust appendToTell nick
   where
     val =
         T.ToTell
         { T._toTellMsg = payload
-        , T._toTellTs = fromMaybe 0 mbDelay
+        , T._toTellTs = delay
         , T._toTellFrom = sender
+        , T._toTellOnChannel = chan
         }
     appendToTell social =
         social
