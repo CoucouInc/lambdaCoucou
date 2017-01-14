@@ -49,6 +49,7 @@ data SocialRecord = SocialRecord
     { _coucous :: !Int
     , _lastSeen :: !Timestamp
     , _toTell :: Vector ToTell
+    , _reminders :: Vector Remind
     } deriving (Show)
 
 instance ToJSON SocialRecord where
@@ -57,6 +58,7 @@ instance ToJSON SocialRecord where
             [ "coucous" .= _coucous r
             , "lastSeen" .= toJSON (_lastSeen r)
             , "toTell" .= toJSON (_toTell r)
+            , "reminders" .= toJSON (_reminders r)
             ]
 
 instance FromJSON SocialRecord where
@@ -66,11 +68,13 @@ instance FromJSON SocialRecord where
             coucous <- o .: "coucous" >>= jsonToInt
             lastSeen <- o .: "lastSeen"
             messages <- o .:? "toTell" .!= empty
+            reminders <- o .:? "reminders" .!= empty
             return
                 SocialRecord
                 { _coucous = coucous
                 , _lastSeen = lastSeen
                 , _toTell = messages
+                , _reminders = reminders
                 }
 
 jsonToInt :: Value -> Parser Int
@@ -86,7 +90,7 @@ data ToTell = ToTell
     { _toTellMsg :: !Text
     , _toTellTs :: !Timestamp
     , _toTellFrom :: !Text
-    , _toTellOnChannel :: Text
+    , _toTellOnChannel :: !Text
     } deriving (Show)
 
 instance ToJSON ToTell where
@@ -100,14 +104,35 @@ instance ToJSON ToTell where
 
 instance FromJSON ToTell where
     parseJSON =
-        withObject "social record" $
-        \o -> do
-            msg <- o .: "msg"
-            ts <- o .: "ts"
-            from <- o .: "from"
-            chan <- o .: "onChannel"
-            return $ ToTell msg ts from chan
+        withObject "to tell object" $ parseTell ToTell
 
+data Remind = Remind
+    { _remindMsg :: !Text
+    , _remindTs :: !Timestamp
+    , _remindFrom :: !Text
+    , _remindOnChannel :: !Text
+    } deriving (Show)
+
+instance ToJSON Remind where
+    toJSON r =
+        object
+            [ "msg" .= _remindMsg r
+            , "ts" .= _remindTs r
+            , "from" .= _remindFrom r
+            , "onChannel" .= _remindOnChannel r
+            ]
+
+instance FromJSON Remind where
+    parseJSON =
+        withObject "remind object" $ parseTell Remind
+
+parseTell :: (Text -> Timestamp -> Text -> Text -> t) -> Object -> Parser t
+parseTell ctor o = do
+    msg <- o .: "msg"
+    ts <- o .: "ts"
+    from <- o .: "from"
+    chan <- o .: "onChannel"
+    return $ ctor msg ts from chan
 
 type WriterQueue = TBQueue (Either Factoids SocialRecords)
 
@@ -131,6 +156,7 @@ data CoucouCmd
                         !(Maybe Text) -- Maybe nick to hl
     | CoucouCmdVersion
     | CoucouCmdTell !Text !Text (Maybe Timestamp) -- nick payload maybe(delay)
+    | CoucouCmdRemind !Text !Text (Maybe Timestamp) -- nick payload maybe(delay)
     deriving (Eq)
 
 data CmdFactoidType
@@ -175,3 +201,5 @@ instance Show CoucouCmd where
     show CoucouCmdVersion = "Send git info of the bot"
     show (CoucouCmdTell nick payload mbDelay) =
         "Tell " <> unpack nick <> ": " <> unpack payload <> " after " <> show mbDelay <> "s."
+    show (CoucouCmdRemind nick payload mbDelay) =
+        "Send " <> unpack nick <> ": " <> unpack payload <> " after " <> show mbDelay <> "s."

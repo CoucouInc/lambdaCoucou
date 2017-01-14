@@ -25,6 +25,7 @@ makeDefaultUsr = do
         { T._coucous = 0
         , T._lastSeen = t
         , T._toTell = V.empty
+        , T._reminders = V.empty
         }
 
 incCoucou :: IRC.Source Text -> IRC.StatefulIRC T.BotState ()
@@ -128,12 +129,31 @@ getLastSeen nick = do
             let payload = nick <> " has been seen " <> prettyPrintDiffTime diff
             return (Just payload)
 
+-- registerTell and registerRemind are nearly identical.
 registerTell :: IRC.UnicodeEvent
              -> Text
              -> Text
-             -> Maybe Integer
+             -> Maybe T.Timestamp
              -> IRC.StatefulIRC T.BotState (Maybe Text)
-registerTell ev nick payload mbDelay =
+registerTell = registerDelayedMessage addToTell
+
+registerRemind :: IRC.UnicodeEvent
+               -> Text
+               -> Text
+               -> Maybe T.Timestamp
+               -> IRC.StatefulIRC T.BotState (Maybe Text)
+registerRemind = registerDelayedMessage addReminder
+
+-- handle the common logic between registerTell and registerRemind
+-- The first argument is the specific logic to update the social records
+registerDelayedMessage
+    :: (Text -> Text -> Text -> Text -> T.Timestamp -> T.SocialRecords -> T.SocialRecords)
+    -> IRC.UnicodeEvent
+    -> Text
+    -> Text
+    -> Maybe T.Timestamp
+    -> IRC.StatefulIRC T.BotState (Maybe Text)
+registerDelayedMessage updateSocialAction ev nick payload mbDelay =
     case IRC._source ev of
         IRC.Server _ -> return Nothing -- shouldn't happen, but who knows
         IRC.User _ -> return Nothing -- Cannot λtell in private message to the bot
@@ -146,12 +166,12 @@ registerTell ev nick payload mbDelay =
         liftIO $
             STM.atomically $
             do socials <- STM.readTVar (T._socialDb state)
-               let socials' = addToTell chan sender nick payload delay socials
+               let socials' = updateSocialAction chan sender nick payload delay socials
                STM.writeTVar (T._socialDb state) socials'
                updateSocials (T._writerQueue state) socials'
         return $ Just "Ok."
 
-addToTell :: Text -> Text -> Text -> Text -> Integer -> T.SocialRecords -> T.SocialRecords
+addToTell :: Text -> Text -> Text -> Text -> T.Timestamp -> T.SocialRecords -> T.SocialRecords
 addToTell chan sender nick payload delay = Map.adjust appendToTell nick
   where
     val =
@@ -165,6 +185,22 @@ addToTell chan sender nick payload delay = Map.adjust appendToTell nick
         social
         { T._toTell = V.snoc (T._toTell social) val
         }
+
+addReminder :: Text -> Text -> Text -> Text -> T.Timestamp -> T.SocialRecords -> T.SocialRecords
+addReminder chan sender nick payload delay = Map.adjust appendReminders nick'
+    where
+        nick' = if nick == "me" then sender else nick
+        val =
+            T.Remind
+            { T._remindMsg = payload
+            , T._remindTs = delay
+            , T._remindFrom = sender
+            , T._remindOnChannel = chan
+            }
+        appendReminders social =
+            social
+            { T._reminders = V.snoc (T._reminders social) val
+            }
 
 sendTellMessages :: IRC.UnicodeEvent -> IRC.StatefulIRC T.BotState ()
 sendTellMessages ev = case IRC._source ev of

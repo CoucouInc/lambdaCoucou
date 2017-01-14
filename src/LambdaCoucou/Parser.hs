@@ -25,7 +25,8 @@ prefix = char 'λ' <|> char '>'
 
 commandParser' :: Parser CoucouCmd
 commandParser' =
-    try getVersion <|> try tell <|> try getCoucou <|> try see <|> try search <|> try lastSeen <|>
+    try getVersion <|> try tell <|> try remind <|> try getCoucou <|> try see <|> try search <|>
+    try lastSeen <|>
     try cancer <|>
     factoid
 
@@ -107,7 +108,7 @@ validFactoidName name =
 
 -- reserved name, these cannot be used for factoids
 factoidBlackList :: [Text]
-factoidBlackList = ["see", "search", "coucou", "seen", "cancer", "version"]
+factoidBlackList = ["see", "search", "coucou", "seen", "cancer", "version", "tell", "remind"]
 
 factoidName :: Maybe (Parser String) -> Parser Text
 factoidName mbLimit = do
@@ -202,6 +203,16 @@ delay = do
         optional (char 's')
         some spaceChar
         return $ Just (mult * d)
+
+remind :: Parser CoucouCmd
+remind = do
+    string "remind"
+    some spaceChar
+    n <- nick
+    some spaceChar
+    d <- tellDelay
+    msg <- T.pack <$> some anyChar
+    return $ CoucouCmdRemind n msg d
 
 see :: Parser CoucouCmd
 see = do
