@@ -43,14 +43,21 @@ getFactoids name = do
             Just (T.Counter n) -> ["Counter: " <> pack (show n)]
             Just (T.Facts facts) -> trimResults (V.toList facts)
 
-searchFactoids :: Text -> IRC.StatefulIRC T.BotState [Text]
-searchFactoids search = do
+searchFactoids :: Text -> Maybe Text -> IRC.StatefulIRC T.BotState [Text]
+searchFactoids search mbSearch = do
     factoidsT <- T._factoids <$> IRC.state
     factoids <- liftIO $ STM.readTVarIO factoidsT
     let search' = toLower search
     let flat = flattenFactoids factoids
     let matchingPairs = nub $ filter (not . null . fst) $ filter (matchSearch search') flat
-    let withPrefix = fmap (\(k, v) -> k <> " -> " <> v) matchingPairs
+    let refined =
+            case mbSearch of
+                Nothing -> matchingPairs
+                Just refinedSearch ->
+                    filter (\(_, v) -> toLower refinedSearch `isInfixOf` toLower v) matchingPairs
+    liftIO $ putStrLn $ "matching pairs: " <> show matchingPairs
+    liftIO $ putStrLn $ "refined pairs: " <> show refined
+    let withPrefix = fmap (\(k, v) -> k <> " -> " <> v) refined
     return $ trimResults withPrefix
   where
     matchSearch s (k, v) = (s `isInfixOf` toLower k) || (s `isInfixOf` toLower v)

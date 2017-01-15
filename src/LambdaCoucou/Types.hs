@@ -168,7 +168,7 @@ data CmdFactoidType
     | IncFactoid
     | DecFactoid
     | SeeFactoids
-    | SearchFactoids
+    | SearchFactoids !(Maybe Text) -- maybe search term for values
     deriving (Eq, Show)
 
 instance Show CoucouCmd where
@@ -192,7 +192,9 @@ instance Show CoucouCmd where
                IncFactoid -> "Increment counter: " <> name' <> "."
                DecFactoid -> "Decrement counter: " <> name' <> "."
                SeeFactoids -> "List factoids for name: " <> name' <> "."
-               SearchFactoids -> "Search factoids with content: " <> name' <> "."
+               SearchFactoids mbSearch ->
+                   "Search factoids with content: " <> name' <> " and refine search with " <> show mbSearch <>
+                   "."
     show (CoucouCmdGetCoucou (Just nick)) = "Show count of coucou for " <> unpack nick
     show (CoucouCmdGetCoucou Nothing) = "Show count of coucou for the sender of the message"
     show CoucouCmdIncCoucou = "Increment coucou count for sender of this message"

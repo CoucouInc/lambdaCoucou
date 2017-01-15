@@ -42,7 +42,7 @@ handleCommand ev cmd@(T.CoucouCmdFactoid name factoidType) = do
             T.DeleteFactoid -> deleteFactoid ev name
             T.AugmentFactoid val -> augmentFactoid ev name val
             T.SeeFactoids -> getFactoids name >>= mapM_ (sendReply ev . Just)
-            T.SearchFactoids -> searchFactoids name >>= mapM_ (sendReply ev . Just)
+            T.SearchFactoids mbSearch -> searchFactoids name mbSearch >>= mapM_ (sendReply ev . Just)
 handleCommand ev T.CoucouCmdIncCoucou = incCoucou (IRC._source ev)
 handleCommand ev (T.CoucouCmdGetCoucou mbNick) =
     getCoucouCount (IRC._source ev) mbNick >>= sendReply ev

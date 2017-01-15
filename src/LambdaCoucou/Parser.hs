@@ -119,8 +119,7 @@ factoidName mbLimit = do
     else return name
 
 word :: Parser Text
--- word = T.pack <$> someTill (satisfy (not . isSpace)) (void spaceChar <|> eof)
-word = T.pack <$> someTill (satisfy (not . isSpace)) (void spaceChar <|> eof)
+word = T.pack <$> some (satisfy (not . isSpace))
 
 getFactoid :: Parser CoucouCmd
 getFactoid = do
@@ -226,9 +225,10 @@ search :: Parser CoucouCmd
 search = do
     string "search"
     some spaceChar
-    s <- T.pack <$> some anyChar
+    s <- word
+    refined <- optional (try (some spaceChar >> word))
     end
-    return $ CoucouCmdFactoid s SearchFactoids
+    return $ CoucouCmdFactoid s (SearchFactoids refined)
 
 end :: Parser ()
 end = space <* eof

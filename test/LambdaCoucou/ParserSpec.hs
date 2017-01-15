@@ -85,9 +85,13 @@ spec = do
             it "can parse simple search" $
                 P.parseCommand "λsee  foo-bar " `shouldParse` T.CoucouCmdFactoid "foo-bar" T.SeeFactoids
 
-        describe "search factoids" $
+        describe "search factoids" $ do
             it "can parse simple search" $
-                P.parseCommand "λsearch  foo " `shouldParse` T.CoucouCmdFactoid "foo " T.SearchFactoids
+                P.parseCommand "λsearch  foo "
+                    `shouldParse` T.CoucouCmdFactoid "foo" (T.SearchFactoids Nothing)
+            it "can parse additional search term" $
+                P.parseCommand "λsearch  foo  bar "
+                    `shouldParse` T.CoucouCmdFactoid "foo" (T.SearchFactoids (Just "bar"))
 
     describe "increase coucou count" $ do
         it "picks up coucou at the beginning" $
