@@ -116,7 +116,6 @@ getLastSeen nick = do
             let payload = nick <> " has been seen " <> prettyPrintDiffTime diff
             return (Just payload)
 
--- registerTell and registerRemind are nearly identical.
 registerTell :: IRC.UnicodeEvent
              -> Text
              -> Text
@@ -138,9 +137,10 @@ registerRemind ev nick msg mbDelay = case IRC._source ev of
     IRC.Channel chan sender -> register' chan sender
   where
     register' chan sender = do
+        let nick' = if nick == "me" then sender else nick
         reminder <- liftIO $ makeReminder chan sender msg mbDelay
-        updateSocialRecords (addReminder nick reminder)
-        sendReminder nick reminder
+        updateSocialRecords (addReminder nick' reminder)
+        sendReminder nick' reminder
         return $ Just "Ok"
 
 addToTell :: Text -> T.ToTell -> T.SocialRecords -> T.SocialRecords
@@ -152,9 +152,8 @@ addToTell nick toTell = Map.adjust appendToTell nick
         }
 
 addReminder :: Text -> T.Remind -> T.SocialRecords -> T.SocialRecords
-addReminder nick reminder = Map.adjust appendReminders nick'
+addReminder nick reminder = Map.adjust appendReminders nick
     where
-        nick' = if nick == "me" then T._remindFrom reminder else nick
         appendReminders social =
             social
             { T._reminders = V.snoc (T._reminders social) reminder
@@ -265,7 +264,7 @@ cleanupReminders :: T.Timestamp -> Text -> T.SocialRecords -> T.SocialRecords
 cleanupReminders now =
     Map.adjust
         (\socials ->
-              let reminders' = V.filter (\r -> T._remindTs r >= now) (T._reminders socials)
+              let reminders' = V.filter (\r -> T._remindTs r > now) (T._reminders socials)
                   socials' =
                       socials
                       { T._reminders = reminders'
