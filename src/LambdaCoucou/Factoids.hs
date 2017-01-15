@@ -62,6 +62,17 @@ searchFactoids search mbSearch = do
   where
     matchSearch s (k, v) = (s `isInfixOf` toLower k) || (s `isInfixOf` toLower v)
 
+getRandomFactoid :: V.Vector Text -> IRC.StatefulIRC T.BotState (Maybe Text)
+getRandomFactoid facts = (fmap . fmap) (\i -> facts V.! i) (getRandomIdx facts)
+
+randomFactoid :: IRC.StatefulIRC T.BotState (Maybe Text)
+randomFactoid = do
+    state <- IRC.state
+    factoids <- liftIO $ STM.readTVarIO (T._factoids state)
+    let list = flattenFactoids factoids
+    idx <- getRandomIdx list
+    return $ fmap ((\(k, v) -> ">" <> k <> ": " <> v) . (\i -> list !! i)) idx
+
 trimResults :: [Text] -> [Text]
 trimResults xs
     | length xs <= 4 = xs
@@ -76,10 +87,12 @@ flattenFactoids factoids = do
             f <- V.toList facts
             return (k, f)
 
-
-getRandomFactoid :: V.Vector Text -> IRC.StatefulIRC T.BotState (Maybe Text)
-getRandomFactoid facts =
-    if V.null facts
+getRandomIdx
+    :: (Foldable t)
+    => t a -> IRC.StatefulIRC T.BotState (Maybe Int)
+getRandomIdx xs = do
+    let l = length xs
+    if l == 0
         then return Nothing
         else do
             genT <- T._stdGen <$> IRC.state
@@ -87,10 +100,10 @@ getRandomFactoid facts =
                 liftIO $
                 STM.atomically $
                 do gen <- STM.readTVar genT
-                   let (a, gen') = randomR (0, V.length facts - 1) gen
+                   let (a, gen') = randomR (0, l - 1) gen
                    STM.writeTVar genT gen'
                    return a
-            return . Just $ facts V.! idx
+            return $ Just idx
 
 adjustCounterFactoid :: (Int -> Int) -> IRC.UnicodeEvent -> Text -> IRC.StatefulIRC T.BotState ()
 adjustCounterFactoid op ev name = do

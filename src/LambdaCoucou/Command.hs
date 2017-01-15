@@ -12,7 +12,7 @@ import qualified Network.IRC.Client as IRC
 import qualified LambdaCoucou.Types as T
 import LambdaCoucou.Cancer (fetchCancer)
 import LambdaCoucou.Factoids
-       (getFactoid, getFactoids, searchFactoids, adjustCounterFactoid,
+       (getFactoid, getFactoids, randomFactoid, searchFactoids, adjustCounterFactoid,
         setFactoid, resetFactoid, deleteFactoid, augmentFactoid)
 import LambdaCoucou.Social
        (incCoucou, getCoucouCount, getLastSeen, registerTell,
@@ -43,6 +43,7 @@ handleCommand ev cmd@(T.CoucouCmdFactoid name factoidType) = do
             T.AugmentFactoid val -> augmentFactoid ev name val
             T.SeeFactoids -> getFactoids name >>= mapM_ (sendReply ev . Just)
             T.SearchFactoids mbSearch -> searchFactoids name mbSearch >>= mapM_ (sendReply ev . Just)
+handleCommand ev T.CoucouCmdRandomFactoid = randomFactoid >>= sendReply ev
 handleCommand ev T.CoucouCmdIncCoucou = incCoucou (IRC._source ev)
 handleCommand ev (T.CoucouCmdGetCoucou mbNick) =
     getCoucouCount (IRC._source ev) mbNick >>= sendReply ev
@@ -80,7 +81,7 @@ sendReply _ Nothing = return ()
 sendReply ev (Just msg) = IRC.reply ev msg
 
 helpCommand :: Maybe T.CoucouHelpType -> Text
-helpCommand Nothing = "List of commands: cancer, coucou, seen, tell, remind, version, factoid"
+helpCommand Nothing = "List of commands: cancer, coucou, seen, tell, remind, version, factoid, random"
 helpCommand (Just T.TypeCancer) =
     "cancer [search]: get a random cancer matching `search`. If no search is given, get any random cancer."
 helpCommand (Just T.TypeCoucou) =
@@ -93,4 +94,5 @@ helpCommand (Just T.TypeRemind) =
 helpCommand (Just T.TypeVersion) = "version: version of the bot."
 helpCommand (Just T.TypeFactoid) =
     ">foo: get a random factoid named foo. >foo++ increment the foo counter by one. >foo := x reset factoid foo to value x. >foo += x adds x to the list of factoids for foo."
+helpCommand (Just T.TypeRandom) = "get a random factoid"
 helpCommand (Just (T.TypeUnknown term)) = "No command named " <> term <> "."

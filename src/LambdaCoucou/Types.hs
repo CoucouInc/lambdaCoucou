@@ -150,6 +150,7 @@ data CoucouCmd
                       !(Maybe Text) -- Maybe search substr, Maybe nick to hl
     | CoucouCmdFactoid !Text
                        CmdFactoidType
+    | CoucouCmdRandomFactoid
     | CoucouCmdGetCoucou !(Maybe Text) -- Maybe nick to hl
     | CoucouCmdIncCoucou
     | CoucouCmdLastSeen !Text
@@ -196,6 +197,7 @@ instance Show CoucouCmd where
                SearchFactoids mbSearch ->
                    "Search factoids with content: " <> name' <> " and refine search with " <> show mbSearch <>
                    "."
+    show CoucouCmdRandomFactoid = "Get a random factoid"
     show (CoucouCmdGetCoucou (Just nick)) = "Show count of coucou for " <> unpack nick
     show (CoucouCmdGetCoucou Nothing) = "Show count of coucou for the sender of the message"
     show CoucouCmdIncCoucou = "Increment coucou count for sender of this message"
@@ -217,5 +219,6 @@ data CoucouHelpType
     | TypeTell
     | TypeRemind
     | TypeVersion
+    | TypeRandom
     | TypeUnknown !Text
     deriving (Eq, Show)

@@ -29,6 +29,7 @@ commandParser' =
     try getVersion <|> try tell <|> try remind <|> try getCoucou <|> try see <|> try search <|>
     try lastSeen <|>
     try help <|>
+    try random <|>
     try cancer <|>
     factoid
 
@@ -110,7 +111,7 @@ validFactoidName name =
 
 -- reserved name, these cannot be used for factoids
 factoidBlackList :: [Text]
-factoidBlackList = ["see", "search", "coucou", "seen", "cancer", "version", "tell", "remind"]
+factoidBlackList = ["see", "search", "coucou", "seen", "cancer", "version", "tell", "remind", "random"]
 
 factoidName :: Maybe (Parser String) -> Parser Text
 factoidName mbLimit = do
@@ -247,16 +248,11 @@ help = do
             "tell" -> TypeTell
             "remind" -> TypeRemind
             "version" -> TypeVersion
+            "random" -> TypeRandom
             _ -> TypeUnknown term
 
-    -- = TypeCancer
-    -- | TypeFactoid
-    -- | TypeCoucou
-    -- | TypeSeen
-    -- | TypeTell
-    -- | TypeRemind
-    -- | TypeVersion
-    -- deriving (Eq, Show)
+random :: Parser CoucouCmd
+random = string "random" >> return CoucouCmdRandomFactoid
 
 end :: Parser ()
 end = space <* eof
