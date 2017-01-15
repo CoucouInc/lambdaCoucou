@@ -11,7 +11,8 @@ import Text.Megaparsec.Text
 import Data.Text (Text)
 import qualified Data.Text as T
 
-import LambdaCoucou.Types (CoucouCmd(..), CmdFactoidType(..), Timestamp)
+import LambdaCoucou.Types
+       (CoucouCmd(..), CmdFactoidType(..), Timestamp, CoucouHelpType(..))
 
 parseCommand :: Text -> Either (ParseError Char Dec) CoucouCmd
 parseCommand raw = parse commandParser "" raw
@@ -27,6 +28,7 @@ commandParser' :: Parser CoucouCmd
 commandParser' =
     try getVersion <|> try tell <|> try remind <|> try getCoucou <|> try see <|> try search <|>
     try lastSeen <|>
+    try help <|>
     try cancer <|>
     factoid
 
@@ -117,9 +119,6 @@ factoidName mbLimit = do
     if name `elem` factoidBlackList
     then fail $ T.unpack $ "Reserved keyword " <> name
     else return name
-
-word :: Parser Text
-word = T.pack <$> some (satisfy (not . isSpace))
 
 getFactoid :: Parser CoucouCmd
 getFactoid = do
@@ -230,5 +229,37 @@ search = do
     end
     return $ CoucouCmdFactoid s (SearchFactoids refined)
 
+help :: Parser CoucouCmd
+help = do
+    string "help"
+    helpType <- helpTypeParser
+    end
+    return $ CoucouCmdHelp helpType
+  where
+    helpTypeParser = (try end >> return Nothing) <|> do
+        some spaceChar
+        term <- word
+        end
+        return $ Just $ case term of
+            "cancer" -> TypeCancer
+            "coucou" -> TypeCoucou
+            "seen" -> TypeSeen
+            "tell" -> TypeTell
+            "remind" -> TypeRemind
+            "version" -> TypeVersion
+            _ -> TypeUnknown term
+
+    -- = TypeCancer
+    -- | TypeFactoid
+    -- | TypeCoucou
+    -- | TypeSeen
+    -- | TypeTell
+    -- | TypeRemind
+    -- | TypeVersion
+    -- deriving (Eq, Show)
+
 end :: Parser ()
 end = space <* eof
+
+word :: Parser Text
+word = T.pack <$> some (satisfy (not . isSpace))

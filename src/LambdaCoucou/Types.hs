@@ -157,6 +157,7 @@ data CoucouCmd
     | CoucouCmdVersion
     | CoucouCmdTell !Text !Text (Maybe Timestamp) -- nick payload maybe(delay)
     | CoucouCmdRemind !Text !Text (Maybe Timestamp) -- nick payload maybe(delay)
+    | CoucouCmdHelp (Maybe CoucouHelpType)
     deriving (Eq)
 
 data CmdFactoidType
@@ -205,3 +206,16 @@ instance Show CoucouCmd where
         "Tell " <> unpack nick <> ": " <> unpack payload <> " after " <> show mbDelay <> "s."
     show (CoucouCmdRemind nick payload mbDelay) =
         "Send " <> unpack nick <> ": " <> unpack payload <> " after " <> show mbDelay <> "s."
+    show (CoucouCmdHelp Nothing) = "Help, list available commands."
+    show (CoucouCmdHelp (Just t)) = "Help for the command " <> show t <> "."
+
+data CoucouHelpType
+    = TypeCancer
+    | TypeFactoid
+    | TypeCoucou
+    | TypeSeen
+    | TypeTell
+    | TypeRemind
+    | TypeVersion
+    | TypeUnknown !Text
+    deriving (Eq, Show)

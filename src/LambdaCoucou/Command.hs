@@ -53,6 +53,7 @@ handleCommand ev (T.CoucouCmdTell nick payload mbDelay) =
     registerTell ev nick payload mbDelay >>= sendReply ev
 handleCommand ev (T.CoucouCmdRemind nick payload mbDelay) =
     registerRemind ev nick payload mbDelay >>= sendReply ev
+handleCommand ev (T.CoucouCmdHelp mbCmd) = IRC.reply ev (helpCommand mbCmd)
 
 prefixHlNick :: Maybe Text -> Maybe Text -> Maybe Text
 prefixHlNick mbHl txt =
@@ -77,3 +78,19 @@ getBotVersion = do
 sendReply :: IRC.UnicodeEvent -> Maybe Text -> IRC.StatefulIRC T.BotState ()
 sendReply _ Nothing = return ()
 sendReply ev (Just msg) = IRC.reply ev msg
+
+helpCommand :: Maybe T.CoucouHelpType -> Text
+helpCommand Nothing = "List of commands: cancer, coucou, seen, tell, remind, version, factoid"
+helpCommand (Just T.TypeCancer) =
+    "cancer [search]: get a random cancer matching `search`. If no search is given, get any random cancer."
+helpCommand (Just T.TypeCoucou) =
+    "coucou [nick]: how many coucou for [nick]. If no nick is given, nick = sender of message."
+helpCommand (Just T.TypeSeen) = "seen nick: when was the last time `nick` spoke ?"
+helpCommand (Just T.TypeTell) =
+    "tell nick [when] message: Next time `nick` speaks, tell her `message`. If a delay is given, wait at least this amount of time before delivering the message. Format of `when`: in [x hours] [y minutes] [z seconds]. Example: >tell Geekingfrog in 1 hour 2 minutes 10 seconds coucou"
+helpCommand (Just T.TypeRemind) =
+    "remind nick when message: Send `message` to `nick` in `when` time. Format of `when`: in [x hours] [y minutes] [z seconds]. Example: >remind me in 1 hour 2 minutes 42 seconds coucou from the past."
+helpCommand (Just T.TypeVersion) = "version: version of the bot."
+helpCommand (Just T.TypeFactoid) =
+    ">foo: get a random factoid named foo. >foo++ increment the foo counter by one. >foo := x reset factoid foo to value x. >foo += x adds x to the list of factoids for foo."
+helpCommand (Just (T.TypeUnknown term)) = "No command named " <> term <> "."

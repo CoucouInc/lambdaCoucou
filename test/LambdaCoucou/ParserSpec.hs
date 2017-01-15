@@ -158,3 +158,9 @@ spec = do
         it "negative delays are considered 0" $
             P.parseCommand "λtell foo in -10 seconds message"
                 `shouldParse` T.CoucouCmdTell "foo" "message" (Just 0)
+
+    describe "help command" $ do
+        it "parses generic help function" $
+            P.parseCommand "λhelp" `shouldParse` T.CoucouCmdHelp Nothing
+        it "parses help for specific commands" $
+            P.parseCommand "λhelp cancer" `shouldParse` T.CoucouCmdHelp (Just T.TypeCancer)
