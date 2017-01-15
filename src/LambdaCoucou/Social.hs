@@ -132,11 +132,16 @@ registerRemind :: IRC.UnicodeEvent
                -> Text
                -> Maybe T.Timestamp
                -> IRC.StatefulIRC T.BotState (Maybe Text)
-registerRemind ev nick msg mbDelay = withChannelMessage Nothing ev $ \chan sender -> do
-    reminder <- liftIO $ makeReminder chan sender msg mbDelay
-    updateSocialRecords (addReminder nick reminder)
-    sendReminder nick reminder
-    return $ Just "Ok"
+registerRemind ev nick msg mbDelay = case IRC._source ev of
+    IRC.Server _ -> return Nothing
+    IRC.User usr -> register' usr usr
+    IRC.Channel chan sender -> register' chan sender
+  where
+    register' chan sender = do
+        reminder <- liftIO $ makeReminder chan sender msg mbDelay
+        updateSocialRecords (addReminder nick reminder)
+        sendReminder nick reminder
+        return $ Just "Ok"
 
 addToTell :: Text -> T.ToTell -> T.SocialRecords -> T.SocialRecords
 addToTell nick toTell = Map.adjust appendToTell nick
@@ -255,9 +260,6 @@ sendReminder nick reminder = do
             let socials' = cleanupReminders now' nick socials
             STM.writeTVar (T._socialDb state) socials'
             DB.updateSocials (T._writerQueue state) socials'
-
-sendReminderIO :: STM.TVar T.BotState -> IRC.ConnectionConfig T.BotState -> Text -> T.Remind -> IO ()
-sendReminderIO = undefined
 
 cleanupReminders :: T.Timestamp -> Text -> T.SocialRecords -> T.SocialRecords
 cleanupReminders now =
