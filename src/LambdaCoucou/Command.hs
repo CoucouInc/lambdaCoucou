@@ -3,7 +3,7 @@
 module LambdaCoucou.Command where
 
 import Data.Monoid ((<>))
-import Control.Monad (unless)
+import Control.Monad (unless, mapM_)
 import Control.Monad.IO.Class (liftIO)
 import Data.Text (Text, pack)
 import Data.Maybe (fromMaybe)
@@ -41,8 +41,8 @@ handleCommand ev cmd@(T.CoucouCmdFactoid name factoidType) = do
             T.ResetFactoid val -> resetFactoid ev name val
             T.DeleteFactoid -> deleteFactoid ev name
             T.AugmentFactoid val -> augmentFactoid ev name val
-            T.SeeFactoids -> Just <$> getFactoids name >>= sendReply ev
-            T.SearchFactoids -> Just <$> searchFactoids name >>= sendReply ev
+            T.SeeFactoids -> getFactoids name >>= mapM_ (sendReply ev . Just)
+            T.SearchFactoids -> searchFactoids name >>= mapM_ (sendReply ev . Just)
 handleCommand ev T.CoucouCmdIncCoucou = incCoucou (IRC._source ev)
 handleCommand ev (T.CoucouCmdGetCoucou mbNick) =
     getCoucouCount (IRC._source ev) mbNick >>= sendReply ev

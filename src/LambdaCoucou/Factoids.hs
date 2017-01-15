@@ -10,7 +10,7 @@ import Control.Monad.IO.Class (liftIO)
 import System.Random (randomR)
 import Text.Read (readMaybe)
 import Data.List (nub)
-import Data.Text (Text, pack, unpack, intercalate, isInfixOf, toLower, null)
+import Data.Text (Text, pack, unpack, isInfixOf, toLower, null)
 import qualified Data.Vector as V
 import qualified Control.Concurrent.STM as STM
 import qualified Data.HashMap.Strict as Map
@@ -33,27 +33,41 @@ getFactoid name = do
                     in return (Just payload)
                 T.Facts facts -> getRandomFactoid facts
 
-getFactoids :: Text -> IRC.StatefulIRC T.BotState Text
+getFactoids :: Text -> IRC.StatefulIRC T.BotState [Text]
 getFactoids name = do
     factoidsT <- T._factoids <$> IRC.state
     factoids <- liftIO $ STM.readTVarIO factoidsT
-    return $ case Map.lookup name factoids of
-        Nothing -> "Pas de factoids pour: " <> name
-        Just (T.Counter n) -> "Counter: " <> pack (show n)
-        Just (T.Facts facts) -> intercalate " | " (V.toList facts)
+    return $
+        case Map.lookup name factoids of
+            Nothing -> ["Pas de factoids pour: " <> name]
+            Just (T.Counter n) -> ["Counter: " <> pack (show n)]
+            Just (T.Facts facts) -> trimResults (V.toList facts)
 
-searchFactoids :: Text -> IRC.StatefulIRC T.BotState Text
+searchFactoids :: Text -> IRC.StatefulIRC T.BotState [Text]
 searchFactoids search = do
     factoidsT <- T._factoids <$> IRC.state
     factoids <- liftIO $ STM.readTVarIO factoidsT
     let search' = toLower search
-    let matchingVals = Map.filter (matchSearch search') factoids
-    let matchingKeys = Map.filterWithKey (\k _v -> search' `isInfixOf` toLower k) factoids
-    let !matchingFactoids = nub $ filter (not . null) $ Map.keys matchingVals <> Map.keys matchingKeys
-    let withPrefix = fmap (\f -> "λ" <> f) matchingFactoids
-    return $ intercalate " | " withPrefix
-    where matchSearch _ (T.Counter _) = False
-          matchSearch s (T.Facts fs) = any (\f -> s `isInfixOf` toLower f) fs
+    let flat = flattenFactoids factoids
+    let matchingPairs = nub $ filter (not . null . fst) $ filter (matchSearch search') flat
+    let withPrefix = fmap (\(k, v) -> k <> " -> " <> v) matchingPairs
+    return $ trimResults withPrefix
+  where
+    matchSearch s (k, v) = (s `isInfixOf` toLower k) || (s `isInfixOf` toLower v)
+
+trimResults :: [Text] -> [Text]
+trimResults xs
+    | length xs <= 4 = xs
+    | otherwise = take 4 xs <> ["…"]
+
+flattenFactoids :: T.Factoids -> [(Text, Text)]
+flattenFactoids factoids = do
+    (k, factoid) <- Map.toList factoids
+    case factoid of
+        T.Counter _ -> []
+        T.Facts facts -> do
+            f <- V.toList facts
+            return (k, f)
 
 
 getRandomFactoid :: V.Vector Text -> IRC.StatefulIRC T.BotState (Maybe Text)
