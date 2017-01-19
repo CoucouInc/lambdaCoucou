@@ -235,7 +235,7 @@ sendTellMessages ev =
         liftIO $ print $ "sending tell messages: " <> show messages
         forM_ messages $
             \toTell -> do
-                let msg = "(From " <> T._toTellFrom toTell <> "): " <> T._toTellMsg toTell
+                let msg = "(From " <> T._toTellFrom toTell <> ") " <> nick <> ": " <> T._toTellMsg toTell
                 -- TODO take care of the channel parameter for toTell (?)
                 IRC.reply ev msg
 
@@ -247,7 +247,7 @@ sendReminder nick reminder = do
     state <- IRC.state
     conn <- IRC.getConnectionConfig <$> IRC.ircState
     let sendQueue = IRC._sendqueue conn
-    let payload = "(From " <> T._remindFrom reminder <> "): " <> T._remindMsg reminder
+    let payload = "(From " <> T._remindFrom reminder <> ") " <> nick <> ": " <> T._remindMsg reminder
     let ircMessage = IRC.Privmsg (T._remindOnChannel reminder) (Right payload)
     liftIO $ print $ "Sending irc message: " <> show ircMessage
     void $ liftIO $ forkIO $ do
