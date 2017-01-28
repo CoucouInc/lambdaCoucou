@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE MultiWayIf #-}
 
 module LambdaCoucou.Factoids where
 
@@ -10,7 +10,7 @@ import Control.Monad.IO.Class (liftIO)
 import System.Random (randomR)
 import Text.Read (readMaybe)
 import Data.List (nub)
-import Data.Text (Text, pack, unpack, isInfixOf, toLower, null)
+import Data.Text (Text, pack, unpack, isInfixOf, toLower, null, intercalate)
 import qualified Data.Vector as V
 import qualified Control.Concurrent.STM as STM
 import qualified Data.HashMap.Strict as Map
@@ -19,13 +19,14 @@ import qualified Network.IRC.Client as IRC
 
 import qualified LambdaCoucou.Types as T
 import LambdaCoucou.Db (updateFactoids)
+import LambdaCoucou.Dist (textDist)
 
 getFactoid :: Text -> IRC.StatefulIRC T.BotState (Maybe Text)
 getFactoid name = do
     factoidsT <- T._factoids <$> IRC.state
     factoids <- liftIO $ STM.readTVarIO factoidsT
     case Map.lookup name factoids of
-        Nothing -> return Nothing
+        Nothing -> getSimilarFactoids name
         Just fact ->
             case fact of
                 T.Counter n ->
@@ -42,6 +43,24 @@ getFactoids name = do
             Nothing -> ["Pas de factoids pour: " <> name]
             Just (T.Counter n) -> ["Counter: " <> pack (show n)]
             Just (T.Facts facts) -> trimResults (V.toList facts)
+
+getSimilarFactoids :: Text -> IRC.StatefulIRC T.BotState (Maybe Text)
+getSimilarFactoids name = do
+    factoidsT <- T._factoids <$> IRC.state
+    factoids <- liftIO $ STM.readTVarIO factoidsT
+    let closeFactoids = filter (\f -> textDist name f <= 2) (Map.keys factoids)
+    let l = length closeFactoids
+    if | l == 0 -> return Nothing
+       | l == 1 -> return $ Just $ "did you mean " <> head closeFactoids
+       | otherwise -> return $ Just $ "did you mean one of " <> prettyTruncate closeFactoids <> "?"
+  where
+    prettyTruncate :: [Text] -> Text
+    prettyTruncate list =
+        let list' =
+                if length list < 5
+                    then list
+                    else take 5 list ++ ["…"]
+        in intercalate ", " list'
 
 searchFactoids :: Text -> Maybe Text -> IRC.StatefulIRC T.BotState [Text]
 searchFactoids search mbSearch = do

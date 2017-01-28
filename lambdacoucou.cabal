@@ -26,6 +26,7 @@ library
                      , LambdaCoucou.Db
                      , LambdaCoucou.Run
                      , LambdaCoucou.Cli
+                     , LambdaCoucou.Dist
   build-depends:       base >= 4.7 && < 5
                      , irc-client >= 0.4.4 && < 0.4.5
                      , text >= 1.2.2 && < 1.2.3
