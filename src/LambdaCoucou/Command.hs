@@ -17,6 +17,7 @@ import LambdaCoucou.Factoids
 import LambdaCoucou.Social
        (incCoucou, getCoucouCount, getLastSeen, registerTell,
         registerRemind)
+import LambdaCoucou.Url (urlInfo)
 
 handleCommand :: IRC.UnicodeEvent -> T.CoucouCmd -> IRC.StatefulIRC T.BotState ()
 handleCommand _ T.CoucouCmdNop = return ()
@@ -54,6 +55,7 @@ handleCommand ev (T.CoucouCmdTell nick payload mbDelay) =
     registerTell ev nick payload mbDelay >>= sendReply ev
 handleCommand ev (T.CoucouCmdRemind nick payload mbDelay) =
     registerRemind ev nick payload mbDelay >>= sendReply ev
+handleCommand ev T.CoucouCmdUrl = urlInfo >>= IRC.reply ev
 handleCommand ev (T.CoucouCmdHelp mbCmd) = IRC.reply ev (helpCommand mbCmd)
 
 prefixHlNick :: Maybe Text -> Maybe Text -> Maybe Text

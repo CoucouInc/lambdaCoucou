@@ -1,8 +1,12 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module LambdaCoucou.Url where
 
 import Data.Text (Text)
 
+import Data.Monoid ((<>))
 import Control.Monad.IO.Class (liftIO)
+import Data.Maybe (fromMaybe)
 import qualified Control.Concurrent.STM as STM
 import qualified Network.IRC.Client as IRC
 import qualified LambdaCoucou.Types as T
@@ -14,5 +18,12 @@ updateLastUrl raw =
         Nothing -> return ()
         Just url -> do
             lastUrlT <- T._lastUrl <$> IRC.state
-            liftIO $ STM.atomically $ STM.modifyTVar' lastUrlT (const (Just url))
+            liftIO $ print $ "updating last url to " <> url
+            liftIO $ STM.atomically $ STM.writeTVar lastUrlT (Just url)
             return ()
+
+urlInfo :: IRC.StatefulIRC T.BotState Text
+urlInfo = do
+    lastUrlT <- T._lastUrl <$> IRC.state
+    lastUrl <- liftIO $ STM.readTVarIO lastUrlT
+    return $ fromMaybe "No recent url to grab." lastUrl

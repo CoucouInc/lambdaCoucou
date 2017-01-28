@@ -31,6 +31,7 @@ commandParser' =
     try help <|>
     try random <|>
     try cancer <|>
+    try urlCommand <|>
     factoid
 
 cancer :: Parser CoucouCmd
@@ -111,7 +112,7 @@ validFactoidName name =
 
 -- reserved name, these cannot be used for factoids
 factoidBlackList :: [Text]
-factoidBlackList = ["see", "search", "coucou", "seen", "cancer", "version", "tell", "remind", "random"]
+factoidBlackList = ["see", "search", "coucou", "seen", "cancer", "version", "tell", "remind", "random", "url"]
 
 factoidName :: Maybe (Parser String) -> Parser Text
 factoidName mbLimit = do
@@ -265,6 +266,10 @@ parseUrl raw = parseMaybe url raw
 
 url :: Parser Text
 url = do
+    manyTill (word >> some spaceChar) (eof <|> void (lookAhead $ string "http"))
     proto <- T.pack <$> (try (string "http://") <|> string "https://")
     rest <- word
     return $ proto <> rest
+
+urlCommand :: Parser CoucouCmd
+urlCommand = string "url" >> end >> return CoucouCmdUrl

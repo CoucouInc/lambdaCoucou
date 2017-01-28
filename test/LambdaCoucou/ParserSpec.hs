@@ -164,3 +164,17 @@ spec = do
             P.parseCommand "λhelp" `shouldParse` T.CoucouCmdHelp Nothing
         it "parses help for specific commands" $
             P.parseCommand "λhelp cancer" `shouldParse` T.CoucouCmdHelp (Just T.TypeCancer)
+
+    describe "url parser in message" $ do
+        it "parses simple http" $
+            P.parseUrl "http://bar" `shouldBe` Just "http://bar"
+        it "parses simple https" $
+            P.parseUrl "https://bar" `shouldBe` Just "https://bar"
+        it "parses url inside message" $
+            P.parseUrl "foo http://moo bar" `shouldBe` Just "http://moo"
+
+    describe "url command" $ do
+        it "parses single command word" $
+            P.parseCommand "λurl " `shouldParse` T.CoucouCmdUrl
+        it "doesn't parse if something is after" $
+            P.parseCommand "λurl foo bar" `shouldParse` T.CoucouCmdNop

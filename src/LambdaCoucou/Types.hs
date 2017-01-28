@@ -160,6 +160,7 @@ data CoucouCmd
     | CoucouCmdTell !Text !Text (Maybe Timestamp) -- nick payload maybe(delay)
     | CoucouCmdRemind !Text !Text (Maybe Timestamp) -- nick payload maybe(delay)
     | CoucouCmdHelp (Maybe CoucouHelpType)
+    | CoucouCmdUrl
     deriving (Eq)
 
 data CmdFactoidType
@@ -209,6 +210,7 @@ instance Show CoucouCmd where
         "Tell " <> unpack nick <> ": " <> unpack payload <> " after " <> show mbDelay <> "s."
     show (CoucouCmdRemind nick payload mbDelay) =
         "Send " <> unpack nick <> ": " <> unpack payload <> " after " <> show mbDelay <> "s."
+    show CoucouCmdUrl = "Grab infos from last url"
     show (CoucouCmdHelp Nothing) = "Help, list available commands."
     show (CoucouCmdHelp (Just t)) = "Help for the command " <> show t <> "."
 
