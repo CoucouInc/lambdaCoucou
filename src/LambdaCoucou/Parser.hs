@@ -63,8 +63,8 @@ cancerLine :: Parsec Dec Text (Text, Text)
 cancerLine = do
     title <- T.pack <$> many (noneOf [':'])
     string ": "
-    url <- T.pack <$> manyTill anyChar eol
-    return (title, url)
+    cancerUrl <- T.pack <$> manyTill anyChar eol
+    return (title, cancerUrl)
 
 factoid :: Parser CoucouCmd
 factoid = try counterFactoid <|> try setFactoid <|> getFactoid
@@ -259,3 +259,12 @@ end = space <* eof
 
 word :: Parser Text
 word = T.pack <$> some (satisfy (not . isSpace))
+
+parseUrl :: Text -> Maybe Text
+parseUrl raw = parseMaybe url raw
+
+url :: Parser Text
+url = do
+    proto <- T.pack <$> (try (string "http://") <|> string "https://")
+    rest <- word
+    return $ proto <> rest

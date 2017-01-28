@@ -142,6 +142,7 @@ data BotState = BotState
     , _socialDb :: TVar SocialRecords
     , _writerQueue :: WriterQueue
     , _version :: !(String, String)
+    , _lastUrl :: TVar (Maybe Text)
     }
 
 data CoucouCmd

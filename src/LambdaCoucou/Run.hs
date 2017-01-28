@@ -19,6 +19,7 @@ import qualified LambdaCoucou.Parser as Parser
 import qualified LambdaCoucou.Command as Cmd
 import LambdaCoucou.Social (updateLastSeen, sendTellMessages, setupReminders)
 import LambdaCoucou.Db (readSocial, readFactoids, updateDb)
+import LambdaCoucou.Url (updateLastUrl)
 
 run :: T.Opts -> IO ()
 run opts = do
@@ -41,12 +42,8 @@ run opts = do
             }
     state <- initialState
     let writerQueue = T._writerQueue state
-    -- setupReminders (T._socialDb state) writerQueue conn
     withAsync (updateDb writerQueue) $
         \_ -> IRC.startStateful conn cfg' state
-
--- setupReminders :: STM.TVar T.BotState -> IRC.ConnectionConfig T.BotState -> T.SocialRecords -> IO ()
-
 
 commandHandlerFunc :: IRC.UnicodeEvent -> IRC.StatefulIRC T.BotState ()
 commandHandlerFunc ev = do
@@ -56,6 +53,7 @@ commandHandlerFunc ev = do
         Right raw -> do
             updateLastSeen (IRC._source ev)
             sendTellMessages ev
+            updateLastUrl raw
             case Parser.parseCommand raw of
                 Left err ->
                     liftIO . print $ "parse error: " <> Error.parseErrorPretty err
@@ -75,6 +73,7 @@ initialState = do
             facts <- STM.newTVarIO factoids
             social <- STM.newTVarIO socialDb
             stdGen <- getStdGen >>= STM.newTVarIO
+            lastUrl <- STM.newTVarIO Nothing
             writerQueue <- STM.newTBQueueIO 10
             return
                 T.BotState
@@ -83,6 +82,7 @@ initialState = do
                 , T._socialDb = social
                 , T._writerQueue = writerQueue
                 , T._version = ($(gitHash), $(gitCommitDate))
+                , T._lastUrl = lastUrl
                 }
 
 onJoinFunc :: IRC.UnicodeEvent -> IRC.StatefulIRC T.BotState ()
