@@ -223,5 +223,6 @@ data CoucouHelpType
     | TypeRemind
     | TypeVersion
     | TypeRandom
+    | TypeUrl
     | TypeUnknown !Text
     deriving (Eq, Show)
