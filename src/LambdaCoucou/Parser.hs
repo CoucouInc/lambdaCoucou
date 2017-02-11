@@ -266,9 +266,11 @@ parseUrl raw = parseMaybe url raw
 
 url :: Parser Text
 url = do
+    many spaceChar
     manyTill (word >> some spaceChar) (eof <|> void (lookAhead $ string "http"))
     proto <- T.pack <$> (try (string "http://") <|> string "https://")
     rest <- word
+    many anyChar
     return $ proto <> rest
 
 urlCommand :: Parser CoucouCmd
