@@ -168,6 +168,8 @@ spec = do
     describe "url parser in message" $ do
         it "parses simple http" $
             P.parseUrl "http://bar" `shouldBe` Just "http://bar"
+        it "parses http with space before" $
+            P.parseUrl "  http://bar" `shouldBe` Just "http://bar"
         it "parses simple https" $
             P.parseUrl "https://bar" `shouldBe` Just "https://bar"
         it "parses url inside message" $
