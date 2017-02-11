@@ -53,7 +53,7 @@ commandHandlerFunc ev = do
         Right raw -> do
             updateLastSeen (IRC._source ev)
             sendTellMessages ev
-            updateLastUrl raw
+            updateLastUrl (IRC._source ev) raw
             case Parser.parseCommand raw of
                 Left err ->
                     liftIO . print $ "parse error: " <> Error.parseErrorPretty err

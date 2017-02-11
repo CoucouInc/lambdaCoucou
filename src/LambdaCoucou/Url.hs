@@ -23,8 +23,8 @@ import Network.HTTP.Types.Status (statusCode)
 import qualified Text.HTML.TagSoup as HTML
 
 
-updateLastUrl :: Text -> IRC.StatefulIRC T.BotState ()
-updateLastUrl raw =
+updateLastUrl :: IRC.Source Text -> Text -> IRC.StatefulIRC T.BotState ()
+updateLastUrl (IRC.Channel _ _) raw =
     case Parser.parseUrl raw of
         Nothing -> return ()
         Just url -> do
@@ -32,6 +32,7 @@ updateLastUrl raw =
             liftIO $ print $ "updating last url to " <> url
             liftIO $ STM.atomically $ STM.writeTVar lastUrlT (Just url)
             return ()
+updateLastUrl _ _ = return ()
 
 urlInfo :: IRC.StatefulIRC T.BotState Text
 urlInfo = do
