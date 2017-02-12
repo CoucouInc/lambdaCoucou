@@ -250,6 +250,7 @@ help = do
             "remind" -> TypeRemind
             "version" -> TypeVersion
             "random" -> TypeRandom
+            "url" -> TypeUrl
             _ -> TypeUnknown term
 
 random :: Parser CoucouCmd
