@@ -22,7 +22,7 @@ commandParser :: Parser CoucouCmd
 commandParser = try (prefix *> commandParser' <* space) <|> try incCoucou <|> pure CoucouCmdNop
 
 prefix :: Parser Char
-prefix = char 'λ' <|> char '>'
+prefix = char 'λ' <|> char '&' <|> char 'Σ' -- Σ for sigma_g
 
 commandParser' :: Parser CoucouCmd
 commandParser' =
