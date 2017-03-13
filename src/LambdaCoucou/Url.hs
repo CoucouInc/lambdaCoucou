@@ -57,8 +57,8 @@ grabTitle url =
     do manager <- HTTP.newManager HTTPS.tlsManagerSettings
        request <- HTTP.parseRequest (Text.unpack url)
        response <- HTTP.httpLbs request manager
-       putStrLn $ "The status code was: " ++ show (statusCode $ HTTP.responseStatus response)
-       print $ "headers: " <> show (HTTP.responseHeaders response)
+       -- putStrLn $ "The status code was: " ++ show (statusCode $ HTTP.responseStatus response)
+       -- print $ "headers: " <> show (HTTP.responseHeaders response)
        let body = HTTP.responseBody response
        case contentType (HTTP.responseHeaders response) of
            Nothing -> return $ parseTitle body -- still try
