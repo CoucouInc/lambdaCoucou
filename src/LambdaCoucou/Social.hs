@@ -232,7 +232,6 @@ sendTellMessages ev =
                        STM.writeTVar (T._socialDb state) socials'
                        DB.updateSocials (T._writerQueue state) socials'
                        return msgToTell
-        liftIO $ print $ "sending tell messages: " <> show messages
         forM_ messages $
             \toTell -> do
                 let msg = "(From " <> T._toTellFrom toTell <> ") " <> nick <> ": " <> T._toTellMsg toTell

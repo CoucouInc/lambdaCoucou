@@ -174,6 +174,8 @@ spec = do
             P.parseUrl "https://bar" `shouldBe` Just "https://bar"
         it "parses url inside message" $
             P.parseUrl "foo http://moo bar" `shouldBe` Just "http://moo"
+        it "ignore invalid urls prefix" $
+            P.parseUrl "foo http https://foo.bar.com" `shouldBe` Just "https://foo.bar.com"
 
     describe "url command" $ do
         it "parses single command word" $

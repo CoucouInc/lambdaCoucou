@@ -263,16 +263,21 @@ word :: Parser Text
 word = T.pack <$> some (satisfy (not . isSpace))
 
 parseUrl :: Text -> Maybe Text
-parseUrl raw = parseMaybe url raw
+parseUrl raw = case parse url "" raw of
+    Left _ -> Nothing
+    Right mbUrl -> mbUrl
 
-url :: Parser Text
-url = do
-    many spaceChar
-    manyTill (word >> some spaceChar) (eof <|> void (lookAhead $ string "http"))
+url :: Parser (Maybe Text)
+url = (eof >> pure Nothing)
+    <|> (many spaceChar >> (fmap Just (try url') <|> (word >> url)))
+
+url' :: Parser Text
+url' = do
     proto <- T.pack <$> (try (string "http://") <|> string "https://")
     rest <- word
     many anyChar
     return $ proto <> rest
+
 
 urlCommand :: Parser CoucouCmd
 urlCommand = string "url" >> end >> return CoucouCmdUrl
