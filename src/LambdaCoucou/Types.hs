@@ -220,6 +220,7 @@ data CoucouHelpType
     = TypeCancer
     | TypeFactoid
     | TypeCoucou
+    | TypeCoucouRank
     | TypeSeen
     | TypeTell
     | TypeRemind

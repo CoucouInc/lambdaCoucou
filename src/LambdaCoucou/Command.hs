@@ -6,7 +6,6 @@ import Data.Monoid ((<>))
 import Control.Monad (unless, mapM_)
 import Control.Monad.IO.Class (liftIO)
 import Data.Text (Text, pack)
-import Data.Maybe (fromMaybe)
 import qualified Network.IRC.Client as IRC
 
 import qualified LambdaCoucou.Types as T
@@ -28,7 +27,7 @@ handleCommand' ev cmd@(T.CoucouCmdCancer search mbHl) = do
     liftIO $ print cmd
     mbcancer <- fetchCancer search
     liftIO . print $ "got cancer: " <> show mbcancer
-    let prefix = fromMaybe "" ((<> ": ") <$> mbHl)
+    let prefix = maybe "" (<> ": ") mbHl
     case mbcancer of
         Nothing -> return ()
         Just (desc, url) -> do
@@ -64,7 +63,7 @@ handleCommand' ev (T.CoucouCmdHelp mbCmd) = IRC.reply ev (helpCommand mbCmd)
 
 prefixHlNick :: Maybe Text -> Maybe Text -> Maybe Text
 prefixHlNick mbHl txt =
-    let prefix = fromMaybe "" ((<> ": ") <$> mbHl)
+    let prefix = maybe "" (<> ": ") mbHl
     in (\t -> prefix <> t) <$> txt
 
 fromBlacklistedUser :: IRC.UnicodeEvent -> Bool
@@ -92,6 +91,7 @@ helpCommand (Just T.TypeCancer) =
     "cancer [search]: get a random cancer matching `search`. If no search is given, get any random cancer."
 helpCommand (Just T.TypeCoucou) =
     "coucou [nick]: how many coucou for [nick]. If no nick is given, nick = sender of message."
+helpCommand (Just T.TypeCoucouRank) = "List the best coucouteur"
 helpCommand (Just T.TypeSeen) = "seen nick: when was the last time `nick` spoke ?"
 helpCommand (Just T.TypeTell) =
     "tell nick [when] message: Next time `nick` speaks, tell her `message`. If a delay is given, wait at least this amount of time before delivering the message. Format of `when`: in [x hours] [y minutes] [z seconds]. Example: >tell Geekingfrog in 1 hour 2 minutes 10 seconds coucou"
