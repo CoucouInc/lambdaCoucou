@@ -182,3 +182,7 @@ spec = do
             P.parseCommand "λurl " `shouldParse` T.CoucouCmdUrl
         it "doesn't parse if something is after" $
             P.parseCommand "λurl foo bar" `shouldParse` T.CoucouCmdNop
+
+    describe "coucourank command" $ do
+        it "parses coucourank command" $
+            P.parseCommand "λcoucourank " `shouldParse` T.CoucouCmdCoucouRank

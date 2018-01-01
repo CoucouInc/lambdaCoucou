@@ -2,6 +2,7 @@
 
 module LambdaCoucou.Parser where
 
+import Data.Functor
 import Data.Monoid ((<>))
 import Control.Monad (void)
 import Data.Maybe (fromMaybe)
@@ -26,20 +27,26 @@ prefix = char 'λ' <|> char '&' <|> char 'Σ' -- Σ for sigma_g
 
 commandParser' :: Parser CoucouCmd
 commandParser' =
-    try getVersion <|> try tell <|> try remind <|> try getCoucou <|> try see <|> try search <|>
-    try lastSeen <|>
-    try help <|>
-    try random <|>
-    try cancer <|>
-    try urlCommand <|>
-    factoid
+    try getVersion
+        <|> try tell
+        <|> try remind
+        <|> try getCoucou
+        <|> try coucourank
+        <|> try see
+        <|> try search
+        <|> try lastSeen
+        <|> try help
+        <|> try random
+        <|> try cancer
+        <|> try urlCommand
+        <|> factoid
 
 cancer :: Parser CoucouCmd
 cancer = do
     string "cancer"
     try randomCancer <|> (some spaceChar >> (try searchCancer <|> try hlCancer <|> searchHlCancer))
     where
-        randomCancer = return (CoucouCmdCancer Nothing Nothing) <* end
+        randomCancer = CoucouCmdCancer Nothing Nothing <$ end
         searchCancer = do -- searchParser >>= \s -> return $ CoucouCmdCancer (Just s) Nothing <* end
             s <- searchParser
             end
@@ -135,10 +142,12 @@ getCoucou :: Parser CoucouCmd
 getCoucou = do
     string "coucou"
     target <-
-        try (many spaceChar *> eof *> return Nothing) -- (only space afterwards)
-         <|>
-        (some spaceChar >> (Just <$> nick)) -- (at least one space then a nick)
+        try (many spaceChar *> eof $> Nothing) -- (only space afterwards)
+            <|> (some spaceChar >> (Just <$> nick)) -- (at least one space then a nick)
     return $ CoucouCmdGetCoucou target
+
+coucourank :: Parser CoucouCmd
+coucourank = string "coucourank" $> CoucouCmdCoucouRank
 
 incCoucou :: Parser CoucouCmd
 incCoucou = do

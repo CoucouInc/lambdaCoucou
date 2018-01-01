@@ -154,6 +154,7 @@ data CoucouCmd
     | CoucouCmdRandomFactoid
     | CoucouCmdGetCoucou !(Maybe Text) -- Maybe nick to hl
     | CoucouCmdIncCoucou
+    | CoucouCmdCoucouRank
     | CoucouCmdLastSeen !Text
                         !(Maybe Text) -- Maybe nick to hl
     | CoucouCmdVersion
@@ -203,6 +204,7 @@ instance Show CoucouCmd where
     show (CoucouCmdGetCoucou (Just nick)) = "Show count of coucou for " <> unpack nick
     show (CoucouCmdGetCoucou Nothing) = "Show count of coucou for the sender of the message"
     show CoucouCmdIncCoucou = "Increment coucou count for sender of this message"
+    show CoucouCmdCoucouRank = "Who has the most coucou"
     show (CoucouCmdLastSeen nick mbHl) =
         "How long since " <> unpack nick <> " has been seen ? (for user " <> show mbHl <> ")."
     show CoucouCmdVersion = "Send git info of the bot"

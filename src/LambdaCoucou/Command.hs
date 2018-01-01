@@ -15,7 +15,7 @@ import LambdaCoucou.Factoids
        (getFactoid, getFactoids, randomFactoid, searchFactoids, adjustCounterFactoid,
         setFactoid, resetFactoid, deleteFactoid, augmentFactoid)
 import LambdaCoucou.Social
-       (incCoucou, getCoucouCount, getLastSeen, registerTell,
+       (incCoucou, getCoucouCount, getLastSeen, coucouRank, registerTell,
         registerRemind)
 import LambdaCoucou.Url (urlInfo)
 
@@ -49,6 +49,7 @@ handleCommand' ev cmd@(T.CoucouCmdFactoid name factoidType) = do
         T.SearchFactoids mbSearch -> searchFactoids name mbSearch >>= mapM_ (sendReply ev . Just)
 handleCommand' ev T.CoucouCmdRandomFactoid = randomFactoid >>= sendReply ev
 handleCommand' ev T.CoucouCmdIncCoucou = incCoucou (IRC._source ev)
+handleCommand' ev T.CoucouCmdCoucouRank = coucouRank (IRC._source ev) >>= IRC.reply ev
 handleCommand' ev (T.CoucouCmdGetCoucou mbNick) =
     getCoucouCount (IRC._source ev) mbNick >>= sendReply ev
 handleCommand' ev (T.CoucouCmdLastSeen nick mbHl) =

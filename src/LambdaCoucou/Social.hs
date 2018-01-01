@@ -6,6 +6,8 @@ import Prelude hiding (null)
 import Data.Monoid ((<>))
 import Data.Text (Text, pack, intercalate, null)
 import Data.Text.Encoding (encodeUtf8)
+import Data.Ord
+import qualified Data.List as L
 import Control.Monad (forM_, void)
 import Control.Monad.IO.Class (liftIO)
 import Data.Maybe (fromMaybe)
@@ -63,6 +65,23 @@ getCoucouCount' user mbNick = do
             let count = T._coucous socialRec
             let payload = coucouTarget <> " est un coucouteur niveau " <> (pack . show $ count)
             return $ Just payload
+
+coucouRank :: IRC.Source Text -> IRC.StatefulIRC T.BotState Text
+coucouRank (IRC.Channel _ _) = coucouRank'
+coucouRank (IRC.User _) = coucouRank'
+coucouRank (IRC.Server _) = return "" -- that should never happen, but who knows
+
+coucouRank' :: IRC.StatefulIRC T.BotState Text
+coucouRank' = do
+    state   <- IRC.state
+    socials <- liftIO $ STM.readTVarIO (T._socialDb state)
+    let sorted =
+            L.sortBy (comparing (Down . T._coucous . snd)) $ Map.toList socials
+    let prettyCoucou n (usr, usrSocial) =
+            n <> " " <> usr <> " with " <> pack (show $ T._coucous usrSocial)
+    let pretty =
+            zipWith prettyCoucou ["1st", "2nd", "3rd", "4th", "5th"] sorted
+    return $ intercalate ", " pretty
 
 updateLastSeen :: IRC.Source Text -> IRC.StatefulIRC T.BotState ()
 updateLastSeen (IRC.User nick) = updateLastSeen' nick
