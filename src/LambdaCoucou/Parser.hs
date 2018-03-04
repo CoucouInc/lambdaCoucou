@@ -2,8 +2,11 @@
 
 module LambdaCoucou.Parser where
 
+import Prelude hiding (fail)
+import Control.Monad.Fail (fail)
 import Data.Functor
 import Data.Monoid ((<>))
+import Data.Either
 import Control.Monad (void)
 import Data.Maybe (fromMaybe)
 import Data.Char (isSpace)
@@ -16,7 +19,7 @@ import LambdaCoucou.Types
        (CoucouCmd(..), CmdFactoidType(..), Timestamp, CoucouHelpType(..))
 
 parseCommand :: Text -> Either (ParseError Char Dec) CoucouCmd
-parseCommand raw = parse commandParser "" raw
+parseCommand = parse commandParser ""
 
 -- if it doesn't start with the special character, ignore the command
 commandParser :: Parser CoucouCmd
@@ -26,43 +29,34 @@ prefix :: Parser Char
 prefix = char 'λ' <|> char '&' <|> char 'Σ' -- Σ for sigma_g
 
 commandParser' :: Parser CoucouCmd
-commandParser' =
-    try getVersion
-        <|> try tell
-        <|> try remind
-        <|> try getCoucou
-        <|> try coucourank
-        <|> try see
-        <|> try search
-        <|> try lastSeen
-        <|> try help
-        <|> try random
-        <|> try cancer
-        <|> try urlCommand
-        <|> factoid
+commandParser' = choice
+    [ try getVersion
+    , try tell
+    , try remind
+    , try getCoucou
+    , try coucourank
+    , try see
+    , try search
+    , try lastSeen
+    , try help
+    , try random
+    , try cancer
+    , try urlCommand
+    , factoid
+    ]
 
 cancer :: Parser CoucouCmd
-cancer = do
-    string "cancer"
-    try randomCancer <|> (some spaceChar >> (try searchCancer <|> try hlCancer <|> searchHlCancer))
-    where
-        randomCancer = CoucouCmdCancer Nothing Nothing <$ end
-        searchCancer = do -- searchParser >>= \s -> return $ CoucouCmdCancer (Just s) Nothing <* end
-            s <- searchParser
-            end
-            return $ CoucouCmdCancer (Just s) Nothing
-        hlCancer = CoucouCmdCancer Nothing <$> maybeHl <* end
-        searchHlCancer = do
-            s <- searchParser
-            some spaceChar
-            hl <- maybeHl
-            end
-            return $ CoucouCmdCancer (Just s) hl
-        searchParser = T.pack <$> some (satisfy (not . isSpace))
-
+cancer = string "cancer"
+    *> choice [eof $> CoucouCmdCancer Nothing Nothing, try justHl, normalCancer]
+  where
+    justHl = CoucouCmdCancer Nothing . Just <$> (spaceChar *> highlight)
+    normalCancer = do
+        spaces
+        (s, hl) <- withHl' $ optional (T.unwords <$> sepEndBy1 word spaces)
+        pure $ CoucouCmdCancer s hl
 
 parseCancer :: Text -> Either (ParseError Char Dec) [(Text, Text)]
-parseCancer raw = parse cancerParser "" raw
+parseCancer = parse cancerParser ""
 
 cancerParser :: Parsec Dec Text [(Text, Text)]
 cancerParser = many cancerLine
@@ -131,11 +125,8 @@ factoidName mbLimit = do
 
 getFactoid :: Parser CoucouCmd
 getFactoid = do
-    name <- word >>= validFactoidName
-    space
-    mbHl <- maybeHl
-    end
-    return $ CoucouCmdFactoid name (GetFactoid mbHl)
+    (name, mbHl) <- withHl $ (word <* end)>>= validFactoidName
+    pure $ CoucouCmdFactoid name (GetFactoid mbHl)
 
 
 getCoucou :: Parser CoucouCmd
@@ -157,21 +148,14 @@ incCoucou = do
     return CoucouCmdIncCoucou
 
 nick :: Parser Text
-nick = T.pack <$> some (satisfy (not . isSpace))
-
-maybeHl :: Parser (Maybe Text)
-maybeHl = optional (char '>' >> space >> nick)
+nick = word
 
 lastSeen :: Parser CoucouCmd
 lastSeen = do
     string "seen"
-    some spaceChar
-    n <- nick
-    try (space >> eof >> return (CoucouCmdLastSeen n Nothing)) <|>
-        do some spaceChar
-           mbHl <- maybeHl
-           end
-           return $ CoucouCmdLastSeen n mbHl
+    spaces
+    (n, mbHl) <- withHl nick
+    pure $ CoucouCmdLastSeen n mbHl
 
 getVersion :: Parser CoucouCmd
 getVersion = do
@@ -180,26 +164,19 @@ getVersion = do
     return CoucouCmdVersion
 
 tell :: Parser CoucouCmd
-tell = do
-    string "tell"
-    some spaceChar
-    n <- nick
-    some spaceChar
-    d <- tellDelay
-    msg <- T.pack <$> some anyChar
-    return $ CoucouCmdTell n msg d
+tell = tellOrRemind "tell" CoucouCmdTell
 
-tellDelay :: Parser (Maybe Timestamp)
-tellDelay = try delay <|> return Nothing
+remind :: Parser CoucouCmd
+remind = tellOrRemind "remind" CoucouCmdRemind
 
-delay :: Parser (Maybe Timestamp)
+delay :: Parser Timestamp
 delay = do
     string "in"
     some spaceChar
     h <- fromMaybe 0 <$> delayCmd "hour"
     m <- fromMaybe 0 <$> delayCmd "minute"
     s <- fromMaybe 0 <$> delayCmd "second"
-    return $ Just (max 0 (h * 3600 + m * 60 + s))
+    pure $ max 0 (h * 3600 + m * 60 + s)
   where
     delayCmd :: String -> Parser (Maybe Integer)
     delayCmd sep = try (delayUnit sep) <|> return Nothing
@@ -213,15 +190,15 @@ delay = do
         some spaceChar
         return $ Just (mult * d)
 
-remind :: Parser CoucouCmd
-remind = do
-    string "remind"
+tellOrRemind :: String -> (Text -> Text -> Maybe Timestamp -> CoucouCmd) -> Parser CoucouCmd
+tellOrRemind str cmd = do
+    string str
     some spaceChar
     n <- nick
     some spaceChar
-    d <- tellDelay
+    d <- optional delay
     msg <- T.pack <$> some anyChar
-    return $ CoucouCmdRemind n msg d
+    pure $ cmd n msg d
 
 see :: Parser CoucouCmd
 see = do
@@ -268,6 +245,9 @@ random = string "random" >> return CoucouCmdRandomFactoid
 end :: Parser ()
 end = space <* eof
 
+spaces :: Parser ()
+spaces = skipSome spaceChar
+
 word :: Parser Text
 word = T.pack <$> some (satisfy (not . isSpace))
 
@@ -289,4 +269,30 @@ url' = do
 
 
 urlCommand :: Parser CoucouCmd
-urlCommand = string "url" >> end >> return CoucouCmdUrl
+urlCommand = string "url" *> end $> CoucouCmdUrl
+
+
+-- This parser isn't ideal because it loses all parse info when applying given parser p.
+-- That's the only way I found to make sure the highlight info is correctly parsed
+-- regardless of how greedy given parser p is.
+withEndBy :: Parser b -> Parser a -> Parser (a, Maybe b)
+withEndBy endP p = do
+    (endResult, stuff) <- partitionEithers <$> many parseWithEnd <* eof
+    let parsedEnd = case endResult of
+            []    -> Nothing
+            (x:_) -> Just x
+    case parse p "inline" (T.pack stuff) of
+        Left  err    -> fail $ show err
+        Right result -> pure (result, parsedEnd)
+  where
+    parseWithEnd =
+        try (Left <$> endP)
+            <|> Right
+            <$> (anyChar <* optional eof)
+
+withHl, withHl' :: Parser a -> Parser (a, Maybe Text)
+withHl = withEndBy highlight
+withHl' = withEndBy (spaceChar *> highlight)
+
+highlight :: Parser Text
+highlight = char '>' *> space *> word <* space <* eof

@@ -36,8 +36,13 @@ spec = do
             P.parseCommand "λcancer  search  >  nick " `shouldParse` T.CoucouCmdCancer (Just "search") (Just "nick")
         it "parses factoid with > at the end" $
             P.parseCommand "λcancer foo>" `shouldParse` T.CoucouCmdCancer (Just "foo>") Nothing
-        it "only parses one search term" $
-            P.parseCommand "λcancer foo bar" `shouldParse` T.CoucouCmdNop
+        it "parses multiple search term" $
+            P.parseCommand "λcancer foo bar > baz" `shouldParse` T.CoucouCmdCancer (Just "foo bar") (Just "baz")
+        it "parses multiple search terms with hl" $
+            P.parseCommand "λcancer foo bar > nick" `shouldParse` T.CoucouCmdCancer (Just "foo bar") (Just "nick")
+        it "parses search term with > inside" $
+            P.parseCommand "λcancer foo>bar " `shouldParse` T.CoucouCmdCancer (Just "foo>bar") Nothing
+
 
 
     describe "factoids command parser" $ do
