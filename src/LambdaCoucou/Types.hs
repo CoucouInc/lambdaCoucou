@@ -18,6 +18,7 @@ import qualified Data.Scientific as Sci
 import Control.Monad.IO.Class
 import Network.HTTP.Req
 import Control.Exception (throwIO)
+import qualified LambdaCoucou.Types.Crypto as C
 
 -- for CLI args
 data Opts = Opts
@@ -158,6 +159,8 @@ data BotState = BotState
     , _lastUrl :: TVar (Maybe Text)
     }
 
+-- TODO add a special command to report a parse error to a user.
+-- This may be useful if the command is mispelled or something similar to give feedback
 data CoucouCmd
     = CoucouCmdNop
     | CoucouCmdCancer !(Maybe Text)
@@ -175,7 +178,7 @@ data CoucouCmd
     | CoucouCmdRemind !Text !Text (Maybe Timestamp) -- nick payload maybe(delay)
     | CoucouCmdHelp (Maybe CoucouHelpType)
     | CoucouCmdUrl
-    | CoucouCmdCryptoRate !Text !(Maybe Text) -- symbol of the crypto to fetch, maybe nick to hl
+    | CoucouCmdCryptoRate C.CryptoCoin !(Maybe Text) -- symbol of the crypto to fetch, maybe nick to hl
     deriving (Eq)
 
 data CmdFactoidType
@@ -229,8 +232,9 @@ instance Show CoucouCmd where
     show CoucouCmdUrl = "Grab infos from last url"
     show (CoucouCmdHelp Nothing) = "Help, list available commands."
     show (CoucouCmdHelp (Just t)) = "Help for the command " <> show t <> "."
-    show (CoucouCmdCryptoRate sym _) = "Current rate for " <> unpack sym <> " in usd"
+    show (CoucouCmdCryptoRate coin _) = "Current rate for " <> show coin <> " in usd"
 
+-- TODO find something more robust for help commands. This is too easy to fall out of sync
 data CoucouHelpType
     = TypeCancer
     | TypeFactoid
@@ -242,5 +246,6 @@ data CoucouHelpType
     | TypeVersion
     | TypeRandom
     | TypeUrl
+    | TypeCrypto
     | TypeUnknown !Text
     deriving (Eq, Show)

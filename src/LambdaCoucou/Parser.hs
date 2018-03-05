@@ -18,6 +18,7 @@ import qualified Data.Text as T
 
 import LambdaCoucou.Types
        (CoucouCmd(..), CmdFactoidType(..), Timestamp, CoucouHelpType(..))
+import LambdaCoucou.Types.Crypto (CryptoCoin(..))
 
 parseCommand :: Text -> Either (ParseError Char Dec) CoucouCmd
 parseCommand = parse commandParser ""
@@ -33,6 +34,7 @@ commandParser' :: Parser CoucouCmd
 commandParser' = choice
     [ try getVersion
     , try tell
+    , try cryptoRate
     , try remind
     , try getCoucou
     , try coucourank
@@ -43,7 +45,6 @@ commandParser' = choice
     , try random
     , try cancer
     , try urlCommand
-    , try cryptoRate
     , factoid
     ]
 
@@ -243,15 +244,16 @@ help = do
         term <- word
         end
         return $ Just $ case term of
-            "cancer" -> TypeCancer
-            "coucou" -> TypeCoucou
-            "seen" -> TypeSeen
-            "tell" -> TypeTell
-            "remind" -> TypeRemind
+            "cancer"  -> TypeCancer
+            "coucou"  -> TypeCoucou
+            "seen"    -> TypeSeen
+            "tell"    -> TypeTell
+            "remind"  -> TypeRemind
             "version" -> TypeVersion
-            "random" -> TypeRandom
-            "url" -> TypeUrl
-            _ -> TypeUnknown term
+            "random"  -> TypeRandom
+            "url"     -> TypeUrl
+            "crypto"  -> TypeCrypto
+            _         -> TypeUnknown term
 
 random :: Parser CoucouCmd
 random = string "random" >> return CoucouCmdRandomFactoid
@@ -289,8 +291,14 @@ cryptoRate :: Parser CoucouCmd
 cryptoRate = do
     string "crypto"
     spaces
-    (sym, hl) <- withHl' word
-    pure $ CoucouCmdCryptoRate sym hl
+    (coin, hl) <- withHl' cryptoCoin
+    pure $ CoucouCmdCryptoRate coin hl
+
+cryptoCoin :: Parser CryptoCoin
+cryptoCoin = choice
+    [ string "btc" $> Bitcoin
+    , string "eth" $> Ethereum
+    ]
 
 -- This parser isn't ideal because it loses all parse info when applying given parser p.
 -- That's the only way I found to make sure the highlight info is correctly parsed

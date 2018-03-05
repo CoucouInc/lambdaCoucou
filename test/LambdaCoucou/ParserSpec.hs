@@ -9,6 +9,7 @@ import Test.Hspec.Megaparsec
 import Text.Megaparsec (parse)
 import qualified LambdaCoucou.Parser as P
 import qualified LambdaCoucou.Types as T
+import qualified LambdaCoucou.Types.Crypto as TC
 
 -- `main` is here so that this module can be run from GHCi on its own.  It is
 -- not needed for automatic spec discovery.
@@ -196,8 +197,12 @@ spec = do
 
     describe "cryptorate command" $ do
         it "parses cryptorate command" $
-            P.parseCommand "λcrypto btc" `shouldParse` T.CoucouCmdCryptoRate "btc" Nothing
+            P.parseCommand "λcrypto btc" `shouldParse` T.CoucouCmdCryptoRate TC.Bitcoin Nothing
         it "requires a crypto symbol" $
             P.parseCommand "λcrypto" `shouldParse` T.CoucouCmdFactoid "crypto" (T.GetFactoid Nothing)
         it "can hl a nick" $
-            P.parseCommand "λcrypto btc > foo" `shouldParse` T.CoucouCmdCryptoRate "btc" (Just "foo")
+            P.parseCommand "λcrypto btc > foo" `shouldParse` T.CoucouCmdCryptoRate TC.Bitcoin (Just "foo")
+        it "can parse eth" $
+            P.parseCommand "λcrypto eth" `shouldParse` T.CoucouCmdCryptoRate TC.Ethereum Nothing
+        it "doesn't parse random coin" $
+            P.parseCommand "λcrypto foo" `shouldParse` T.CoucouCmdNop

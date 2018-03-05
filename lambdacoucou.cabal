@@ -19,6 +19,7 @@ library
   ghc-options: -Wall -Wno-unused-do-bind -Wno-orphans -Werror -O2
   exposed-modules:     LambdaCoucou.Parser
                      , LambdaCoucou.Types
+                     , LambdaCoucou.Types.Crypto
                      , LambdaCoucou.Cancer
                      , LambdaCoucou.Command
                      , LambdaCoucou.Factoids

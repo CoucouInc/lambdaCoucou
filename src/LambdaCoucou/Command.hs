@@ -91,7 +91,7 @@ sendReply _ Nothing = return ()
 sendReply ev (Just msg) = IRC.reply ev msg
 
 helpCommand :: Maybe T.CoucouHelpType -> Text
-helpCommand Nothing = "List of commands: cancer, coucou, seen, tell, remind, version, factoid, random, url"
+helpCommand Nothing = "List of commands: cancer, coucou, seen, tell, remind, version, factoid, random, url, crypto"
 helpCommand (Just T.TypeCancer) =
     "cancer [search]: get a random cancer matching `search`. If no search is given, get any random cancer."
 helpCommand (Just T.TypeCoucou) =
@@ -107,4 +107,5 @@ helpCommand (Just T.TypeFactoid) =
     ">foo: get a random factoid named foo. >foo++ increment the foo counter by one. >foo := x reset factoid foo to value x. >foo += x adds x to the list of factoids for foo."
 helpCommand (Just T.TypeRandom) = "get a random factoid"
 helpCommand (Just (T.TypeUnknown term)) = "No command named " <> term <> "."
-helpCommand (Just T.TypeUrl) = "Grap the title from the last url seen on the chan."
+helpCommand (Just T.TypeUrl) = "Grab the title from the last url seen on the chan."
+helpCommand (Just T.TypeCrypto) = "Exchange rate for Bitcoin (btc) and Ethereum (eth). Usage: crypto btc"
