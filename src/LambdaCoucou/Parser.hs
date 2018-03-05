@@ -296,8 +296,8 @@ cryptoRate = do
 
 cryptoCoin :: Parser CryptoCoin
 cryptoCoin = choice
-    [ string "btc" $> Bitcoin
-    , string "eth" $> Ethereum
+    [ (string "btc" <|> string "BTC") $> Bitcoin
+    , (string "eth" <|> string "ETH") $> Ethereum
     ]
 
 -- This parser isn't ideal because it loses all parse info when applying given parser p.

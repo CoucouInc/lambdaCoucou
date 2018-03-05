@@ -38,10 +38,11 @@ fetch coin target = do
             pure
                 $  "1 "
                 <> symbol coin
-                <> " is worth (?) "
+                <> " vaut "
                 <> pack (show p)
                 <> " "
                 <> target
+                <> " grace au pouvoir de la spéculation !"
 
 
 getCrypto :: (MonadIO m) => TC.CryptoCoin -> Text -> m BsResponse
