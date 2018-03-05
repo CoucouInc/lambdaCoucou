@@ -1,4 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module LambdaCoucou.Types where
 
@@ -13,6 +15,9 @@ import Data.Vector (Vector, empty)
 import Data.Aeson
 import Data.Aeson.Types (Parser)
 import qualified Data.Scientific as Sci
+import Control.Monad.IO.Class
+import Network.HTTP.Req
+import Control.Exception (throwIO)
 
 -- for CLI args
 data Opts = Opts
@@ -21,6 +26,14 @@ data Opts = Opts
     , optNick :: !Text
     , optChan :: !Text
     } deriving (Show)
+
+-- for http requests
+newtype HttpM m a = HttpM { runHttp :: m a }
+    deriving (Functor, Applicative, Monad, MonadIO)
+
+instance (MonadIO m) => MonadHttp (HttpM m) where
+    handleHttpException = liftIO . throwIO
+
 
 type Factoids = HashMap Text Factoid
 
@@ -162,6 +175,7 @@ data CoucouCmd
     | CoucouCmdRemind !Text !Text (Maybe Timestamp) -- nick payload maybe(delay)
     | CoucouCmdHelp (Maybe CoucouHelpType)
     | CoucouCmdUrl
+    | CoucouCmdCryptoRate !Text !(Maybe Text) -- symbol of the crypto to fetch, maybe nick to hl
     deriving (Eq)
 
 data CmdFactoidType
@@ -215,6 +229,7 @@ instance Show CoucouCmd where
     show CoucouCmdUrl = "Grab infos from last url"
     show (CoucouCmdHelp Nothing) = "Help, list available commands."
     show (CoucouCmdHelp (Just t)) = "Help for the command " <> show t <> "."
+    show (CoucouCmdCryptoRate sym _) = "Current rate for " <> unpack sym <> " in usd"
 
 data CoucouHelpType
     = TypeCancer

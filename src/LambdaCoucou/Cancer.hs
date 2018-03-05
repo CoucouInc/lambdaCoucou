@@ -6,7 +6,6 @@ import Control.Monad.IO.Class (liftIO)
 import Data.Monoid (mempty, (<>))
 import Data.Text (Text, toLower, isInfixOf)
 import Data.Text.Encoding (decodeUtf8')
-import Control.Exception (throwIO)
 import Network.HTTP.Req
 import Text.Megaparsec.Error (parseErrorPretty)
 import System.Random (randomR)
@@ -16,9 +15,6 @@ import qualified Network.IRC.Client as IRC
 import qualified LambdaCoucou.Types as T
 
 import LambdaCoucou.Parser (parseCancer)
-
-instance MonadHttp IO where
-    handleHttpException = throwIO
 
 -- fetchCancer :: Maybe Text -> IO (Maybe Text)
 fetchCancer :: Maybe Text -> IRC.StatefulIRC T.BotState (Maybe (Text, Text))
@@ -33,25 +29,25 @@ fetchCancer search = do
 
 getCancer :: IO (Maybe [(Text, Text)])
 getCancer = do
-    bs <- 
-        liftIO $
-        req
-            GET
-            (https "polochon.lelele.io" /: "cancer" /: "quickcancer")
-            NoReqBody
-            bsResponse
-            mempty
+    bs <- liftIO $ T.runHttp $ req
+        GET
+        (https "polochon.lelele.io" /: "cancer" /: "quickcancer")
+        NoReqBody
+        bsResponse
+        mempty
     let decoded = decodeUtf8' (responseBody bs)
     case decoded of
         Left parseError -> do
-            liftIO $ putStrLn $ "Error decoding quickcancer response: " <> show parseError
+            liftIO
+                $  putStrLn
+                $  "Error decoding quickcancer response: "
+                <> show parseError
             return Nothing
-        Right rawCancer ->
-            case parseCancer rawCancer of
-                Left parseError -> do
-                    liftIO . print $ "Error: " <> parseErrorPretty parseError
-                    return Nothing
-                Right parsed -> return $ Just parsed
+        Right rawCancer -> case parseCancer rawCancer of
+            Left parseError -> do
+                liftIO . print $ "Error: " <> parseErrorPretty parseError
+                return Nothing
+            Right parsed -> return $ Just parsed
 
 
 getRandomCancer :: [(Text, Text)]
@@ -62,7 +58,7 @@ getRandomCancer cancers = do
         then return Nothing
         else do
             stdGenT <- T._stdGen <$> IRC.state
-            idx <- 
+            idx <-
                 liftIO . Conc.atomically $
                 do gen <- Conc.readTVar stdGenT
                    let (a, gen') = randomR (0, l - 1) gen

@@ -28,6 +28,7 @@ library
                      , LambdaCoucou.Cli
                      , LambdaCoucou.Dist
                      , LambdaCoucou.Url
+                     , LambdaCoucou.Crypto
   build-depends:       base >= 4.7 && < 5
                      , irc-client
                      , text
@@ -41,6 +42,8 @@ library
                      , unordered-containers
                      , vector
                      , aeson
+                     , lens
+                     , lens-aeson
                      , scientific
                      , stm
                      , stm-chans

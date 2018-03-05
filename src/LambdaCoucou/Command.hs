@@ -17,6 +17,7 @@ import LambdaCoucou.Social
        (incCoucou, getCoucouCount, getLastSeen, coucouRank, registerTell,
         registerRemind)
 import LambdaCoucou.Url (urlInfo)
+import LambdaCoucou.Crypto (fetchCrypto)
 
 handleCommand :: IRC.UnicodeEvent -> T.CoucouCmd -> IRC.StatefulIRC T.BotState ()
 handleCommand ev cmd = unless (fromBlacklistedUser ev) $ handleCommand' ev cmd
@@ -35,7 +36,6 @@ handleCommand' ev cmd@(T.CoucouCmdCancer search mbHl) = do
             IRC.reply ev payload
 handleCommand' ev cmd@(T.CoucouCmdFactoid name factoidType) = do
     liftIO $ print cmd
-    -- unless (fromBlacklistedUser ev) $
     case factoidType of
         T.GetFactoid mbHl -> prefixHlNick mbHl <$> getFactoid name >>= sendReply ev
         T.IncFactoid -> adjustCounterFactoid succ ev name
@@ -60,6 +60,7 @@ handleCommand' ev (T.CoucouCmdRemind nick payload mbDelay) =
     registerRemind ev nick payload mbDelay >>= sendReply ev
 handleCommand' ev T.CoucouCmdUrl = urlInfo >>= IRC.reply ev
 handleCommand' ev (T.CoucouCmdHelp mbCmd) = IRC.reply ev (helpCommand mbCmd)
+handleCommand' ev (T.CoucouCmdCryptoRate sym hl) = fetchCrypto sym >>= sendReplyHl ev hl
 
 prefixHlNick :: Maybe Text -> Maybe Text -> Maybe Text
 prefixHlNick mbHl txt =
@@ -80,6 +81,10 @@ getBotVersion = do
     state <- IRC.state
     let (sha, commitDate) = T._version state
     return $ pack $ "Commit " <> take 6 sha <> " (" <> commitDate <> ")"
+
+sendReplyHl :: IRC.UnicodeEvent -> Maybe Text -> Maybe Text -> IRC.StatefulIRC T.BotState ()
+sendReplyHl ev Nothing msg = sendReply ev msg
+sendReplyHl ev (Just nick) msg = sendReply ev ((\m -> nick <> ": " <> m) <$> msg)
 
 sendReply :: IRC.UnicodeEvent -> Maybe Text -> IRC.StatefulIRC T.BotState ()
 sendReply _ Nothing = return ()

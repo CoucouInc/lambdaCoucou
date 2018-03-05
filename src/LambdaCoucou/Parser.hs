@@ -43,6 +43,7 @@ commandParser' = choice
     , try random
     , try cancer
     , try urlCommand
+    , try cryptoRate
     , factoid
     ]
 
@@ -284,6 +285,12 @@ url' = do
 urlCommand :: Parser CoucouCmd
 urlCommand = string "url" *> end $> CoucouCmdUrl
 
+cryptoRate :: Parser CoucouCmd
+cryptoRate = do
+    string "crypto"
+    spaces
+    (sym, hl) <- withHl' word
+    pure $ CoucouCmdCryptoRate sym hl
 
 -- This parser isn't ideal because it loses all parse info when applying given parser p.
 -- That's the only way I found to make sure the highlight info is correctly parsed
