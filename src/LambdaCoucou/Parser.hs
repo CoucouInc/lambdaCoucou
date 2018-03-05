@@ -7,9 +7,10 @@ import Control.Monad.Fail (fail)
 import Data.Functor
 import Data.Monoid ((<>))
 import Data.Either
+import Data.Foldable
 import Control.Monad (void)
 import Data.Maybe (fromMaybe)
-import Data.Char (isSpace)
+import Data.Char (isSpace, digitToInt)
 import Text.Megaparsec
 import Text.Megaparsec.Text
 import Data.Text (Text)
@@ -172,31 +173,43 @@ remind = tellOrRemind "remind" CoucouCmdRemind
 delay :: Parser Timestamp
 delay = do
     string "in"
-    some spaceChar
-    h <- fromMaybe 0 <$> delayCmd "hour"
-    m <- fromMaybe 0 <$> delayCmd "minute"
-    s <- fromMaybe 0 <$> delayCmd "second"
-    pure $ max 0 (h * 3600 + m * 60 + s)
-  where
-    delayCmd :: String -> Parser (Maybe Integer)
-    delayCmd sep = try (delayUnit sep) <|> return Nothing
-    delayUnit :: String -> Parser (Maybe Integer)
-    delayUnit sep = do
-        mult <- option 1 (char '-' >> return (-1))
-        d <- read <$> some digitChar
-        some spaceChar
-        string sep
-        optional (char 's')
-        some spaceChar
-        return $ Just (mult * d)
+    spaces
+    ds <- sepEndBy1 time spaces
+    pure $ sum ds
+
+time :: Parser Integer
+time = do
+    d1 <- natural
+    space
+    mult <- choice
+        [ try (week $> 3600 * 24 * 7)
+        , try (day $> 3600 * 24)
+        , try (hour $> 3600)
+        , try (minute $> 60)
+        , second $> 1
+        ]
+    pure $ d1 * mult
+
+natural :: Parser Integer
+natural = do
+    ds <- some digitChar
+    pure $ fromIntegral $ foldl' (\s d -> s * 10 + digitToInt d) 0 ds
+
+
+week, day, hour, minute, second :: Parser ()
+week = void $ choice [string "weeks", string "week", string "w"]
+day = void $ choice [string "days", string "days", string "d"]
+hour = void $ choice [string "hours", string "hour", string "h"]
+minute = void $ choice [string "minutes", string "minute", string "m"]
+second = void $ choice [string "seconds", string "second", string "s"]
 
 tellOrRemind :: String -> (Text -> Text -> Maybe Timestamp -> CoucouCmd) -> Parser CoucouCmd
 tellOrRemind str cmd = do
     string str
     some spaceChar
     n <- nick
-    some spaceChar
-    d <- optional delay
+    spaces
+    d <- optional (try delay)
     msg <- T.pack <$> some anyChar
     pure $ cmd n msg d
 

@@ -96,7 +96,7 @@ helpCommand (Just T.TypeSeen) = "seen nick: when was the last time `nick` spoke 
 helpCommand (Just T.TypeTell) =
     "tell nick [when] message: Next time `nick` speaks, tell her `message`. If a delay is given, wait at least this amount of time before delivering the message. Format of `when`: in [x hours] [y minutes] [z seconds]. Example: >tell Geekingfrog in 1 hour 2 minutes 10 seconds coucou"
 helpCommand (Just T.TypeRemind) =
-    "remind nick when message: Send `message` to `nick` in `when` time. Format of `when`: in [x hours] [y minutes] [z seconds]. Example: >remind me in 1 hour 2 minutes 42 seconds coucou from the past."
+    "remind nick when message: Send `message` to `nick` in `when` time. Format of `when`: in [w weeks] [d days] [x hours] [y minutes] [z seconds]. Example: >remind me in 1 hour 2m 42 seconds coucou from the past."
 helpCommand (Just T.TypeVersion) = "version: version of the bot."
 helpCommand (Just T.TypeFactoid) =
     ">foo: get a random factoid named foo. >foo++ increment the foo counter by one. >foo := x reset factoid foo to value x. >foo += x adds x to the list of factoids for foo."

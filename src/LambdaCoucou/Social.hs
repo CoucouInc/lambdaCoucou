@@ -145,22 +145,26 @@ registerTell ev nick msg mbDelay = withChannelMessage Nothing ev $ \chan sender 
     updateSocialRecords (addToTell nick toTell)
     return $ Just "Ok"
 
-registerRemind :: IRC.UnicodeEvent
-               -> Text
-               -> Text
-               -> Maybe T.Timestamp
-               -> IRC.StatefulIRC T.BotState (Maybe Text)
+registerRemind
+    :: IRC.UnicodeEvent
+    -> Text
+    -> Text
+    -> Maybe T.Timestamp
+    -> IRC.StatefulIRC T.BotState (Maybe Text)
 registerRemind ev nick msg mbDelay = case IRC._source ev of
-    IRC.Server _ -> return Nothing
-    IRC.User usr -> register' usr usr
+    IRC.Server _            -> return Nothing
+    IRC.User   usr          -> register' usr usr
     IRC.Channel chan sender -> register' chan sender
   where
-    register' chan sender = do
-        let nick' = if nick == "me" then sender else nick
-        reminder <- liftIO $ makeReminder chan sender msg mbDelay
-        updateSocialRecords (addReminder nick' reminder)
-        sendReminder nick' reminder
-        return $ Just "Ok"
+    register' chan sender = case mbDelay of
+        Nothing -> pure $ Just "Error: cannot parse time or negative duration"
+        Just d  -> do
+            liftIO $ print $ "duration for reminder: " <> show d
+            let nick' = if nick == "me" then sender else nick
+            reminder <- liftIO $ makeReminder chan sender msg d
+            updateSocialRecords (addReminder nick' reminder)
+            sendReminder nick' reminder
+            return $ Just "Ok"
 
 addToTell :: Text -> T.ToTell -> T.SocialRecords -> T.SocialRecords
 addToTell nick toTell = Map.adjust appendToTell nick
@@ -180,7 +184,7 @@ addReminder nick reminder = Map.adjust appendReminders nick
 
 makeTell :: Text -> Text -> Text -> Maybe T.Timestamp -> IO T.ToTell
 makeTell chan sender msg mbDelay = do
-    ts <- makeTs mbDelay
+    ts <- makeTs (fromMaybe 0 mbDelay)
     return
         T.ToTell
         { T._toTellMsg = msg
@@ -189,9 +193,9 @@ makeTell chan sender msg mbDelay = do
         , T._toTellOnChannel = chan
         }
 
-makeReminder :: Text -> Text -> Text -> Maybe T.Timestamp -> IO T.Remind
-makeReminder chan sender msg mbDelay = do
-    ts <- makeTs mbDelay
+makeReminder :: Text -> Text -> Text -> T.Timestamp -> IO T.Remind
+makeReminder chan sender msg delay = do
+    ts <- makeTs delay
     return
         T.Remind
         { T._remindMsg = msg
@@ -201,10 +205,10 @@ makeReminder chan sender msg mbDelay = do
         }
 
 -- make a timestamp from a delay
-makeTs :: Maybe T.Timestamp -> IO T.Timestamp
+makeTs :: T.Timestamp -> IO T.Timestamp
 makeTs delay = do
     now <- Time.toSeconds <$> Time.getCurrentTime
-    return $ now + fromMaybe 0 delay
+    pure $! now + delay
 
 updateSocialRecords
     :: (T.SocialRecords -> T.SocialRecords)
