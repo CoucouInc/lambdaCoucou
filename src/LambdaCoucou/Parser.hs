@@ -16,9 +16,10 @@ import Text.Megaparsec.Text
 import Data.Text (Text)
 import qualified Data.Text as T
 
-import LambdaCoucou.Types
-       (CoucouCmd(..), CmdFactoidType(..), Timestamp, CoucouHelpType(..))
-import LambdaCoucou.Types.Crypto (CryptoCoin(..))
+import LambdaCoucou.Types (Timestamp)
+import LambdaCoucou.Command (CoucouCmd(..), CmdFactoidType(..))
+import LambdaCoucou.Crypto (CryptoCoin(..))
+import LambdaCoucou.Help (CoucouHelpType(..))
 
 parseCommand :: Text -> Either (ParseError Char Dec) CoucouCmd
 parseCommand = parse commandParser ""
@@ -57,19 +58,6 @@ cancer = string "cancer"
         spaces
         (s, hl) <- withHl' $ optional (T.unwords <$> sepEndBy1 word spaces)
         pure $ CoucouCmdCancer s hl
-
-parseCancer :: Text -> Either (ParseError Char Dec) [(Text, Text)]
-parseCancer = parse cancerParser ""
-
-cancerParser :: Parsec Dec Text [(Text, Text)]
-cancerParser = many cancerLine
-
-cancerLine :: Parsec Dec Text (Text, Text)
-cancerLine = do
-    title <- T.pack <$> many (noneOf [':'])
-    string ": "
-    cancerUrl <- T.pack <$> manyTill anyChar eol
-    return (title, cancerUrl)
 
 factoid :: Parser CoucouCmd
 factoid = try counterFactoid <|> try setFactoid <|> getFactoid

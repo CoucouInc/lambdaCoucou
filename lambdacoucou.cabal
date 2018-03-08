@@ -17,19 +17,21 @@ library
   hs-source-dirs:      src
   default-language:    Haskell2010
   ghc-options: -Wall -Wno-unused-do-bind -Wno-orphans -Werror -O2
-  exposed-modules:     LambdaCoucou.Parser
-                     , LambdaCoucou.Types
-                     , LambdaCoucou.Types.Crypto
-                     , LambdaCoucou.Cancer
-                     , LambdaCoucou.Command
-                     , LambdaCoucou.Factoids
-                     , LambdaCoucou.Social
-                     , LambdaCoucou.Db
-                     , LambdaCoucou.Run
+
+  exposed-modules:     LambdaCoucou.Cancer
                      , LambdaCoucou.Cli
-                     , LambdaCoucou.Dist
-                     , LambdaCoucou.Url
+                     , LambdaCoucou.Command
                      , LambdaCoucou.Crypto
+                     , LambdaCoucou.Db
+                     , LambdaCoucou.Dist
+                     , LambdaCoucou.Factoids
+                     , LambdaCoucou.Help
+                       LambdaCoucou.Parser
+                     , LambdaCoucou.Run
+                     , LambdaCoucou.Social
+                     , LambdaCoucou.Types
+                     , LambdaCoucou.Url
+
   build-depends:       base >= 4.7 && < 5
                      , irc-client
                      , text

@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module LambdaCoucou.Crypto (fetchCrypto) where
+module LambdaCoucou.Crypto (fetchCrypto, CryptoCoin(..)) where
 
 import Data.Scientific
 import Data.Monoid
@@ -19,15 +19,16 @@ import Control.Lens
 import Data.Aeson.Lens
 
 import qualified LambdaCoucou.Types as T
-import qualified LambdaCoucou.Types.Crypto as TC
 
-fetchCrypto :: TC.CryptoCoin -> IRC.StatefulIRC T.BotState (Maybe Text)
+data CryptoCoin = Ethereum | Bitcoin deriving (Show, Eq)
+
+fetchCrypto :: CryptoCoin -> IRC.StatefulIRC T.BotState (Maybe Text)
 fetchCrypto coin = do
     let target = "eur"
     r <- liftIO $ catch (fetch coin target) (handleHttp coin)
     pure $ Just r
 
-fetch :: TC.CryptoCoin -> Text -> IO Text
+fetch :: CryptoCoin -> Text -> IO Text
 fetch coin target = do
     resp <- liftIO (getCrypto coin target)
     case parseResponse (responseBody resp) of
@@ -42,10 +43,10 @@ fetch coin target = do
                 <> pack (show p)
                 <> " "
                 <> target
-                <> " grace au pouvoir de la spéculation !"
+                <> " grâce au pouvoir de la spéculation !"
 
 
-getCrypto :: (MonadIO m) => TC.CryptoCoin -> Text -> m BsResponse
+getCrypto :: (MonadIO m) => CryptoCoin -> Text -> m BsResponse
 getCrypto coin target = do
     let pair = symbol coin <> target
     liftIO $ T.runHttp $ req
@@ -58,7 +59,7 @@ getCrypto coin target = do
 parseResponse :: B.ByteString -> Maybe Scientific
 parseResponse raw = raw ^? key "result" . key "price" . _Number
 
-handleHttp :: TC.CryptoCoin -> HttpException -> IO Text
+handleHttp :: CryptoCoin -> HttpException -> IO Text
 handleHttp coin (VanillaHttpException (H.HttpExceptionRequest _req (H.StatusCodeException resp _msg)))
     | s == HT.status400
     = pure $ "Currency not found: " <> symbol coin
@@ -74,10 +75,10 @@ handleHttp coin e = do
 
 
 -- TODO there may be a better way to do that
-exchange :: TC.CryptoCoin -> Text
-exchange TC.Bitcoin = "bitstamp"
-exchange TC.Ethereum = "bitstamp"
+exchange :: CryptoCoin -> Text
+exchange Bitcoin = "bitstamp"
+exchange Ethereum = "bitstamp"
 
-symbol :: TC.CryptoCoin -> Text
-symbol TC.Bitcoin = "btc"
-symbol TC.Ethereum = "eth"
+symbol :: CryptoCoin -> Text
+symbol Bitcoin = "btc"
+symbol Ethereum = "eth"

@@ -4,9 +4,10 @@ module LambdaCoucou.Cancer where
 
 import Control.Monad.IO.Class (liftIO)
 import Data.Monoid (mempty, (<>))
-import Data.Text (Text, toLower, isInfixOf)
+import Data.Text (Text, toLower, isInfixOf, pack)
 import Data.Text.Encoding (decodeUtf8')
 import Network.HTTP.Req
+import Text.Megaparsec
 import Text.Megaparsec.Error (parseErrorPretty)
 import System.Random (randomR)
 import qualified GHC.Conc.Sync as Conc
@@ -14,7 +15,21 @@ import qualified GHC.Conc.Sync as Conc
 import qualified Network.IRC.Client as IRC
 import qualified LambdaCoucou.Types as T
 
-import LambdaCoucou.Parser (parseCancer)
+
+parseCancer :: Text -> Either (ParseError Char Dec) [(Text, Text)]
+parseCancer = parse cancerParser ""
+
+cancerParser :: Parsec Dec Text [(Text, Text)]
+cancerParser = many cancerLine
+
+cancerLine :: Parsec Dec Text (Text, Text)
+cancerLine = do
+    title <- pack <$> many (noneOf [':'])
+    string ": "
+    cancerUrl <- pack <$> manyTill anyChar eol
+    return (title, cancerUrl)
+
+
 
 -- fetchCancer :: Maybe Text -> IO (Maybe Text)
 fetchCancer :: Maybe Text -> IRC.StatefulIRC T.BotState (Maybe (Text, Text))

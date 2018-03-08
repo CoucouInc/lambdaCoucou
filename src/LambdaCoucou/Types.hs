@@ -5,9 +5,8 @@
 module LambdaCoucou.Types where
 
 import System.Random (StdGen)
-import Data.Monoid ((<>))
 import Data.ByteString (ByteString)
-import Data.Text (Text, unpack)
+import Data.Text (Text)
 import Control.Concurrent.STM.TVar (TVar)
 import Control.Concurrent.STM.TBQueue (TBQueue)
 import Data.HashMap.Strict (HashMap)
@@ -18,7 +17,6 @@ import qualified Data.Scientific as Sci
 import Control.Monad.IO.Class
 import Network.HTTP.Req
 import Control.Exception (throwIO)
-import qualified LambdaCoucou.Types.Crypto as C
 
 -- for CLI args
 data Opts = Opts
@@ -92,12 +90,9 @@ instance FromJSON SocialRecord where
                 }
 
 jsonToInt :: Value -> Parser Int
-jsonToInt =
-    withScientific "int" $
-    \n ->
-         case Sci.toBoundedInteger n of
-             Nothing -> error ("not valid integer: " ++ show n)
-             Just i -> return i
+jsonToInt = withScientific "int" $ \n -> case Sci.toBoundedInteger n of
+    Nothing -> error ("not valid integer: " ++ show n)
+    Just i  -> return i
 
 
 data ToTell = ToTell
@@ -158,94 +153,3 @@ data BotState = BotState
     , _version :: !(String, String)
     , _lastUrl :: TVar (Maybe Text)
     }
-
--- TODO add a special command to report a parse error to a user.
--- This may be useful if the command is mispelled or something similar to give feedback
-data CoucouCmd
-    = CoucouCmdNop
-    | CoucouCmdCancer !(Maybe Text)
-                      !(Maybe Text) -- Maybe search substr, Maybe nick to hl
-    | CoucouCmdFactoid !Text
-                       CmdFactoidType
-    | CoucouCmdRandomFactoid
-    | CoucouCmdGetCoucou !(Maybe Text) -- Maybe nick to hl
-    | CoucouCmdIncCoucou
-    | CoucouCmdCoucouRank
-    | CoucouCmdLastSeen !Text
-                        !(Maybe Text) -- Maybe nick to hl
-    | CoucouCmdVersion
-    | CoucouCmdTell !Text !Text (Maybe Timestamp) -- nick payload maybe(delay)
-    | CoucouCmdRemind !Text !Text (Maybe Timestamp) -- nick payload maybe(delay)
-    | CoucouCmdHelp (Maybe CoucouHelpType)
-    | CoucouCmdUrl
-    | CoucouCmdCryptoRate C.CryptoCoin !(Maybe Text) -- symbol of the crypto to fetch, maybe nick to hl
-    deriving (Eq)
-
-data CmdFactoidType
-    = GetFactoid !(Maybe Text) -- maybe user to hl
-    | SetFactoid Text
-    | ResetFactoid Text
-    | AugmentFactoid Text
-    | DeleteFactoid
-    | IncFactoid
-    | DecFactoid
-    | SeeFactoids
-    | SearchFactoids !(Maybe Text) -- maybe search term for values
-    deriving (Eq, Show)
-
-instance Show CoucouCmd where
-    show CoucouCmdNop = "no op"
-    -- show (CoucouCmdCoucou _) = "Counts of coucou"
-    show (CoucouCmdCancer search mbHl) =
-        case search of
-            Nothing -> "A random cancer for nick " <> show mbHl <> "."
-            Just s -> "The first cancer matching " <> unpack s <> " for " <> show mbHl <> "."
-    show (CoucouCmdFactoid name factoidType) =
-        let name' = unpack name
-        in case factoidType of
-               GetFactoid mbHl ->
-                   "Get the factoid with name: " <> name' <> " and hl: " <> show mbHl <> "."
-               SetFactoid val ->
-                   "Set a new factoid with name: " <> name' <> " and val: " <> unpack val <> "."
-               ResetFactoid val -> "Reset factoid: " <> name' <> " to val: " <> unpack val <> "."
-               AugmentFactoid val ->
-                   "Augment factoid: " <> name' <> " with val: " <> unpack val <> "."
-               DeleteFactoid -> "Delete factoid: " <> name' <> "."
-               IncFactoid -> "Increment counter: " <> name' <> "."
-               DecFactoid -> "Decrement counter: " <> name' <> "."
-               SeeFactoids -> "List factoids for name: " <> name' <> "."
-               SearchFactoids mbSearch ->
-                   "Search factoids with content: " <> name' <> " and refine search with " <> show mbSearch <>
-                   "."
-    show CoucouCmdRandomFactoid = "Get a random factoid"
-    show (CoucouCmdGetCoucou (Just nick)) = "Show count of coucou for " <> unpack nick
-    show (CoucouCmdGetCoucou Nothing) = "Show count of coucou for the sender of the message"
-    show CoucouCmdIncCoucou = "Increment coucou count for sender of this message"
-    show CoucouCmdCoucouRank = "Who has the most coucou"
-    show (CoucouCmdLastSeen nick mbHl) =
-        "How long since " <> unpack nick <> " has been seen ? (for user " <> show mbHl <> ")."
-    show CoucouCmdVersion = "Send git info of the bot"
-    show (CoucouCmdTell nick payload mbDelay) =
-        "Tell " <> unpack nick <> ": " <> unpack payload <> " after " <> show mbDelay <> "s."
-    show (CoucouCmdRemind nick payload mbDelay) =
-        "Send " <> unpack nick <> ": " <> unpack payload <> " after " <> show mbDelay <> "s."
-    show CoucouCmdUrl = "Grab infos from last url"
-    show (CoucouCmdHelp Nothing) = "Help, list available commands."
-    show (CoucouCmdHelp (Just t)) = "Help for the command " <> show t <> "."
-    show (CoucouCmdCryptoRate coin _) = "Current rate for " <> show coin <> " in usd"
-
--- TODO find something more robust for help commands. This is too easy to fall out of sync
-data CoucouHelpType
-    = TypeCancer
-    | TypeFactoid
-    | TypeCoucou
-    | TypeCoucouRank
-    | TypeSeen
-    | TypeTell
-    | TypeRemind
-    | TypeVersion
-    | TypeRandom
-    | TypeUrl
-    | TypeCrypto
-    | TypeUnknown !Text
-    deriving (Eq, Show)

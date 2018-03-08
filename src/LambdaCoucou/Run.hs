@@ -38,7 +38,7 @@ run opts = do
             cfg
             { IRC._eventHandlers = commandHandler : joinHandler : IRC._eventHandlers cfg
             , IRC._channels = [chan]
-            , IRC._ctcpVer = "λcoucou, a haskell bot in beta"
+            , IRC._ctcpVer = "λcoucou from https://github.com/CoucouInc/lambdaCoucou/"
             }
     state <- initialState
     let writerQueue = T._writerQueue state

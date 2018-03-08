@@ -6,29 +6,53 @@ module LambdaCoucou.Url (updateLastUrl, urlInfo) where
 import Data.Text (Text)
 import qualified Data.Text as Text
 
+import Data.Char (isSpace)
 import Data.Monoid ((<>))
 import Control.Monad.IO.Class (liftIO)
 import Data.Maybe (fromMaybe, maybe)
-import Control.Exception
+import Control.Exception hiding (try)
 import qualified Data.List as List
 import qualified Data.Text.Encoding as Enc
 import qualified Control.Concurrent.STM as STM
 import qualified Network.IRC.Client as IRC
 import qualified LambdaCoucou.Types as T
-import qualified LambdaCoucou.Parser as Parser
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as LBS
 import Data.CaseInsensitive (CI)
+
+import Text.Megaparsec
+import Text.Megaparsec.Text
+-- import qualified LambdaCoucou.Parser as Parser
 
 import qualified Network.HTTP.Client as HTTP
 import qualified Network.HTTP.Client.TLS as HTTPS
 import Network.HTTP.Types.Header
 import qualified Text.HTML.TagSoup as HTML
 
+word :: Parser Text
+word = Text.pack <$> some (satisfy (not . isSpace))
+
+parseUrl :: Text -> Maybe Text
+parseUrl raw = case parse urlP "" raw of
+    Left  _     -> Nothing
+    Right mbUrl -> mbUrl
+
+urlP :: Parser (Maybe Text)
+urlP =
+    (eof >> pure Nothing)
+        <|> (many spaceChar >> (fmap Just (try urlP') <|> (word >> urlP)))
+
+urlP' :: Parser Text
+urlP' = do
+    proto <- Text.pack <$> (try (string "http://") <|> string "https://")
+    rest  <- word
+    many anyChar
+    return $ proto <> rest
+
 
 updateLastUrl :: IRC.Source Text -> Text -> IRC.StatefulIRC T.BotState ()
 updateLastUrl (IRC.Channel _ _) raw =
-    case Parser.parseUrl raw of
+    case parseUrl raw of
         Nothing -> return ()
         Just url -> do
             lastUrlT <- T._lastUrl <$> IRC.state
