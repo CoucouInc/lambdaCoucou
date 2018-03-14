@@ -264,34 +264,40 @@ sendTellMessages ev =
 sendReminder :: Text -> T.Remind -> IRC.StatefulIRC T.BotState ()
 sendReminder nick reminder = do
     now <- liftIO $ Time.toSeconds <$> Time.getCurrentTime
-    let delayS = max 0 (T._remindTs reminder - now)
+    let delayS      = max 0 (T._remindTs reminder - now)
     let delayMicroS = fromInteger $ 1000000 * delayS
     state <- IRC.state
-    conn <- IRC.getConnectionConfig <$> IRC.ircState
+    conn  <- IRC.getConnectionConfig <$> IRC.ircState
     let sendQueue = IRC._sendqueue conn
-    let payload = "(From " <> T._remindFrom reminder <> ") " <> nick <> ": " <> T._remindMsg reminder
+    let payload =
+            "(From "
+                <> T._remindFrom reminder
+                <> ") "
+                <> nick
+                <> ": "
+                <> T._remindMsg reminder
     let ircMessage = IRC.Privmsg (T._remindOnChannel reminder) (Right payload)
-    liftIO $ print $ "Sending irc message: " <> show ircMessage
+    liftIO
+        $  print
+        $  "Sending irc message: "
+        <> show ircMessage
+        <> " in "
+        <> show (delayMicroS `div` 1000)
+        <> "ms"
     void $ liftIO $ forkIO $ do
         threadDelay delayMicroS
-        now' <- liftIO $ Time.toSeconds <$> Time.getCurrentTime
+        liftIO $ putStrLn $ "sending remdinder " <> show reminder
         STM.atomically $ do
             Chan.writeTBMChan sendQueue (encodeUtf8 <$> ircMessage)
             socials <- STM.readTVar (T._socialDb state)
-            let socials' = cleanupReminders now' nick socials
-            STM.writeTVar (T._socialDb state) socials'
+            let socials' = cleanupReminders reminder nick socials
+            STM.writeTVar    (T._socialDb state)    socials'
             DB.updateSocials (T._writerQueue state) socials'
 
-cleanupReminders :: T.Timestamp -> Text -> T.SocialRecords -> T.SocialRecords
-cleanupReminders now =
-    Map.adjust
-        (\socials ->
-              let reminders' = V.filter (\r -> T._remindTs r > now) (T._reminders socials)
-                  socials' =
-                      socials
-                      { T._reminders = reminders'
-                      }
-              in socials')
+cleanupReminders :: T.Remind -> Text -> T.SocialRecords -> T.SocialRecords
+cleanupReminders reminder = Map.adjust $ \socials ->
+    socials { T._reminders = V.filter (/=reminder) (T._reminders socials) }
+
 
 setupReminders :: IRC.StatefulIRC T.BotState ()
 setupReminders = do

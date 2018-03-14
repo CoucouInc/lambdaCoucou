@@ -120,7 +120,7 @@ data Remind = Remind
     , _remindTs :: !Timestamp
     , _remindFrom :: !Text
     , _remindOnChannel :: !Text
-    } deriving (Show)
+    } deriving (Show, Eq)
 
 instance ToJSON Remind where
     toJSON r =
