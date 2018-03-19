@@ -3,6 +3,7 @@
 
 module LambdaCoucou.Run where
 
+import Control.Monad
 import System.Random (getStdGen)
 import qualified Control.Concurrent.STM.TVar as STM
 import qualified Control.Concurrent.STM.TBQueue as STM
@@ -13,6 +14,7 @@ import qualified Text.Megaparsec.Error as Error
 import Development.GitRev
 
 import qualified Network.IRC.Client as IRC
+import qualified Control.Retry as Retry
 
 import qualified LambdaCoucou.Types as T
 import qualified LambdaCoucou.Parser as Parser
@@ -23,27 +25,41 @@ import LambdaCoucou.Url (updateLastUrl)
 
 run :: T.Opts -> IO ()
 run opts = do
-    let host = T.optHost opts
-    let port = T.optPort opts
-    let nick = T.optNick opts
-    let chan = T.optChan opts
+    let host   = T.optHost opts
+    let port   = T.optPort opts
+    let nick   = T.optNick opts
+    let chan   = T.optChan opts
     let logger = IRC.stdoutLogger
     conn <- IRC.connectWithTLS' logger host port 1
     let cfg = IRC.defaultIRCConf nick
     let commandHandler =
             IRC.EventHandler "command handler" IRC.EPrivmsg commandHandlerFunc
-    let joinHandler =
-            IRC.EventHandler "join handler" IRC.EJoin onJoinFunc
-    let cfg' =
-            cfg
-            { IRC._eventHandlers = commandHandler : joinHandler : IRC._eventHandlers cfg
+    let joinHandler = IRC.EventHandler "join handler" IRC.EJoin onJoinFunc
+    let
+        cfg' = cfg
+            { IRC._eventHandlers = commandHandler
+                : joinHandler
+                : IRC._eventHandlers cfg
             , IRC._channels = [chan]
             , IRC._ctcpVer = "λcoucou from https://github.com/CoucouInc/lambdaCoucou/"
             }
     state <- initialState
     let writerQueue = T._writerQueue state
-    withAsync (updateDb writerQueue) $
-        \_ -> IRC.startStateful conn cfg' state
+    withAsync (updateDb writerQueue) $ \_ -> runWithRetry conn cfg' state
+
+runWithRetry
+    :: IRC.ConnectionConfig T.BotState
+    -> IRC.InstanceConfig T.BotState
+    -> T.BotState
+    -> IO ()
+runWithRetry conn config state =
+    Retry.recoverAll (Retry.exponentialBackoff 50000 <> Retry.limitRetries 10)
+        $ \retryStatus -> do
+              when (Retry.rsIterNumber retryStatus > 0)
+                  $  putStrLn
+                  $  "Encountered error, retrying with "
+                  <> show retryStatus
+              IRC.startStateful conn config state
 
 commandHandlerFunc :: IRC.UnicodeEvent -> IRC.StatefulIRC T.BotState ()
 commandHandlerFunc ev = do

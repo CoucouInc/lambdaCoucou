@@ -60,6 +60,7 @@ library
                      , http-types
                      , tagsoup
                      , case-insensitive
+                     , retry
 
 executable lambdacoucou
   hs-source-dirs:      app
