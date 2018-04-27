@@ -265,14 +265,20 @@ g2r x@(y, m, _) =
             _   -> Nothing
 
 showR :: (Year, RMonth, Day) -> String
-showR (y, m, d) = rDayName d ++ " " ++ show d ++ " " ++ show m ++ " " ++ show y
+showR (y, m, d) = show d ++ " " ++ show m ++ " " ++ show y
 
 
 getFrenchDate :: IRC.StatefulIRC T.BotState (Maybe Text)
 getFrenchDate = do
     (y, m, d) <- liftIO $ DT.toGregorian' <$> DT.getCurrentTime
     let rd = g2r (fromIntegral y, m, d)
-    let result = maybe "Oops, something went wrong"
-                       (\r -> "Nous sommes aujourd'hui " ++ showR r)
-                       rd
+    let result = maybe
+            "Oops, something went wrong"
+            ( \r@(_, _, day) ->
+                "Nous sommes aujourd'hui le "
+                    ++ showR r
+                    ++ ", et c'est un "
+                    ++ rDayName day
+            )
+            rd
     pure $ Just $ T.pack result
