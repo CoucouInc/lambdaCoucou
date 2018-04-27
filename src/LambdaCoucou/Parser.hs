@@ -291,7 +291,9 @@ cryptoCoin = choice
     ]
 
 frenchDate :: Parser CoucouCmd
-frenchDate = (string "date" <* space) $> CoucouCmdCalendar
+frenchDate = do
+    (_, hl) <- withHl' (string "date" <* space)
+    pure $ CoucouCmdCalendar hl
 
 -- This parser isn't ideal because it loses all parse info when applying given parser p.
 -- That's the only way I found to make sure the highlight info is correctly parsed

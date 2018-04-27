@@ -210,7 +210,8 @@ spec = do
 
     describe "french revolutionary calendar" $ do
         it "parses the date command" $
-            P.parseCommand "λdate" `shouldParse` CoucouCmdCalendar
+            P.parseCommand "λdate" `shouldParse` CoucouCmdCalendar Nothing
         it "parses the date command with some spaces at the end" $
-            P.parseCommand "λdate  " `shouldParse` CoucouCmdCalendar
-
+            P.parseCommand "λdate  " `shouldParse` CoucouCmdCalendar Nothing
+        it "parses the date with a hl" $
+            P.parseCommand "λdate  > foo " `shouldParse` CoucouCmdCalendar (Just "foo")

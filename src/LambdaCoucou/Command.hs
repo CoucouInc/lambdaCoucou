@@ -40,7 +40,7 @@ data CoucouCmd
     | CoucouCmdHelp (Maybe CoucouHelpType)
     | CoucouCmdUrl
     | CoucouCmdCryptoRate CryptoCoin !(Maybe Text) -- symbol of the crypto to fetch, maybe nick to hl
-    | CoucouCmdCalendar
+    | CoucouCmdCalendar !(Maybe Text)
     deriving (Eq)
 
 data CmdFactoidType
@@ -96,7 +96,7 @@ instance Show CoucouCmd where
     show (CoucouCmdHelp Nothing) = "Help, list available commands."
     show (CoucouCmdHelp (Just t)) = "Help for the command " <> show t <> "."
     show (CoucouCmdCryptoRate coin _) = "Current rate for " <> show coin <> " in usd"
-    show CoucouCmdCalendar = "Current date in the French Revolutionary calendar"
+    show (CoucouCmdCalendar mbHl) = "Current date in the French Revolutionary calendar for " ++ show mbHl
 
 
 
@@ -142,7 +142,7 @@ handleCommand' ev (CoucouCmdRemind nick payload mbDelay) =
 handleCommand' ev CoucouCmdUrl = urlInfo >>= IRC.reply ev
 handleCommand' ev (CoucouCmdHelp mbCmd) = IRC.reply ev (helpCommand mbCmd)
 handleCommand' ev (CoucouCmdCryptoRate sym hl) = fetchCrypto sym >>= sendReplyHl ev hl
-handleCommand' ev CoucouCmdCalendar = getFrenchDate >>= sendReply ev
+handleCommand' ev (CoucouCmdCalendar hl) = getFrenchDate >>= sendReplyHl ev hl
 
 
 prefixHlNick :: Maybe Text -> Maybe Text -> Maybe Text
