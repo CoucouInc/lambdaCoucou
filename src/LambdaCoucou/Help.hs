@@ -19,6 +19,7 @@ data CoucouHelpType
     | TypeRandom
     | TypeUrl
     | TypeCrypto
+    | TypeCalendar
     | TypeUnknown !Text
     deriving (Eq, Show)
 
@@ -41,3 +42,4 @@ helpCommand (Just TypeRandom) = "get a random factoid"
 helpCommand (Just (TypeUnknown term)) = "No command named " <> term <> "."
 helpCommand (Just TypeUrl) = "Grab the title from the last url seen on the chan."
 helpCommand (Just TypeCrypto) = "Exchange rate for Bitcoin (btc) and Ethereum (eth). Usage: crypto btc"
+helpCommand (Just TypeCalendar) = "Current day according to the French Revolutionary calendar."

@@ -36,6 +36,7 @@ commandParser' = choice
     [ try getVersion
     , try tell
     , try cryptoRate
+    , try frenchDate
     , try remind
     , try getCoucou
     , try coucourank
@@ -241,6 +242,7 @@ help = do
             "random"  -> TypeRandom
             "url"     -> TypeUrl
             "crypto"  -> TypeCrypto
+            "date"    -> TypeCalendar
             _         -> TypeUnknown term
 
 random :: Parser CoucouCmd
@@ -287,6 +289,9 @@ cryptoCoin = choice
     [ (string "btc" <|> string "BTC") $> Bitcoin
     , (string "eth" <|> string "ETH") $> Ethereum
     ]
+
+frenchDate :: Parser CoucouCmd
+frenchDate = (string "date" <* space) $> CoucouCmdCalendar
 
 -- This parser isn't ideal because it loses all parse info when applying given parser p.
 -- That's the only way I found to make sure the highlight info is correctly parsed

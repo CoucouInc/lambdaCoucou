@@ -207,3 +207,10 @@ spec = do
             P.parseCommand "λcrypto eth" `shouldParse` CoucouCmdCryptoRate Ethereum Nothing
         it "doesn't parse random coin" $
             P.parseCommand "λcrypto foo" `shouldParse` CoucouCmdNop
+
+    describe "french revolutionary calendar" $ do
+        it "parses the date command" $
+            P.parseCommand "λdate" `shouldParse` CoucouCmdCalendar
+        it "parses the date command with some spaces at the end" $
+            P.parseCommand "λdate  " `shouldParse` CoucouCmdCalendar
+
