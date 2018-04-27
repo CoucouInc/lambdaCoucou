@@ -280,6 +280,7 @@ getFrenchDate = do
                     ++ " − jour " ++ dayName (rm, day) ++ " − "
                     ++ "et c'est un "
                     ++ rDayName day
+                    ++ "."
             )
             rd
     pure $ Just $ T.pack result
