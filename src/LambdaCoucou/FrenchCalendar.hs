@@ -569,5 +569,10 @@ dayName (Fru, 28) = "du maïs"
 dayName (Fru, 29) = "du marron"
 dayName (Fru, 30) = "du panier"
 
-dayName (SC, _) = "du coucou" -- lambdacoucou specific
+dayName (SC, 1) = "de la vertu"
+dayName (SC, 2) = "du génie"
+dayName (SC, 3) = "du travail"
+dayName (SC, 4) = "de l'opinion"
+dayName (SC, 5) = "des récompenses"
+
 dayName _ = "ERROR"
