@@ -253,6 +253,7 @@ applyRule :: (Year, Month, Day) -> Rule -> (Year, RMonth, Day)
 applyRule (y, _, d) (fd, rm, fy) = (fy y, rm, fd d)
 
 isValid :: (Year, RMonth, Day) -> Bool
+isValid (_, SC, n) = n > 0 && n < 6
 isValid (_, _, n) = n > 0 && n < 31
 
 g2r :: (Year, Month, Day) -> Maybe (Year, RMonth, Day)
