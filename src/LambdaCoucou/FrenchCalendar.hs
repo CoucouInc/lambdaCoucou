@@ -272,25 +272,122 @@ showR (y, m, d) = show d ++ " " ++ show m ++ " " ++ show y
 getFrenchDate :: IRC.StatefulIRC T.BotState (Maybe Text)
 getFrenchDate = do
     (y, m, d) <- liftIO $ DT.toGregorian' <$> DT.getCurrentTime
-    let rd = g2r (fromIntegral y, m, d)
-    let result = maybe
+    pure $ getFrenchDate' (y, m, d)
+
+getFrenchDate' :: (Integer, Int, Int) -> Maybe Text
+getFrenchDate' (y, m, d) =
+    let rd     = g2r (fromIntegral y, m, d)
+        result = maybe
             "Oops, something went wrong"
-            ( \r@(_, rm, day) ->
+            (\r@(_, rm, day) ->
                 "Nous sommes aujourd'hui le "
                     ++ showR r
-                    ++ " − jour " ++ dayName (rm, day) ++ " − "
+                    ++ " − jour "
+                    ++ dayName (rm, day)
+                    ++ " − "
                     ++ "et c'est un "
                     ++ rDayName day
                     ++ "."
             )
             rd
-    pure $ Just $ T.pack result
-
-
-
+    in  Just $ T.pack result
 
 
 dayName :: (RMonth, Day) -> String
+
+dayName (Vnd, 1 ) = "du raisin"
+dayName (Vnd, 2 ) = "du safran"
+dayName (Vnd, 3 ) = "de la châtaigne"
+dayName (Vnd, 4 ) = "de la colchique"
+dayName (Vnd, 5 ) = "du cheval"
+dayName (Vnd, 6 ) = "de la balsamine"
+dayName (Vnd, 7 ) = "de la carotte"
+dayName (Vnd, 8 ) = "de l'amaranthe"
+dayName (Vnd, 9 ) = "du panais"
+dayName (Vnd, 10) = "de la cuve"
+dayName (Vnd, 11) = "de la pomme de terre"
+dayName (Vnd, 12) = "de l'immortelle"
+dayName (Vnd, 13) = "du potiron"
+dayName (Vnd, 14) = "de la réséda"
+dayName (Vnd, 15) = "de l'âne"
+dayName (Vnd, 16) = "de la belle de nuit"
+dayName (Vnd, 17) = "de la citrouille"
+dayName (Vnd, 18) = "du sarrasin"
+dayName (Vnd, 19) = "du tournesol"
+dayName (Vnd, 20) = "du pressoir"
+dayName (Vnd, 21) = "du chanvre"
+dayName (Vnd, 22) = "de la pêche"
+dayName (Vnd, 23) = "du navet"
+dayName (Vnd, 24) = "de l'amaryllis"
+dayName (Vnd, 25) = "du bœuf"
+dayName (Vnd, 26) = "de l'aubergine"
+dayName (Vnd, 27) = "du piment"
+dayName (Vnd, 28) = "de la tomate"
+dayName (Vnd, 29) = "de l'orge"
+dayName (Vnd, 30) = "du tonneau"
+
+dayName (Bru, 1 ) = "de la pomme"
+dayName (Bru, 2 ) = "du céleri"
+dayName (Bru, 3 ) = "de la poire"
+dayName (Bru, 4 ) = "de la betterave"
+dayName (Bru, 5 ) = "de l'oie"
+dayName (Bru, 6 ) = "de l'héliotrope"
+dayName (Bru, 7 ) = "de la figue"
+dayName (Bru, 8 ) = "de la scorsonère"
+dayName (Bru, 9 ) = "de l'alisier"
+dayName (Bru, 10) = "de la charrue"
+dayName (Bru, 11) = "du salsifis"
+dayName (Bru, 12) = "de la mâcre"
+dayName (Bru, 13) = "du topinambour"
+dayName (Bru, 14) = "de l'andive"
+dayName (Bru, 15) = "du dindon"
+dayName (Bru, 16) = "du chervis"
+dayName (Bru, 17) = "du cresson"
+dayName (Bru, 18) = "de la dentelaire"
+dayName (Bru, 19) = "de la grenade"
+dayName (Bru, 20) = "de la herse"
+dayName (Bru, 21) = "de la bacchante"
+dayName (Bru, 22) = "de l'azerole"
+dayName (Bru, 23) = "de la garance"
+dayName (Bru, 24) = "de l'orange"
+dayName (Bru, 25) = "du faisan"
+dayName (Bru, 26) = "de la pistache"
+dayName (Bru, 27) = "du macjonc"
+dayName (Bru, 28) = "du coing"
+dayName (Bru, 29) = "du cormier"
+dayName (Bru, 30) = "du rouleau"
+
+dayName (Fri, 1 ) = "de la raiponce"
+dayName (Fri, 2 ) = "du turneps"
+dayName (Fri, 3 ) = "de la chicorée"
+dayName (Fri, 4 ) = "du nèfle"
+dayName (Fri, 5 ) = "du cochon"
+dayName (Fri, 6 ) = "de la mâche"
+dayName (Fri, 7 ) = "du chou-fleur"
+dayName (Fri, 8 ) = "du miel"
+dayName (Fri, 9 ) = "de la genièvre"
+dayName (Fri, 10) = "de la pioche"
+dayName (Fri, 11) = "de la cire"
+dayName (Fri, 12) = "de la cire"
+dayName (Fri, 13) = "du cèdre"
+dayName (Fri, 14) = "du sapin"
+dayName (Fri, 15) = "du chevreuil"
+dayName (Fri, 16) = "de l'ajonc"
+dayName (Fri, 17) = "du cyprès"
+dayName (Fri, 18) = "du lierre"
+dayName (Fri, 19) = "de la sabine"
+dayName (Fri, 20) = "du hoyau"
+dayName (Fri, 21) = "de l'érable à sucre"
+dayName (Fri, 22) = "de la bruyère"
+dayName (Fri, 23) = "du roseau"
+dayName (Fri, 24) = "de l'oseille"
+dayName (Fri, 25) = "du grillon"
+dayName (Fri, 26) = "du pignon"
+dayName (Fri, 27) = "de la liège"
+dayName (Fri, 28) = "de la truffe"
+dayName (Fri, 29) = "de l'olive"
+dayName (Fri, 30) = "de la pelle"
+
 dayName (Niv, 1 ) = "de la tourbe"
 dayName (Niv, 2 ) = "de la houille"
 dayName (Niv, 3 ) = "du bitume"
