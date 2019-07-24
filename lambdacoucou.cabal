@@ -16,71 +16,85 @@ extra-source-files:  README.md
 library
   hs-source-dirs:      src
   default-language:    Haskell2010
-  ghc-options: -Wall -Wno-unused-do-bind -Wno-orphans -Werror -O2
+  ghc-options: -Wincomplete-patterns -Werror -O2
 
-  exposed-modules:     LambdaCoucou.Cancer
-                     , LambdaCoucou.Cli
-                     , LambdaCoucou.Command
-                     , LambdaCoucou.Crypto
-                     , LambdaCoucou.Db
-                     , LambdaCoucou.Dist
-                     , LambdaCoucou.Factoids
-                     , LambdaCoucou.Help
-                       LambdaCoucou.Parser
-                     , LambdaCoucou.Run
-                     , LambdaCoucou.Social
-                     , LambdaCoucou.Types
-                     , LambdaCoucou.Url
-                     , LambdaCoucou.FrenchCalendar
+  exposed-modules:     LambdaCoucou.Client
+                     , LambdaCoucou.RepublicanCalendar
+  --                    , LambdaCoucou.Cli
+  --                    , LambdaCoucou.Command
+  --                    , LambdaCoucou.Crypto
+  --                    , LambdaCoucou.Db
+  --                    , LambdaCoucou.Dist
+  --                    , LambdaCoucou.Factoids
+  --                    , LambdaCoucou.Help
+  --                      LambdaCoucou.Parser
+  --                    , LambdaCoucou.Run
+  --                    , LambdaCoucou.Social
+  --                    , LambdaCoucou.Types
+  --                    , LambdaCoucou.Url
+  --                    , LambdaCoucou.FrenchCalendar
 
   build-depends:       base >= 4.7 && < 5
-                     , irc-client
                      , text
                      , bytestring
-                     , transformers
-                     , mtl
-                     , megaparsec
-                     , containers
-                     , req
-                     , random
-                     , unordered-containers
                      , vector
-                     , aeson
-                     , lens
-                     , lens-aeson
-                     , scientific
-                     , stm
-                     , stm-chans
+                     , irc-client
+                     , irc-ctcp
+                     , req
                      , async
-                     , datetime
-                     , atomic-write
-                     , optparse-applicative
-                     , gitrev
-                     , http-client
-                     , http-client-tls
-                     , http-types
                      , tagsoup
-                     , case-insensitive
-                     , retry
+                     , lens
+                     , harg
+                     , time
+                     , datetime
+
+                     -- , irc-client
+                     -- , text
+                     -- , bytestring
+                     -- , transformers
+                     -- , mtl
+                     -- , megaparsec
+                     -- , containers
+                     -- , req
+                     -- , random
+                     -- , unordered-containers
+                     -- , vector
+                     -- , aeson
+                     -- , lens
+                     -- , lens-aeson
+                     -- , scientific
+                     -- , stm
+                     -- , stm-chans
+                     -- , async
+                     -- , datetime
+                     -- , atomic-write
+                     -- , optparse-applicative
+                     -- , gitrev
+                     -- , http-client
+                     -- , http-client-tls
+                     -- , http-types
+                     -- , tagsoup
+                     -- , case-insensitive
+                     -- , retry
 
 executable lambdacoucou
-  hs-source-dirs:      app
+  hs-source-dirs:      bin
   default-language:    Haskell2010
   main-is:             Main.hs
   ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N -Wall -Wno-unused-do-bind -Wno-orphans
   build-depends:       base >= 4.7 && < 5
                      , lambdacoucou
 
-
-test-suite parser
-  type:                exitcode-stdio-1.0
-  hs-source-dirs:      test
-  main-is:             Spec.hs
-  other-modules:       LambdaCoucou.ParserSpec
-  build-depends:       base
-                     , lambdacoucou
-                     , hspec
-                     , megaparsec
-                     , hspec-megaparsec
-  ghc-options:         -threaded -rtsopts -with-rtsopts=-N -Wall -Wno-unused-do-bind -Wno-orphans
-  default-language:    Haskell2010
+--
+-- test-suite parser
+--   type:                exitcode-stdio-1.0
+--   hs-source-dirs:      test
+--   main-is:             Spec.hs
+--   other-modules:       LambdaCoucou.ParserSpec
+--   build-depends:       base
+--                      , lambdacoucou
+--                      , hspec
+--                      , megaparsec
+--                      , hspec-megaparsec
+--   ghc-options:         -threaded -rtsopts -with-rtsopts=-N -Wall -Wno-unused-do-bind -Wno-orphans
+--   default-language:    Haskell2010

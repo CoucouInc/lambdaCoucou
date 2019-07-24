@@ -1,5 +1,4 @@
-# resolver: lts-8.18
-resolver: lts-9.21
+resolver: lts-13.29
 
 packages:
 - '.'
@@ -7,7 +6,12 @@ packages:
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
 extra-deps:
+  - git: https://github.com/alexpeits/harg.git
+    commit: 4233bbb0ec8648e61838efc02a7f96b983dec841
+  - higgledy-0.2.1.0 # harg dependency
+
   - datetime-0.3.1
+
 
 flags: {}
 
