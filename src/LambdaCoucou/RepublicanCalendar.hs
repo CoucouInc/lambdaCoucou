@@ -9,8 +9,6 @@ module LambdaCoucou.RepublicanCalendar
 
 import Data.Text (Text)
 import qualified Data.Text as Tx
-import qualified Data.DateTime as DT
-import Control.Monad.IO.Class (liftIO)
 
 data RMonth
   = Vnd
@@ -272,7 +270,7 @@ showR (y, m, d) = Tx.pack $ show d <> " " <> show m <> " " <> show y
 
 
 prettyDate :: (Year, RMonth, Day) -> Text
-prettyDate r@(y, rm, day)
+prettyDate r@(_y, rm, day)
   = "Nous sommes aujourd'hui le "
   <> showR r
   <> " − jour "
