@@ -31,6 +31,7 @@ commandParser :: Parser LC.Cmd.CoucouCmd
 commandParser = prefix *> M.choice
   [ M.try urlCommandParser
   , M.try cryptoCommandParser
+  , M.try dateCommandParser
   ]
   <|> pure LC.Cmd.Nop
 
@@ -72,6 +73,13 @@ cryptoCoin
   <|> M.try (C.string' "eth" $> Right LC.C.Ethereum)
   <|> (Left <$> word)
 
+
+-------------------- Date --------------------
+dateCommandParser :: Parser LC.Cmd.CoucouCmd
+dateCommandParser = do
+  C.string "date"
+  spaces
+  LC.Cmd.Date <$> targetParser
 
 -------------------- Utils --------------------
 word :: Parser Text

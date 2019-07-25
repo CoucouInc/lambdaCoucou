@@ -48,7 +48,16 @@ tests = H.describe "Parser" $ do
         LC.P.parseCommand "&crypto doge  " `T.M.shouldParse` LC.Cmd.Crypto (Left "doge") Nothing
 
       H.it "parses a target" $
-        LC.P.parseCommand "&crypto  eth  >  foo " `T.M.shouldParse` LC.Cmd.Crypto (Right LC.C.Ethereum) (Just "foo")
+        LC.P.parseCommand "&crypto  eth  >  foo "
+        `T.M.shouldParse`
+        LC.Cmd.Crypto (Right LC.C.Ethereum) (Just "foo")
+
+    H.describe "date command" $ do
+      H.it "parses date command" $
+        LC.P.parseCommand "&date " `T.M.shouldParse` LC.Cmd.Date Nothing
+
+      H.it "parses date with target" $
+        LC.P.parseCommand "&date  > foo" `T.M.shouldParse` LC.Cmd.Date (Just "foo")
 
 
   H.describe "Url" $ do
