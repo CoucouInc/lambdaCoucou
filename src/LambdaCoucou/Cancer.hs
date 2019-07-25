@@ -78,7 +78,8 @@ getCancer cancer = do
   case cancer of
     RandomCancer -> do
       idx <- liftIO $ Rng.randomRIO (0, V.length list - 1)
-      pure $ snd $ list ! idx
+      let (k, v) = list ! idx
+      pure $ k <> ": " <> v
     SpecificCancer c -> do
       let lowC = Tx.toLower c
       case V.find (Tx.isInfixOf lowC . Tx.toLower . fst) list of

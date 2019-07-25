@@ -100,4 +100,4 @@ showRate coin val
   <> " euros grâce au pouvoir de la spéculation !"
 
 showUnknownCoin :: Text -> Text
-showUnknownCoin txt = "Dénomination inconnue: " <> txt <> ". Ici on ne deal qu'avec des monnaies respectueuses comm: btc and eth"
+showUnknownCoin txt = "Dénomination inconnue: " <> txt <> ". Ici on ne deal qu'avec des monnaies respectueuses comme: btc and eth"

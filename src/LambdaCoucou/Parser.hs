@@ -53,12 +53,12 @@ parseUrl = hush . M.parse url ""
 url :: Parser Text
 url
   = (M.eof *> fail "eof url")
-  <|> (spaces *> (M.try url' <|> word *> url)) --  <|> (word *> spaces *> url))
+  <|> (spaces *> (M.try url' <|> utf8Word *> url)) --  <|> (word *> spaces *> url))
 
 url' :: Parser Text
 url' = do
   proto <- C.string' "http://" <|> C.string' "https://"
-  rest <- utf8Word
+  rest <- utf8Word'
   pure $ proto <> rest
 
 
@@ -89,7 +89,7 @@ cancerCommandParser :: Parser LC.Cmd.CoucouCmd
 cancerCommandParser = do
   C.string "cancer"
   cancerType <- M.try
-    (M.some C.spaceChar *> (LC.Cancer.SpecificCancer <$> utf8Word))
+    (M.some C.spaceChar *> (LC.Cancer.SpecificCancer <$> utf8Word'))
     <|> pure LC.Cancer.RandomCancer
   LC.Cmd.Cancer cancerType <$> targetParser
 
@@ -99,8 +99,11 @@ word :: Parser Text
 word = Tx.pack <$> M.some C.letterChar
 
 -- parses a word with almost anything inside, except the specifier for a target '>'
+utf8Word' :: Parser Text
+utf8Word' = Tx.pack <$> M.some (M.satisfy (\c -> not (Chr.isSpace c) && c /= '>'))
+
 utf8Word :: Parser Text
-utf8Word = Tx.pack <$> M.some (M.satisfy (\c -> not (Chr.isSpace c) && c /= '>'))
+utf8Word = Tx.pack <$> M.some (M.satisfy (not . Chr.isSpace))
 
 spaces :: Parser ()
 spaces = void (M.many C.spaceChar)

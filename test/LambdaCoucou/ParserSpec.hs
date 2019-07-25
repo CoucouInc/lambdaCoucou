@@ -118,6 +118,9 @@ tests = H.describe "Parser" $ do
     H.it "succeed on a url with many words before" $
       urlParser ("coucou charlie " <> url) `T.M.shouldParse` url
 
+    H.it "succeed on a url with words, punctuation and '>' before" $
+      urlParser ("coucou: bla mo>o/  " <> url) `T.M.shouldParse` url
+
     H.it "succeed on a url with many words and spaces before" $
       urlParser ("  coucou charlie " <> url) `T.M.shouldParse` url
 

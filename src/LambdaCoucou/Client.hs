@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds         #-}
+{-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications  #-}
@@ -7,6 +8,7 @@ module LambdaCoucou.Client where
 
 import           Control.Applicative
 import           Control.Lens                 ((%=), (%~), (&), (.~), (<+=))
+import           Control.Monad
 import           Control.Monad.IO.Class       (liftIO)
 import qualified Control.Monad.State.Strict   as St
 import           Data.Generics.Product.Fields (field)
@@ -70,7 +72,9 @@ commandHandler :: IRC.Ev.EventHandler LC.St.CoucouState
 commandHandler = IRC.Ev.EventHandler
   (IRC.Ev.matchType IRC.Ev._Privmsg)
   (\source (_target, raw) -> case (source, raw) of
-    (IRC.Ev.Channel _ _, Right msg) ->
+    -- only ignore bots for this handler. A url produced by another bot
+    -- should still trigger updateLastUrlHandler
+    (IRC.Ev.Channel _ nick, Right msg) -> unless (blacklisted nick) $
       case LC.P.parseCommand msg of
         Left _err -> pure ()
         Right cmd -> do
@@ -83,6 +87,8 @@ commandHandler = IRC.Ev.EventHandler
 replyTo :: IRC.Ev.Source Text -> Maybe Text -> IRC.C.IRC s ()
 replyTo source = maybe (pure ()) (IRC.C.replyTo source)
 
+blacklisted :: Text -> Bool
+blacklisted nick = nick `elem` ["coucoubot", "zoe_bot", "M`arch`ov"]
 
 execCommand :: LC.Cmd.CoucouCmd -> IRC.C.IRC LC.St.CoucouState (Maybe Text)
 execCommand = \case
@@ -90,7 +96,15 @@ execCommand = \case
   LC.Cmd.Url mbTarget -> LC.Url.fetchUrlCommandHandler mbTarget
   LC.Cmd.Crypto coin target -> LC.C.cryptoCommandHandler coin target
   LC.Cmd.Date target -> LC.Date.dateCommandHandler target
-  LC.Cmd.Cancer cancer target -> LC.Cancer.cancerCommandHandler cancer target
+  LC.Cmd.Cancer cancer target -> do
+    reply <- LC.Cancer.cancerCommandHandler cancer target
+    -- a cancer command will produce a url
+    case reply of
+      Nothing -> pure ()
+      Just x  -> do
+        liftIO $ putStrLn $ "updating last url from: " <> show reply <> " - " <> show (LC.P.parseUrl x)
+        updateLastUrl x
+    pure reply
 
 addTarget :: Maybe Text -> Text -> Text
 addTarget mbTarget msg = case mbTarget of
@@ -101,8 +115,10 @@ updateLastUrlHandler :: IRC.Ev.EventHandler LC.St.CoucouState
 updateLastUrlHandler = IRC.Ev.EventHandler
   (IRC.Ev.matchType IRC.Ev._Privmsg)
   (\source (_target, raw) -> case (source, raw) of
-    (IRC.Ev.Channel _ _, Right msg) -> do
-      let lastUrl = LC.P.parseUrl msg
-      field @"csLastUrl" %= (lastUrl <|>)
+    (IRC.Ev.Channel _ _, Right msg) ->
+      updateLastUrl msg
     _ -> pure ()
   )
+
+updateLastUrl :: (St.MonadState LC.St.CoucouState m) => Text -> m ()
+updateLastUrl msg = field @"csLastUrl" %= (LC.P.parseUrl msg <|>)
