@@ -6,23 +6,24 @@
 module LambdaCoucou.Client where
 
 import           Control.Applicative
-import           Control.Lens                    ((%=), (%~), (&), (.~), (<+=))
-import           Control.Monad.IO.Class          (liftIO)
-import qualified Control.Monad.State.Strict      as St
-import           Data.Generics.Product.Fields    (field)
-import           Data.Text                       (Text)
-import qualified Data.Text                       as Tx
-import qualified Network.IRC.Client              as IRC.C
-import qualified Network.IRC.Client.Events       as IRC.Ev
-import qualified Network.IRC.Client.Lens         as IRC.L
-import qualified System.Environment              as Env
+import           Control.Lens                 ((%=), (%~), (&), (.~), (<+=))
+import           Control.Monad.IO.Class       (liftIO)
+import qualified Control.Monad.State.Strict   as St
+import           Data.Generics.Product.Fields (field)
+import           Data.Text                    (Text)
+import qualified Data.Text                    as Tx
+import qualified Network.IRC.Client           as IRC.C
+import qualified Network.IRC.Client.Events    as IRC.Ev
+import qualified Network.IRC.Client.Lens      as IRC.L
+import qualified System.Environment           as Env
 
-import qualified LambdaCoucou.Command            as LC.Cmd
-import qualified LambdaCoucou.Crypto             as LC.C
-import qualified LambdaCoucou.Date               as LC.Date
-import qualified LambdaCoucou.Parser             as LC.P
-import qualified LambdaCoucou.State              as LC.St
-import qualified LambdaCoucou.Url                as LC.Url
+import qualified LambdaCoucou.Cancer          as LC.Cancer
+import qualified LambdaCoucou.Command         as LC.Cmd
+import qualified LambdaCoucou.Crypto          as LC.C
+import qualified LambdaCoucou.Date            as LC.Date
+import qualified LambdaCoucou.Parser          as LC.P
+import qualified LambdaCoucou.State           as LC.St
+import qualified LambdaCoucou.Url             as LC.Url
 
 
 test :: IO ()
@@ -42,6 +43,12 @@ test = do
   ytApiKey <- LC.St.YoutubeAPIKey . Tx.pack <$> Env.getEnv "YT_API_KEY"
   IRC.C.runClient connectionConfig instanceConfig (LC.St.initialState ytApiKey)
   putStrLn "exiting"
+
+-- test :: IO ()
+-- test = do
+--   list <- LC.Cancer.runFetch LC.Cancer.fetchCancerList
+--   print list
+--   pure ()
 
 testEventHandler :: IRC.Ev.EventHandler LC.St.CoucouState
 testEventHandler = IRC.Ev.EventHandler
@@ -83,6 +90,7 @@ execCommand = \case
   LC.Cmd.Url mbTarget -> LC.Url.fetchUrlCommandHandler mbTarget
   LC.Cmd.Crypto coin target -> LC.C.cryptoCommandHandler coin target
   LC.Cmd.Date target -> LC.Date.dateCommandHandler target
+  LC.Cmd.Cancer cancer target -> LC.Cancer.cancerCommandHandler cancer target
 
 addTarget :: Maybe Text -> Text -> Text
 addTarget mbTarget msg = case mbTarget of

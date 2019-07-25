@@ -9,6 +9,7 @@ import qualified Text.Megaparsec       as M
 import qualified LambdaCoucou.Command  as LC.Cmd
 import qualified LambdaCoucou.Crypto   as LC.C
 import qualified LambdaCoucou.Parser   as LC.P
+import qualified LambdaCoucou.Cancer   as LC.Cancer
 
 tests :: H.SpecWith ()
 tests = H.describe "Parser" $ do
@@ -58,6 +59,31 @@ tests = H.describe "Parser" $ do
 
       H.it "parses date with target" $
         LC.P.parseCommand "&date  > foo" `T.M.shouldParse` LC.Cmd.Date (Just "foo")
+
+    H.describe "cancer command" $ do
+      H.it "parses random cancer" $
+        LC.P.parseCommand "&cancer " `T.M.shouldParse` LC.Cmd.Cancer LC.Cancer.RandomCancer Nothing
+
+      H.it "parses specific cancer" $
+        LC.P.parseCommand "&cancer foo "
+        `T.M.shouldParse`
+        LC.Cmd.Cancer (LC.Cancer.SpecificCancer "foo") Nothing
+
+      H.it "parses random cancer with target" $
+        LC.P.parseCommand "&cancer > foo"
+        `T.M.shouldParse`
+        LC.Cmd.Cancer LC.Cancer.RandomCancer (Just "foo")
+
+      H.it "parses specific cancer with target" $
+        LC.P.parseCommand "&cancer foo > bar"
+        `T.M.shouldParse`
+        LC.Cmd.Cancer (LC.Cancer.SpecificCancer "foo") (Just "bar")
+
+      H.it "parses cancer with non alpha characters" $
+        LC.P.parseCommand "&cancer foo.bar "
+        `T.M.shouldParse`
+        LC.Cmd.Cancer (LC.Cancer.SpecificCancer "foo.bar") Nothing
+
 
 
   H.describe "Url" $ do

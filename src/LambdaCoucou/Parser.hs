@@ -15,6 +15,7 @@ import qualified Text.Megaparsec.Char as C
 
 import qualified LambdaCoucou.Command as LC.Cmd
 import qualified LambdaCoucou.Crypto  as LC.C
+import qualified LambdaCoucou.Cancer  as LC.Cancer
 
 type Parser = M.Parsec Void Text
 
@@ -32,6 +33,7 @@ commandParser = prefix *> M.choice
   [ M.try urlCommandParser
   , M.try cryptoCommandParser
   , M.try dateCommandParser
+  , M.try cancerCommandParser
   ]
   <|> pure LC.Cmd.Nop
 
@@ -56,8 +58,8 @@ url
 url' :: Parser Text
 url' = do
   proto <- C.string' "http://" <|> C.string' "https://"
-  rest <- M.some (M.satisfy (not . Chr.isSpace))
-  pure $ proto <> Tx.pack rest
+  rest <- utf8Word
+  pure $ proto <> rest
 
 
 -------------------- Crypto --------------------
@@ -81,9 +83,24 @@ dateCommandParser = do
   spaces
   LC.Cmd.Date <$> targetParser
 
+
+-------------------- Cancer --------------------
+cancerCommandParser :: Parser LC.Cmd.CoucouCmd
+cancerCommandParser = do
+  C.string "cancer"
+  cancerType <- M.try
+    (M.some C.spaceChar *> (LC.Cancer.SpecificCancer <$> utf8Word))
+    <|> pure LC.Cancer.RandomCancer
+  LC.Cmd.Cancer cancerType <$> targetParser
+
+
 -------------------- Utils --------------------
 word :: Parser Text
 word = Tx.pack <$> M.some C.letterChar
+
+-- parses a word with almost anything inside, except the specifier for a target '>'
+utf8Word :: Parser Text
+utf8Word = Tx.pack <$> M.some (M.satisfy (\c -> not (Chr.isSpace c) && c /= '>'))
 
 spaces :: Parser ()
 spaces = void (M.many C.spaceChar)
