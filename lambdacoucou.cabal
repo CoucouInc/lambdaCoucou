@@ -16,7 +16,7 @@ extra-source-files:  README.md
 library
   hs-source-dirs:      src
   default-language:    Haskell2010
-  ghc-options: -Wincomplete-patterns -Werror -O2
+  ghc-options: -Wincomplete-patterns -Wunused-imports -Werror -O2
 
   exposed-modules:     LambdaCoucou.Client
                      , LambdaCoucou.RepublicanCalendar
@@ -24,6 +24,9 @@ library
                      , LambdaCoucou.Parser
                      , LambdaCoucou.Command
                      , LambdaCoucou.Url
+                     , LambdaCoucou.Http
+                     , LambdaCoucou.Crypto
+                     , LambdaCoucou.HandlerUtils
 
   --                    , LambdaCoucou.Cli
   --                    , LambdaCoucou.Command
@@ -60,6 +63,7 @@ library
                      , http-types
                      , http-client
                      , req
+                     , scientific
 
                      -- , irc-client
                      -- , text

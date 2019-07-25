@@ -2,12 +2,13 @@
 
 module LambdaCoucou.ParserSpec where
 
-import qualified Test.Hspec as H
+import qualified Test.Hspec            as H
 import qualified Test.Hspec.Megaparsec as T.M
-import qualified Text.Megaparsec as M
+import qualified Text.Megaparsec       as M
 
-import qualified LambdaCoucou.Parser as LC.P
-import qualified LambdaCoucou.Command as LC.Cmd
+import qualified LambdaCoucou.Command  as LC.Cmd
+import qualified LambdaCoucou.Crypto   as LC.C
+import qualified LambdaCoucou.Parser   as LC.P
 
 tests :: H.SpecWith ()
 tests = H.describe "Parser" $ do
@@ -32,6 +33,22 @@ tests = H.describe "Parser" $ do
 
       H.it "doesn't parses a target when multi words after delimiter" $
         LC.P.parseCommand `T.M.shouldFailOn` "&url  >   foo bar"
+
+    H.describe "crypto command" $ do
+      H.it "parses bitcoin" $
+        LC.P.parseCommand "&crypto  btc" `T.M.shouldParse` LC.Cmd.Crypto (Right LC.C.Bitcoin) Nothing
+
+      H.it "parses ethereum" $
+        LC.P.parseCommand "&crypto  eth" `T.M.shouldParse` LC.Cmd.Crypto (Right LC.C.Ethereum) Nothing
+
+      H.it "requires an argument" $
+        LC.P.parseCommand `T.M.shouldFailOn` "&crypto  "
+
+      H.it "only parses known coin" $
+        LC.P.parseCommand "&crypto doge  " `T.M.shouldParse` LC.Cmd.Crypto (Left "doge") Nothing
+
+      H.it "parses a target" $
+        LC.P.parseCommand "&crypto  eth  >  foo " `T.M.shouldParse` LC.Cmd.Crypto (Right LC.C.Ethereum) (Just "foo")
 
 
   H.describe "Url" $ do

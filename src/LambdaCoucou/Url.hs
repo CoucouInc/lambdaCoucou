@@ -1,33 +1,53 @@
-{-# LANGUAGE StrictData #-}
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE DerivingStrategies         #-}
+{-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE LambdaCase                 #-}
+{-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE StrictData                 #-}
 
 module LambdaCoucou.Url where
 
-import           Control.Monad
-import qualified Control.Monad.Except      as Ex
+import           Control.Lens               ((^?))
+import qualified Control.Monad.Except       as Ex
 import           Control.Monad.IO.Class
-import qualified Data.ByteString           as BS
-import           Data.Text                 (Text)
-import qualified Data.Text                 as Tx
-import qualified Data.Text.Encoding        as Tx.Enc
-import qualified Data.Text.Encoding.Error  as Tx.Enc
-import qualified Network.HTTP.Client       as HTTP.C
-import qualified Network.HTTP.Req          as Req
-import           Network.HTTP.Req          ((/:), (=:))
-import qualified Network.HTTP.Types.Status as HTTP.Status
-import qualified Network.HTTP.Types.URI    as HTTP.Uri
-import qualified Text.HTML.TagSoup         as HTML
-import qualified Data.List as List
-import Control.Lens ((^?))
-import qualified Data.Aeson.Lens as AL
+import qualified Control.Monad.State.Strict as St
+import qualified Data.Aeson.Lens            as AL
+import qualified Data.ByteString            as BS
+import qualified Data.List                  as List
+import           Data.Text                  (Text)
+import qualified Data.Text                  as Tx
+import qualified Data.Text.Encoding         as Tx.Enc
+import qualified Data.Text.Encoding.Error   as Tx.Enc
+import           Network.HTTP.Req           ((/:), (=:))
+import qualified Network.HTTP.Req           as Req
+import qualified Network.HTTP.Types.URI     as HTTP.Uri
+import qualified Network.IRC.Client         as IRC.C
+import qualified Text.HTML.TagSoup          as HTML
 
-import qualified LambdaCoucou.State as LC.St
+import qualified LambdaCoucou.HandlerUtils  as LC.Hdl
+import qualified LambdaCoucou.Http          as LC.Http
+import qualified LambdaCoucou.State         as LC.St
 
-fetchUrlData :: MonadIO m => LC.St.YoutubeAPIKey -> Text -> m (Either FetchError Text)
+fetchUrlCommandHandler
+  :: Maybe Text
+  -> IRC.C.IRC LC.St.CoucouState (Maybe Text)
+
+fetchUrlCommandHandler target = do
+  st <- St.get
+  case LC.St.csLastUrl st of
+    Nothing -> pure Nothing
+    Just url ->
+      Just . LC.Hdl.addTarget target . either
+        (showFetchError url)
+        (\title -> title <> " [" <> url <> "]")
+      <$> fetchUrlData (LC.St.csYtAPIKey st) url
+
+fetchUrlData
+  :: MonadIO m
+  => LC.St.YoutubeAPIKey
+  -> Text
+  -> m (Either FetchError Text)
+
 fetchUrlData ytApiKey rawUrl =
   if isYoutube rawUrl
     then runFetch $ fetchYtUrlData ytApiKey rawUrl
@@ -45,35 +65,19 @@ data FetchError
 
 showFetchError :: Text -> FetchError -> Text
 showFetchError textUrl = \case
-  UnparsableUrl
-    -> "Could not parse url: " <> textUrl
+  UnparsableUrl ->
+    "Could not parse url: " <> textUrl
   HttpExc exc
-    -> "Http exception: " <> showHttpException exc <> " for url: " <> textUrl
-  InvalidContentType ct
-    -> "Invalid content type: " <> Tx.Enc.decodeUtf8 ct <> " for url: " <> textUrl
-  DecodingError _
-    -> "UTF8 decoding error for url: " <> textUrl
-  TitleNotFound
-    -> "Could not find <title> tag for url: " <> textUrl
-  YoutubeIdNotFound
-    -> "Could not find the youtube video's id for url: " <> textUrl
+    -> "Http exception: " <> LC.Http.showHttpException exc <> " for url: " <> textUrl
+  InvalidContentType ct ->
+    "Invalid content type: " <> Tx.Enc.decodeUtf8 ct <> " for url: " <> textUrl
+  DecodingError _ ->
+    "UTF8 decoding error for url: " <> textUrl
+  TitleNotFound ->
+    "Could not find <title> tag for url: " <> textUrl
+  YoutubeIdNotFound ->
+    "Could not find the youtube video's id for url: " <> textUrl
 
-
-showHttpException :: Req.HttpException -> Text
-showHttpException = \case
-  Req.JsonHttpException str -> Tx.pack str
-  Req.VanillaHttpException exc -> case exc of
-    HTTP.C.InvalidUrlException _url reason -> Tx.pack reason
-    HTTP.C.HttpExceptionRequest _req content -> case content of
-      HTTP.C.StatusCodeException rsp _body
-        -> "Invalid status code ("
-        <> Tx.pack (show $ HTTP.Status.statusCode $ HTTP.C.responseStatus rsp)
-        <> ")"
-      HTTP.C.TooManyRedirects _ -> "too many redirects"
-      HTTP.C.ResponseTimeout -> "response timeout"
-      HTTP.C.ConnectionTimeout -> "connection timeout"
-      HTTP.C.ConnectionFailure _ -> "connection failure"
-      other -> "weird HTTP error: " <> Tx.pack (show other)
 
 newtype ReqMonad m a = ReqMonad { runReqMonad :: Ex.ExceptT FetchError m a }
   deriving newtype (Functor, Applicative, Monad, Ex.MonadError FetchError, MonadIO)
@@ -106,7 +110,7 @@ fetchGeneralUrlData
 fetchGeneralUrlData textUrl = do
   parsedUrl <- case Req.parseUrl (Tx.Enc.encodeUtf8 textUrl) of
     Nothing -> Ex.throwError UnparsableUrl
-    Just x -> pure x
+    Just x  -> pure x
 
   -- if invalid status code, an exception will be throw anyway
   resp <- case parsedUrl of
@@ -125,7 +129,7 @@ fetchGeneralUrlData textUrl = do
 
   body <- case Tx.Enc.decodeUtf8' (Req.responseBody resp) of
     Left err -> Ex.throwError (DecodingError err)
-    Right x -> pure x
+    Right x  -> pure x
 
   maybe (Ex.throwError TitleNotFound) pure (parseTitle body)
 
@@ -135,7 +139,7 @@ parseTitle body =
   let tags = HTML.parseTags body
       mbTitle = tail $ dropWhile (HTML.~/= HTML.TagOpen ("title" :: Text) []) tags
   in case mbTitle of
-       [] -> Nothing
+       []        -> Nothing
        (title:_) -> Just (HTML.fromTagText title)
 
 
@@ -152,20 +156,22 @@ fetchYtUrlData ytApiKey textUrl = do
   -- 0x3f is the character '?'
   let (_, query) = BS.break (== 0x3f) (Tx.Enc.encodeUtf8 textUrl)
   ytId <- case List.lookup "v" (HTTP.Uri.parseQueryText query) of
-    Nothing -> Ex.throwError YoutubeIdNotFound
+    Nothing       -> Ex.throwError YoutubeIdNotFound
     Just (Just x) -> pure x
-    Just _ -> Ex.throwError YoutubeIdNotFound
+    Just _        -> Ex.throwError YoutubeIdNotFound
 
-  bsResp <- either Ex.throwError (pure . Req.responseBody) =<< runFetch (Req.req Req.GET
-    (Req.https "www.googleapis.com" /: "youtube" /: "v3" /: "videos")
-    Req.NoReqBody
-    Req.bsResponse
-    ( "part" =: ("snippet" :: Text)
-    <> "id" =: ytId
-    <> "key" =: LC.St.getYoutubeAPIKey ytApiKey
-    ))
+  bsResp <- either Ex.throwError (pure . Req.responseBody) =<< runFetch
+    (Req.req Req.GET
+      (Req.https "www.googleapis.com" /: "youtube" /: "v3" /: "videos")
+      Req.NoReqBody
+      Req.bsResponse
+      ( "part" =: ("snippet" :: Text)
+      <> "id" =: ytId
+      <> "key" =: LC.St.getYoutubeAPIKey ytApiKey
+      )
+    )
 
   let mbTitle = bsResp ^? AL.key "items" . AL.nth 0 . AL.key "snippet" . AL.key "title" . AL._String
   case mbTitle of
-    Nothing -> Ex.throwError TitleNotFound
+    Nothing    -> Ex.throwError TitleNotFound
     Just title -> pure title

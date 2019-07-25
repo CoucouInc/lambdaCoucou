@@ -3,7 +3,6 @@
 
 module LambdaCoucou.State where
 
-import Control.Concurrent.STM.TVar
 import qualified Data.Text as Tx
 import GHC.Generics
 
