@@ -1,27 +1,26 @@
-{-# LANGUAGE DataKinds         #-}
-{-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module LambdaCoucou.Bot where
 
-import           Control.Lens                 ((&), (.~))
+import           Control.Lens              ((&), (.~))
 import           Control.Monad
-import           Control.Monad.IO.Class       (liftIO)
-import           Data.Text                    (Text)
-import qualified Network.IRC.Client           as IRC.C
-import qualified Network.IRC.Client.Events    as IRC.Ev
-import qualified Network.IRC.Client.Lens      as IRC.L
+import           Control.Monad.IO.Class    (liftIO)
+import           Data.Text                 (Text)
+import qualified Network.IRC.Client        as IRC.C
+import qualified Network.IRC.Client.Events as IRC.Ev
+import qualified Network.IRC.Client.Lens   as IRC.L
 
-import qualified LambdaCoucou.Cancer          as LC.Cancer
-import qualified LambdaCoucou.Channel         as LC.Chan
-import qualified LambdaCoucou.Cli             as LC.Cli
-import qualified LambdaCoucou.Command         as LC.Cmd
-import qualified LambdaCoucou.Crypto          as LC.C
-import qualified LambdaCoucou.Date            as LC.Date
-import qualified LambdaCoucou.Parser          as LC.P
-import qualified LambdaCoucou.State           as LC.St
-import qualified LambdaCoucou.Url             as LC.Url
+import qualified LambdaCoucou.Cancer       as LC.Cancer
+import qualified LambdaCoucou.Channel      as LC.Chan
+import qualified LambdaCoucou.Cli          as LC.Cli
+import qualified LambdaCoucou.Command      as LC.Cmd
+import qualified LambdaCoucou.Crypto       as LC.C
+import qualified LambdaCoucou.Date         as LC.Date
+import qualified LambdaCoucou.Debug        as LC.Dbg
+import qualified LambdaCoucou.Parser       as LC.P
+import qualified LambdaCoucou.State        as LC.St
+import qualified LambdaCoucou.Url          as LC.Url
 
 
 runBot :: IO ()
@@ -42,6 +41,7 @@ handlers :: [IRC.Ev.EventHandler LC.St.CoucouState]
 handlers =
   [ LC.Url.updateLastUrlHandler
   , LC.Date.ctcpTimeHandler
+  , LC.Dbg.debugEventHandler
   , commandHandler
   ]
   ++ LC.Chan.channelStateHandlers

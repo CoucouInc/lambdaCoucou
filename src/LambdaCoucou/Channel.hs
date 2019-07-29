@@ -1,16 +1,18 @@
+{-# LANGUAGE DataKinds         #-}
+{-# LANGUAGE DeriveAnyClass    #-}
+{-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE TypeApplications  #-}
 
 module LambdaCoucou.Channel where
 
-import Control.Applicative
-import           Control.Lens                 (at, (<%=), (^.), _Just, (&), (%~))
+import           Control.Applicative
+import           Control.Lens                 (at, (%~), (&), (<%=), (^.),
+                                               _Just)
 import           Control.Monad
 import qualified Control.Monad.Catch          as MT
 import           Control.Monad.IO.Class       (liftIO)
+import qualified Control.Monad.State.Strict   as St
 import           Data.Generics.Product.Fields (field)
 import qualified Data.Map.Strict              as Map
 import qualified Data.Set                     as Set
@@ -18,8 +20,7 @@ import           Data.Text                    (Text)
 import qualified Data.Text                    as Tx
 import qualified Network.IRC.Client           as IRC.C
 import qualified Network.IRC.Client.Events    as IRC.Ev
-import qualified Control.Monad.State.Strict as St
-import qualified System.Random             as Rng
+import qualified System.Random                as Rng
 
 import qualified LambdaCoucou.State           as LC.St
 
@@ -42,11 +43,8 @@ data InvalidChannelType = InvalidChannelType
 onJoinChannelState :: IRC.Ev.EventHandler LC.St.CoucouState
 onJoinChannelState = IRC.Ev.EventHandler
   (IRC.Ev.matchNumeric 353)
-  (\source args -> do
-    liftIO $ putStrLn $ "+++++++ message from " <> show source
-      <> " with args: " <> show args
+  (\_source args -> do
     nick <- getOwnNick
-    liftIO $ putStrLn $ "current nick: " <> Tx.unpack nick
     case args of
       [_ownNick, rawChanType, chanName, nickList] ->
         case parseChanType rawChanType of
