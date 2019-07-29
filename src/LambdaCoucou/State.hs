@@ -1,3 +1,4 @@
+{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DeriveGeneric #-}
@@ -9,9 +10,11 @@ import qualified Data.Set as Set
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as Tx
 import GHC.Generics
+import qualified Data.String
 
 newtype YoutubeAPIKey
   = YoutubeAPIKey { getYoutubeAPIKey :: Tx.Text }
+  deriving Data.String.IsString via Tx.Text
 
 instance Show YoutubeAPIKey where
   show _ = "YoutubeAPIKey <hidden>"

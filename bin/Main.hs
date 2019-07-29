@@ -1,6 +1,6 @@
 module Main where
 
-import qualified LambdaCoucou.Client as Client
+import qualified LambdaCoucou.Bot as Bot
 
 main :: IO ()
-main = Client.test *> putStrLn "done"
+main = Bot.runBot
