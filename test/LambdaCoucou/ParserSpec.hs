@@ -6,10 +6,11 @@ import qualified Test.Hspec            as H
 import qualified Test.Hspec.Megaparsec as T.M
 import qualified Text.Megaparsec       as M
 
+import qualified LambdaCoucou.Cancer   as LC.Cancer
 import qualified LambdaCoucou.Command  as LC.Cmd
 import qualified LambdaCoucou.Crypto   as LC.C
 import qualified LambdaCoucou.Parser   as LC.P
-import qualified LambdaCoucou.Cancer   as LC.Cancer
+import qualified LambdaCoucou.Url      as LC.Url
 
 tests :: H.SpecWith ()
 tests = H.describe "Parser" $ do
@@ -84,11 +85,14 @@ tests = H.describe "Parser" $ do
         `T.M.shouldParse`
         LC.Cmd.Cancer (LC.Cancer.SpecificCancer "foo.bar") Nothing
 
+    H.describe "shout coucou command" $
+      H.it "parses coucou command" $
+        LC.P.parseCommand "&coucou" `T.M.shouldParse` LC.Cmd.ShoutCoucou
 
 
   H.describe "Url" $ do
     let url = "https://foo.bar.com"
-    let urlParser = M.parse LC.P.url ""
+    let urlParser = M.parse LC.Url.urlParser ""
 
     H.it "fails on one word, not url" $
       urlParser `T.M.shouldFailOn` "foo"

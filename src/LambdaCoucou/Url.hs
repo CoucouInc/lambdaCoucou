@@ -1,32 +1,41 @@
+{-# LANGUAGE DataKinds                  #-}
 {-# LANGUAGE DerivingStrategies         #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase                 #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE StrictData                 #-}
+{-# LANGUAGE TypeApplications           #-}
 
 module LambdaCoucou.Url where
 
-import           Control.Lens               ((^?))
-import qualified Control.Monad.Except       as Ex
+import           Control.Applicative
+import           Control.Lens                 ((%=), (^?))
+import qualified Control.Monad.Except         as Ex
 import           Control.Monad.IO.Class
-import qualified Control.Monad.State.Strict as St
-import qualified Data.Aeson.Lens            as AL
-import qualified Data.ByteString            as BS
-import qualified Data.List                  as List
-import           Data.Text                  (Text)
-import qualified Data.Text                  as Tx
-import qualified Data.Text.Encoding         as Tx.Enc
-import qualified Data.Text.Encoding.Error   as Tx.Enc
-import           Network.HTTP.Req           ((/:), (=:))
-import qualified Network.HTTP.Req           as Req
-import qualified Network.HTTP.Types.URI     as HTTP.Uri
-import qualified Network.IRC.Client         as IRC.C
-import qualified Text.HTML.TagSoup          as HTML
+import qualified Control.Monad.State.Strict   as St
+import qualified Data.Aeson.Lens              as AL
+import qualified Data.ByteString              as BS
+import           Data.Generics.Product.Fields (field)
+import qualified Data.List                    as List
+import           Data.Text                    (Text)
+import qualified Data.Text                    as Tx
+import qualified Data.Text.Encoding           as Tx.Enc
+import qualified Data.Text.Encoding.Error     as Tx.Enc
+import           Data.Void
+import           Network.HTTP.Req             ((/:), (=:))
+import qualified Network.HTTP.Req             as Req
+import qualified Network.HTTP.Types.URI       as HTTP.Uri
+import qualified Network.IRC.Client           as IRC.C
+import qualified Network.IRC.Client.Events    as IRC.Ev
+import qualified Text.HTML.TagSoup            as HTML
+import qualified Text.Megaparsec              as M
+import qualified Text.Megaparsec.Char         as C
 
-import qualified LambdaCoucou.HandlerUtils  as LC.Hdl
-import qualified LambdaCoucou.Http          as LC.Http
-import qualified LambdaCoucou.State         as LC.St
+import qualified LambdaCoucou.HandlerUtils    as LC.Hdl
+import qualified LambdaCoucou.Http            as LC.Http
+import qualified LambdaCoucou.ParserUtils     as LC.P
+import qualified LambdaCoucou.State           as LC.St
 
 fetchUrlCommandHandler
   :: Maybe Text
@@ -41,6 +50,40 @@ fetchUrlCommandHandler target = do
         (showFetchError url)
         (\title -> title <> " [" <> url <> "]")
       <$> fetchUrlData (LC.St.csYtAPIKey st) url
+
+updateLastUrlHandler :: IRC.Ev.EventHandler LC.St.CoucouState
+updateLastUrlHandler = IRC.Ev.EventHandler
+  (IRC.Ev.matchType IRC.Ev._Privmsg)
+  (\source (_target, raw) -> case (source, raw) of
+    (IRC.Ev.Channel _ _, Right msg) -> updateLastUrl msg
+    _ -> pure ()
+  )
+
+updateLastUrl :: (St.MonadState LC.St.CoucouState m) => Text -> m ()
+updateLastUrl msg = field @"csLastUrl" %= (parseUrl msg <|>)
+
+parseUrl :: Text -> Maybe Text
+parseUrl = hush . M.parse urlParser ""
+
+hush :: Either e a -> Maybe a
+hush = \case
+  Left _ -> Nothing
+  Right x -> Just x
+
+
+type Parser = M.Parsec Void Text
+
+urlParser :: Parser Text
+urlParser
+  = (M.eof *> fail "eof url")
+  <|> (LC.P.spaces *> (M.try urlParser' <|> LC.P.utf8Word *> urlParser))
+
+urlParser' :: Parser Text
+urlParser' = do
+  proto <- C.string' "http://" <|> C.string' "https://"
+  rest <- LC.P.utf8Word'
+  pure $ proto <> rest
+
 
 fetchUrlData
   :: MonadIO m

@@ -46,6 +46,13 @@ packages:
       sha256: d0cfb99557baafa97f0c269c72fca810dd37d958e86056f345c24956f1e05977
   original:
     hackage: retry-0.8.0.1
+- completed:
+    hackage: irc-client-1.1.1.0@sha256:07922ca8f65856c9828a68df6e5b7aff77ca4d502dae7d6cf1155aa5812bd49a,4786
+    pantry-tree:
+      size: 646
+      sha256: 84f2d8f4802629b169cbf3e8327f877502861ce3446c8bba9a7bc9fb533c0f4f
+  original:
+    hackage: irc-client-1.1.1.0
 snapshots:
 - completed:
     size: 500539

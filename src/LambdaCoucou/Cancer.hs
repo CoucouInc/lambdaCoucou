@@ -20,6 +20,7 @@ import qualified Network.HTTP.Req          as Req
 import qualified Network.IRC.Client        as IRC.C
 import qualified System.Random             as Rng
 
+import qualified LambdaCoucou.Url as LC.Url
 import qualified LambdaCoucou.HandlerUtils as LC.Hdl
 import qualified LambdaCoucou.Http         as LC.Http
 import qualified LambdaCoucou.State        as LC.St
@@ -29,9 +30,21 @@ cancerCommandHandler
   -> Maybe Text
   -> IRC.C.IRC LC.St.CoucouState (Maybe Text)
 
-cancerCommandHandler cancer target
-  = Just . LC.Hdl.addTarget target . either showCancerError id
-  <$> runFetch (getCancer cancer)
+cancerCommandHandler cancer target = runFetch (getCancer cancer) >>= \case
+  Left err -> pure $ Just $ showCancerError err
+  Right msg -> do
+    LC.Url.updateLastUrl msg
+    pure $ Just $ LC.Hdl.addTarget target msg
+
+  -- = Just . LC.Hdl.addTarget target . either showCancerError id
+  -- <$> runFetch (getCancer cancer)
+
+    -- reply <- LC.Cancer.cancerCommandHandler cancer target
+    -- -- a cancer command will produce a url
+    -- case reply of
+    --   Nothing -> pure ()
+    --   Just x  -> LC.Url.updateLastUrl x
+    -- pure reply
 
 newtype ReqMonad m a = ReqMonad { runReqMonad :: Ex.ExceptT CancerError m a }
   deriving newtype (Functor, Applicative, Monad, Ex.MonadError CancerError, MonadIO)
@@ -101,10 +114,10 @@ fetchCancerList = do
     Req.NoReqBody
     Req.bsResponse
     mempty
-  lines <- case Tx.Enc.decodeUtf8' (Req.responseBody resp) of
+  cancerLines <- case Tx.Enc.decodeUtf8' (Req.responseBody resp) of
     Left _err -> Ex.throwError DecodingError
     Right x   -> pure (Tx.lines x)
-  pure $ V.fromList $ fmap parseLine lines
+  pure $ V.fromList $ fmap parseLine cancerLines
 
 parseLine :: Text -> (Text, Text)
 parseLine l =

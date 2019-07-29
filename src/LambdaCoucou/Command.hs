@@ -9,5 +9,6 @@ data CoucouCmd
   | Crypto (Either Text CryptoCoin) (Maybe Text)
   | Date (Maybe Text)
   | Cancer CancerType (Maybe Text)
+  | ShoutCoucou
   | Nop
   deriving (Show, Eq)

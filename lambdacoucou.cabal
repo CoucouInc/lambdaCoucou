@@ -26,9 +26,11 @@ library
                      , LambdaCoucou.HandlerUtils
                      , LambdaCoucou.Http
                      , LambdaCoucou.Parser
+                     , LambdaCoucou.ParserUtils
                      , LambdaCoucou.RepublicanCalendar
                      , LambdaCoucou.State
                      , LambdaCoucou.Url
+                     , LambdaCoucou.Channel
 
   --                    , LambdaCoucou.Cli
   --                    , LambdaCoucou.Command
@@ -67,6 +69,8 @@ library
                      , req
                      , scientific
                      , random
+                     , containers
+                     , exceptions
 
                      -- , irc-client
                      -- , text

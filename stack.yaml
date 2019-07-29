@@ -15,6 +15,10 @@ extra-deps:
   - req-2.1.0
   - retry-0.8.0.1 # req dependency
 
+  # this version has all the default event handler exposed
+  # see: https://github.com/barrucadu/irc-client/pull/47
+  - irc-client-1.1.1.0
+
 flags: {}
 
 extra-package-dbs: []
