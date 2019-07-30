@@ -28,6 +28,7 @@ library
     , LambdaCoucou.Date
     , LambdaCoucou.Debug
     , LambdaCoucou.HandlerUtils
+    , LambdaCoucou.Help
     , LambdaCoucou.Http
     , LambdaCoucou.Parser
     , LambdaCoucou.ParserUtils

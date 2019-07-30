@@ -4,8 +4,6 @@
 {-# LANGUAGE LambdaCase                 #-}
 {-# LANGUAGE OverloadedStrings          #-}
 
-{-# OPTIONS_GHC -Wwarn #-}
-
 module LambdaCoucou.Cancer where
 
 import qualified Control.Monad.Except      as Ex
@@ -20,10 +18,10 @@ import qualified Network.HTTP.Req          as Req
 import qualified Network.IRC.Client        as IRC.C
 import qualified System.Random             as Rng
 
-import qualified LambdaCoucou.Url as LC.Url
 import qualified LambdaCoucou.HandlerUtils as LC.Hdl
 import qualified LambdaCoucou.Http         as LC.Http
 import qualified LambdaCoucou.State        as LC.St
+import qualified LambdaCoucou.Url          as LC.Url
 
 cancerCommandHandler
   :: CancerType

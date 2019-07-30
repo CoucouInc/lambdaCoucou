@@ -2,17 +2,18 @@
 
 module LambdaCoucou.Parser where
 
-import           Control.Applicative  hiding (many, some)
-import           Data.Functor         (($>))
-import           Data.Text            (Text)
-import           Data.Void            (Void)
-import qualified Text.Megaparsec      as M
-import qualified Text.Megaparsec.Char as C
+import           Control.Applicative      hiding (many, some)
+import           Data.Functor             (($>))
+import           Data.Text                (Text)
+import           Data.Void                (Void)
+import qualified Text.Megaparsec          as M
+import qualified Text.Megaparsec.Char     as C
 
+import qualified LambdaCoucou.Cancer      as LC.Cancer
+import qualified LambdaCoucou.Command     as LC.Cmd
+import qualified LambdaCoucou.Crypto      as LC.C
+import qualified LambdaCoucou.Help        as LC.Hlp
 import qualified LambdaCoucou.ParserUtils as LC.P
-import qualified LambdaCoucou.Command as LC.Cmd
-import qualified LambdaCoucou.Crypto  as LC.C
-import qualified LambdaCoucou.Cancer  as LC.Cancer
 
 type Parser = M.Parsec Void Text
 
@@ -26,6 +27,7 @@ commandParser = prefix *> M.choice
   , M.try dateCommandParser
   , M.try cancerCommandParser
   , M.try shoutCoucouCommandParser
+  , M.try helpCommandParser
   ]
   <|> pure LC.Cmd.Nop
 
@@ -75,6 +77,20 @@ cancerCommandParser = do
 shoutCoucouCommandParser :: Parser LC.Cmd.CoucouCmd
 shoutCoucouCommandParser = C.string "coucou" $> LC.Cmd.ShoutCoucou
 
+
+-------------------- Coucou --------------------
+helpCommandParser :: Parser LC.Cmd.CoucouCmd
+helpCommandParser = do
+  C.string "help"
+  arg <- M.choice
+    [ M.try (M.some C.spaceChar *> C.string "crypto" $> LC.Hlp.Crypto)
+    , M.try (M.some C.spaceChar *> C.string "date" $> LC.Hlp.Date)
+    , M.try (M.some C.spaceChar *> C.string "cancer" $> LC.Hlp.Cancer)
+    , M.try (M.some C.spaceChar *> C.string "coucou" $> LC.Hlp.ShoutCoucou)
+    , M.try (LC.P.spaces *> M.eof $> LC.Hlp.General)
+    , LC.P.spaces *> (LC.Hlp.Unknown <$> LC.P.utf8Word)
+    ]
+  pure $ LC.Cmd.Help arg
 
 -------------------- Utils --------------------
 

@@ -21,6 +21,7 @@ import qualified LambdaCoucou.Debug        as LC.Dbg
 import qualified LambdaCoucou.Parser       as LC.P
 import qualified LambdaCoucou.State        as LC.St
 import qualified LambdaCoucou.Url          as LC.Url
+import qualified LambdaCoucou.Help         as LC.Hlp
 
 
 runBot :: IO ()
@@ -102,6 +103,7 @@ execCommand chanName = \case
       Just x  -> LC.Url.updateLastUrl x
     pure reply
   LC.Cmd.ShoutCoucou -> LC.Chan.shoutCoucouCommandHandler chanName
+  LC.Cmd.Help hlpCmd -> LC.Hlp.helpCommandHandler hlpCmd
 
 addTarget :: Maybe Text -> Text -> Text
 addTarget mbTarget msg = case mbTarget of

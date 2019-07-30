@@ -11,6 +11,7 @@ import qualified LambdaCoucou.Command  as LC.Cmd
 import qualified LambdaCoucou.Crypto   as LC.C
 import qualified LambdaCoucou.Parser   as LC.P
 import qualified LambdaCoucou.Url      as LC.Url
+import qualified LambdaCoucou.Help     as LC.Hlp
 
 tests :: H.SpecWith ()
 tests = H.describe "Parser" $ do
@@ -88,6 +89,30 @@ tests = H.describe "Parser" $ do
     H.describe "shout coucou command" $
       H.it "parses coucou command" $
         LC.P.parseCommand "&coucou" `T.M.shouldParse` LC.Cmd.ShoutCoucou
+
+    H.describe "help command" $ do
+      H.it "parses general" $
+        LC.P.parseCommand "&help" `T.M.shouldParse` LC.Cmd.Help LC.Hlp.General
+
+      H.it "parses url" $
+        LC.P.parseCommand "&help" `T.M.shouldParse` LC.Cmd.Help LC.Hlp.General
+
+      H.it "parses crypto" $
+        LC.P.parseCommand "&help crypto" `T.M.shouldParse` LC.Cmd.Help LC.Hlp.Crypto
+
+      H.it "parses date" $
+        LC.P.parseCommand "&help date" `T.M.shouldParse` LC.Cmd.Help LC.Hlp.Date
+
+      H.it "parses cancer" $
+        LC.P.parseCommand "&help cancer" `T.M.shouldParse` LC.Cmd.Help LC.Hlp.Cancer
+
+      H.it "parses coucou" $
+        LC.P.parseCommand "&help coucou" `T.M.shouldParse` LC.Cmd.Help LC.Hlp.ShoutCoucou
+
+      H.it "parses unknown command" $
+        LC.P.parseCommand "&help foobar"
+        `T.M.shouldParse`
+        LC.Cmd.Help (LC.Hlp.Unknown "foobar")
 
 
   H.describe "Url" $ do
