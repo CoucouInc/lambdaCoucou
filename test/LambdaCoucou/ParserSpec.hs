@@ -114,6 +114,13 @@ tests = H.describe "Parser" $ do
         `T.M.shouldParse`
         LC.Cmd.Help (LC.Hlp.Unknown "foobar")
 
+    H.describe "pr command" $ do
+      H.it "parses bare command" $
+        LC.P.parseCommand "&pr" `T.M.shouldParse` LC.Cmd.PR Nothing
+
+      H.it "parses command with target" $
+        LC.P.parseCommand "&pr  > foo" `T.M.shouldParse` LC.Cmd.PR (Just "foo")
+
 
   H.describe "Url" $ do
     let url = "https://foo.bar.com"

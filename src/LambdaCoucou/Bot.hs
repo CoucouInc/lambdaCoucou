@@ -18,10 +18,11 @@ import qualified LambdaCoucou.Command      as LC.Cmd
 import qualified LambdaCoucou.Crypto       as LC.C
 import qualified LambdaCoucou.Date         as LC.Date
 import qualified LambdaCoucou.Debug        as LC.Dbg
+import qualified LambdaCoucou.Help         as LC.Hlp
 import qualified LambdaCoucou.Parser       as LC.P
+import qualified LambdaCoucou.PR           as LC.PR
 import qualified LambdaCoucou.State        as LC.St
 import qualified LambdaCoucou.Url          as LC.Url
-import qualified LambdaCoucou.Help         as LC.Hlp
 
 
 runBot :: IO ()
@@ -103,6 +104,7 @@ execCommand chanName = \case
       Just x  -> LC.Url.updateLastUrl x
     pure reply
   LC.Cmd.ShoutCoucou -> LC.Chan.shoutCoucouCommandHandler chanName
+  LC.Cmd.PR target -> LC.PR.prCommandHandler target
   LC.Cmd.Help hlpCmd -> LC.Hlp.helpCommandHandler hlpCmd
 
 addTarget :: Maybe Text -> Text -> Text

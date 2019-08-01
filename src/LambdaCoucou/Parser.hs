@@ -28,6 +28,7 @@ commandParser = prefix *> M.choice
   , M.try cancerCommandParser
   , M.try shoutCoucouCommandParser
   , M.try helpCommandParser
+  , M.try prCommandParser
   ]
   <|> pure LC.Cmd.Nop
 
@@ -78,7 +79,7 @@ shoutCoucouCommandParser :: Parser LC.Cmd.CoucouCmd
 shoutCoucouCommandParser = C.string "coucou" $> LC.Cmd.ShoutCoucou
 
 
--------------------- Coucou --------------------
+-------------------- Help --------------------
 helpCommandParser :: Parser LC.Cmd.CoucouCmd
 helpCommandParser = do
   C.string "help"
@@ -91,6 +92,12 @@ helpCommandParser = do
     , LC.P.spaces *> (LC.Hlp.Unknown <$> LC.P.utf8Word)
     ]
   pure $ LC.Cmd.Help arg
+
+-------------------- PR --------------------
+prCommandParser :: Parser LC.Cmd.CoucouCmd
+prCommandParser = do
+  C.string "pr"
+  LC.Cmd.PR <$> targetParser
 
 -------------------- Utils --------------------
 

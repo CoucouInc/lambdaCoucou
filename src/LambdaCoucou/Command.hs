@@ -12,5 +12,6 @@ data CoucouCmd
   | Cancer CancerType (Maybe Text)
   | ShoutCoucou
   | Help HelpCommand
+  | PR (Maybe Text)
   | Nop
   deriving (Show, Eq)
