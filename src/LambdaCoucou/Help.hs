@@ -5,6 +5,7 @@ module LambdaCoucou.Help where
 import           Data.Text                 (Text)
 import qualified Network.IRC.Client        as IRC.C
 
+import qualified LambdaCoucou.HandlerUtils as LC.Hdl
 import qualified LambdaCoucou.State        as LC.St
 
 data HelpCommand
@@ -19,9 +20,10 @@ data HelpCommand
 
 helpCommandHandler
   :: HelpCommand
+  -> Maybe Text
   -> IRC.C.IRC LC.St.CoucouState (Maybe Text)
 
-helpCommandHandler hlpCmd = do
+helpCommandHandler hlpCmd target = do
   let generalMsg = "`&help cmd` with cmd one of [url, crypto, date, cancer, coucou]"
   let msg = case hlpCmd of
         Url
@@ -38,4 +40,4 @@ helpCommandHandler hlpCmd = do
           -> generalMsg
         Unknown cmd
           -> "Unknown command: " <> cmd <> ". " <> generalMsg
-  pure $ Just msg
+  pure $ Just $ LC.Hdl.addTarget target msg

@@ -5,13 +5,15 @@ import           LambdaCoucou.Crypto (CryptoCoin)
 import           LambdaCoucou.Cancer (CancerType)
 import           LambdaCoucou.Help   (HelpCommand)
 
+type Target = Maybe Text
+
 data CoucouCmd
-  = Url (Maybe Text)
-  | Crypto (Either Text CryptoCoin) (Maybe Text)
-  | Date (Maybe Text)
-  | Cancer CancerType (Maybe Text)
+  = Url Target
+  | Crypto (Either Text CryptoCoin) Target
+  | Date Target
+  | Cancer CancerType Target
   | ShoutCoucou
-  | Help HelpCommand
-  | PR (Maybe Text)
+  | Help HelpCommand Target
+  | PR Target
   | Nop
   deriving (Show, Eq)
