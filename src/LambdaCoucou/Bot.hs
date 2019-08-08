@@ -23,7 +23,7 @@ import qualified LambdaCoucou.Parser       as LC.P
 import qualified LambdaCoucou.PR           as LC.PR
 import qualified LambdaCoucou.State        as LC.St
 import qualified LambdaCoucou.Url          as LC.Url
-
+import qualified LambdaCoucou.Joke         as LC.Joke
 
 runBot :: IO ()
 runBot = do
@@ -106,6 +106,7 @@ execCommand chanName = \case
   LC.Cmd.ShoutCoucou -> LC.Chan.shoutCoucouCommandHandler chanName
   LC.Cmd.PR target -> LC.PR.prCommandHandler target
   LC.Cmd.Help hlpCmd target -> LC.Hlp.helpCommandHandler hlpCmd target
+  LC.Cmd.Joke target -> LC.Joke.jokeCommandHandler target
 
 addTarget :: Maybe Text -> Text -> Text
 addTarget mbTarget msg = case mbTarget of

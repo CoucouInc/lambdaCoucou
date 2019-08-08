@@ -15,5 +15,6 @@ data CoucouCmd
   | ShoutCoucou
   | Help HelpCommand Target
   | PR Target
+  | Joke Target
   | Nop
   deriving (Show, Eq)

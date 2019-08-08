@@ -30,6 +30,7 @@ library
     , LambdaCoucou.HandlerUtils
     , LambdaCoucou.Help
     , LambdaCoucou.Http
+    , LambdaCoucou.Joke
     , LambdaCoucou.Parser
     , LambdaCoucou.ParserUtils
     , LambdaCoucou.PR

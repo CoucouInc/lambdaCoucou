@@ -29,6 +29,7 @@ commandParser = prefix *> M.choice
   , M.try shoutCoucouCommandParser
   , M.try helpCommandParser
   , M.try prCommandParser
+  , M.try jokeCommandParser
   ]
   <|> pure LC.Cmd.Nop
 
@@ -88,14 +89,9 @@ helpCommandParser = do
     , M.try (f "date" LC.Hlp.Date)
     , M.try (f "cancer" LC.Hlp.Cancer)
     , M.try (f "coucou" LC.Hlp.ShoutCoucou)
+    , M.try (f "joke" LC.Hlp.Joke)
     , M.try (LC.P.spaces *> (LC.Cmd.Help LC.Hlp.General <$> targetParser) <* M.eof)
     , LC.P.spaces *> (LC.Cmd.Help . LC.Hlp.Unknown <$> LC.P.utf8Word <*> targetParser)
-    -- [ M.try ( (,) <$> (M.some C.spaceChar *> (C.string "crypto" $> LC.Hlp.Crypto)) <*> targetParser )
-    -- , M.try (M.some C.spaceChar *> C.string "date" $> LC.Hlp.Date)
-    -- , M.try (M.some C.spaceChar *> C.string "cancer" $> LC.Hlp.Cancer)
-    -- , M.try (M.some C.spaceChar *> C.string "coucou" $> LC.Hlp.ShoutCoucou)
-    -- , M.try (LC.P.spaces *> M.eof $> LC.Hlp.General)
-    -- , LC.P.spaces *> (LC.Hlp.Unknown <$> LC.P.utf8Word)
     ]
 
   where
@@ -106,6 +102,14 @@ prCommandParser :: Parser LC.Cmd.CoucouCmd
 prCommandParser = do
   C.string "pr"
   LC.Cmd.PR <$> targetParser
+
+
+-------------------- PR --------------------
+jokeCommandParser :: Parser LC.Cmd.CoucouCmd
+jokeCommandParser = do
+  C.string "joke"
+  LC.Cmd.Joke <$> targetParser
+
 
 -------------------- Utils --------------------
 

@@ -15,6 +15,7 @@ data HelpCommand
   | Cancer
   | ShoutCoucou
   | General
+  | Joke
   | Unknown Text
   deriving (Show, Eq)
 
@@ -24,7 +25,7 @@ helpCommandHandler
   -> IRC.C.IRC LC.St.CoucouState (Maybe Text)
 
 helpCommandHandler hlpCmd target = do
-  let generalMsg = "`&help cmd` with cmd one of [url, crypto, date, cancer, coucou]"
+  let generalMsg = "`&help cmd` with cmd one of [url, crypto, date, cancer, coucou, joke]"
   let msg = case hlpCmd of
         Url
           -> "Grab the title of the last url seen in the chan."
@@ -38,6 +39,8 @@ helpCommandHandler hlpCmd target = do
           -> "Say 'coucou X' where X is a random member/lurker of the chan."
         General
           -> generalMsg
+        Joke
+          -> "Gives a random (bad) joke."
         Unknown cmd
           -> "Unknown command: " <> cmd <> ". " <> generalMsg
   pure $ Just $ LC.Hdl.addTarget target msg
