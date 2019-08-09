@@ -1,8 +1,5 @@
-{-# LANGUAGE DerivingStrategies         #-}
-{-# LANGUAGE FlexibleContexts           #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE LambdaCase                 #-}
-{-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE LambdaCase        #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module LambdaCoucou.Crypto where
 
@@ -45,15 +42,6 @@ showCryptoError = \case
   HttpExc exc ->
     LC.Http.showHttpException exc
 
-newtype ReqMonad m a = ReqMonad { runReqMonad :: Ex.ExceptT CryptoError m a }
-  deriving newtype (Functor, Applicative, Monad, Ex.MonadError CryptoError, MonadIO)
-
-instance (MonadIO m) => Req.MonadHttp (ReqMonad m) where
-  handleHttpException = Ex.throwError . HttpExc
-
-runFetch :: (MonadIO m) => ReqMonad m a -> m (Either CryptoError a)
-runFetch = Ex.runExceptT . runReqMonad
-
 data CryptoCoin
   = Ethereum
   | Bitcoin
@@ -75,10 +63,10 @@ getRateInEuro
   => CryptoCoin
   -> m (Either CryptoError Scientific)
 
-getRateInEuro coin = runFetch $ do
+getRateInEuro coin = Ex.runExceptT $ do
   let target = "eur"
   let pair = symbol coin <> target
-  bsResp <- either Ex.throwError (pure . Req.responseBody) =<< runFetch
+  bsResp <- Ex.withExceptT HttpExc $ Req.responseBody <$> LC.Http.runReqMonad
     (Req.req
       Req.GET
       (Req.https "api.cryptowat.ch" /: "markets" /: exchange coin /: pair /: "price")

@@ -1,8 +1,5 @@
-{-# LANGUAGE DerivingStrategies         #-}
-{-# LANGUAGE FlexibleContexts           #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE LambdaCase                 #-}
-{-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE LambdaCase        #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module LambdaCoucou.Cancer where
 
@@ -28,30 +25,11 @@ cancerCommandHandler
   -> Maybe Text
   -> IRC.C.IRC LC.St.CoucouState (Maybe Text)
 
-cancerCommandHandler cancer target = runFetch (getCancer cancer) >>= \case
+cancerCommandHandler cancer target = Ex.runExceptT (getCancer cancer) >>= \case
   Left err -> pure $ Just $ showCancerError err
   Right msg -> do
     LC.Url.updateLastUrl msg
     pure $ Just $ LC.Hdl.addTarget target msg
-
-  -- = Just . LC.Hdl.addTarget target . either showCancerError id
-  -- <$> runFetch (getCancer cancer)
-
-    -- reply <- LC.Cancer.cancerCommandHandler cancer target
-    -- -- a cancer command will produce a url
-    -- case reply of
-    --   Nothing -> pure ()
-    --   Just x  -> LC.Url.updateLastUrl x
-    -- pure reply
-
-newtype ReqMonad m a = ReqMonad { runReqMonad :: Ex.ExceptT CancerError m a }
-  deriving newtype (Functor, Applicative, Monad, Ex.MonadError CancerError, MonadIO)
-
-instance (MonadIO m) => Req.MonadHttp (ReqMonad m) where
-  handleHttpException = Ex.throwError . HttpExc
-
-runFetch :: (MonadIO m) => ReqMonad m a -> m (Either CancerError a)
-runFetch = Ex.runExceptT . runReqMonad
 
 data CancerError
   = HttpExc Req.HttpException
@@ -77,12 +55,8 @@ data CancerType
   deriving (Show, Eq)
 
 getCancer
-  :: ( MonadIO m
-     , Ex.MonadError CancerError m
-     , Req.MonadHttp m
-     )
-  => CancerType
-  -> m Text
+  :: (MonadIO m)
+  => CancerType -> Ex.ExceptT CancerError m Text
 
 getCancer cancer = do
   list <- fetchCancerList
@@ -99,19 +73,17 @@ getCancer cancer = do
 
 
 fetchCancerList
-  :: ( MonadIO m
-     , Ex.MonadError CancerError m
-     , Req.MonadHttp m
-     )
-  => m (V.Vector (Text, Text))
+  :: MonadIO m
+  => Ex.ExceptT CancerError m (V.Vector (Text, Text))
 
 fetchCancerList = do
-  resp <- Req.req
+  resp <- Ex.withExceptT HttpExc $ LC.Http.runReqMonad $ Req.req
     Req.GET
     (Req.https "raw.githubusercontent.com" /: "CoucouInc" /: "lalalaliste" /: "master" /: "cancer.txt")
     Req.NoReqBody
     Req.bsResponse
     mempty
+
   cancerLines <- case Tx.Enc.decodeUtf8' (Req.responseBody resp) of
     Left _err -> Ex.throwError DecodingError
     Right x   -> pure (Tx.lines x)
