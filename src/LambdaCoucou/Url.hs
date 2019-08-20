@@ -196,12 +196,9 @@ fetchYtUrlData
   -> Text
   -> m Text
 fetchYtUrlData ytApiKey textUrl = do
-  -- 0x3f is the character '?'
-  let (_, query) = BS.break (== 0x3f) (Tx.Enc.encodeUtf8 textUrl)
-  ytId <- case List.lookup "v" (HTTP.Uri.parseQueryText query) of
-    Nothing       -> Ex.throwError YoutubeIdNotFound
-    Just (Just x) -> pure x
-    Just _        -> Ex.throwError YoutubeIdNotFound
+  ytId <- case parseYoutubeIdLong textUrl <|> parseYoutubeIdShort textUrl of
+    Just x -> pure x
+    Nothing -> Ex.throwError YoutubeIdNotFound
 
   bsResp <- either Ex.throwError (pure . Req.responseBody) =<< runFetch
     (Req.req Req.GET
@@ -218,3 +215,22 @@ fetchYtUrlData ytApiKey textUrl = do
   case mbTitle of
     Nothing    -> Ex.throwError TitleNotFound
     Just title -> pure title
+
+parseYoutubeIdLong :: Text -> Maybe Text
+parseYoutubeIdLong textUrl =
+  -- 0x3f is the character '?'
+  let (_, query) = BS.break (== 0x3f) (Tx.Enc.encodeUtf8 textUrl)
+  in case List.lookup "v" (HTTP.Uri.parseQueryText query) of
+    Nothing       -> Nothing
+    Just (Just x) -> pure x
+    Just _        -> Nothing
+
+parseYoutubeIdShort :: Text -> Maybe Text
+parseYoutubeIdShort textUrl =
+  let withoutProto = Tx.drop (Tx.length "https://") textUrl
+      (_, pathAndQuery) = Tx.break (== '/') withoutProto
+      path = Tx.takeWhile (/= '?') (Tx.tail pathAndQuery)
+
+  in if "youtu.be" `Tx.isInfixOf` textUrl
+      then if Tx.null path then Nothing else Just path
+      else Nothing
