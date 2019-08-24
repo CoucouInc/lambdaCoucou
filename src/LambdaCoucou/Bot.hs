@@ -16,6 +16,7 @@ import qualified LambdaCoucou.Channel      as LC.Chan
 import qualified LambdaCoucou.Cli          as LC.Cli
 import qualified LambdaCoucou.Command      as LC.Cmd
 import qualified LambdaCoucou.Crypto       as LC.C
+import qualified LambdaCoucou.CryptoMonitor as LC.Mon
 import qualified LambdaCoucou.Date         as LC.Date
 import qualified LambdaCoucou.Debug        as LC.Dbg
 import qualified LambdaCoucou.Help         as LC.Hlp
@@ -35,8 +36,12 @@ runBot = do
         & IRC.L.channels .~ [LC.Cli.chan config]
         & IRC.L.version .~ "lambdacoucou-v2"
         & IRC.L.handlers .~ handlers
-  IRC.C.runClient connectionConfig instanceConfig
-    (LC.St.initialState $ LC.Cli.ytApiKey config)
+  ircState <- IRC.C.newIRCState connectionConfig instanceConfig
+    (LC.St.initialState (LC.Cli.ytApiKey config) (LC.Cli.sqlitePath config))
+
+  IRC.C.runIRCAction (IRC.C.fork $ LC.Mon.monitorRates (LC.Cli.sqlitePath config)) ircState
+
+  IRC.C.runClientWith ircState
   putStrLn "exiting"
 
 handlers :: [IRC.Ev.EventHandler LC.St.CoucouState]

@@ -1,27 +1,31 @@
 {-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE StrictData        #-}
 
 module LambdaCoucou.Crypto where
 
-import           Control.Lens              ((^?))
-import qualified Control.Monad.Except      as Ex
+import           Control.Lens                     ((^?))
+import qualified Control.Monad.Except             as Ex
 import           Control.Monad.IO.Class
-import qualified Data.Aeson.Lens           as AL
+import qualified Data.Aeson.Lens                  as AL
 import           Data.Scientific
-import           Data.Text                 (Text)
-import qualified Data.Text                 as Tx
-import           Network.HTTP.Req          ((/:))
-import qualified Network.HTTP.Req          as Req
-import qualified Network.IRC.Client        as IRC.C
+import           Data.Text                        (Text)
+import qualified Data.Text                        as Tx
+import           Network.HTTP.Req                 ((/:))
+import qualified Network.HTTP.Req                 as Req
+import qualified Network.IRC.Client               as IRC.C
+import qualified Database.SQLite.Simple           as SQL
+import qualified Database.SQLite.Simple.FromField as SQL
+import qualified Database.SQLite.Simple.Ok        as SQL
+import qualified Database.SQLite.Simple.ToField   as SQL
 
-import qualified LambdaCoucou.HandlerUtils as LC.Hdl
-import qualified LambdaCoucou.Http         as LC.Http
-import qualified LambdaCoucou.State        as LC.St
+import qualified LambdaCoucou.HandlerUtils        as LC.Hdl
+import qualified LambdaCoucou.Http                as LC.Http
 
 cryptoCommandHandler
   :: Either Text CryptoCoin
   -> Maybe Text
-  -> IRC.C.IRC LC.St.CoucouState (Maybe Text)
+  -> IRC.C.IRC s (Maybe Text)
 
 cryptoCommandHandler eiCoin mbTarget =
   case eiCoin of
@@ -89,3 +93,21 @@ showRate coin val
 
 showUnknownCoin :: Text -> Text
 showUnknownCoin txt = "Dénomination inconnue: " <> txt <> ". Ici on ne deal qu'avec des monnaies respectueuses comme: btc and eth"
+
+
+
+------------------------------------------------------------
+-- Persistence
+
+instance SQL.ToField CryptoCoin where
+  toField c = SQL.SQLText $ case c of
+    Bitcoin -> "BTC"
+    Ethereum -> "ETH"
+
+instance SQL.FromField CryptoCoin where
+  fromField f = case SQL.fieldData f of
+    SQL.SQLText txt -> case txt of
+      "BTC" -> SQL.Ok Bitcoin
+      "ETH" -> SQL.Ok Ethereum
+      _ -> SQL.returnError SQL.ConversionFailed f ("Unexpected value: " <> Tx.unpack txt)
+    _ -> SQL.returnError SQL.Incompatible f "Cannot parse CryptoCoin value"

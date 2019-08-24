@@ -1,7 +1,7 @@
+{-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE StrictData #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE StrictData        #-}
+{-# LANGUAGE TypeApplications  #-}
 
 module LambdaCoucou.Cli where
 
@@ -15,14 +15,15 @@ import qualified LambdaCoucou.State as LC.St
 
 data Config
   = Config
-      { chan :: Text
-      , nick :: Text
-      , ytApiKey :: LC.St.YoutubeAPIKey
+      { chan       :: Text
+      , nick       :: Text
+      , ytApiKey   :: LC.St.YoutubeAPIKey
+      , sqlitePath :: FilePath
       }
   deriving (Generic)
 
 configOpt :: HKD Config H.Opt
-configOpt = build @Config chanOpt nickOpt ytKeyOpt
+configOpt = build @Config chanOpt nickOpt ytKeyOpt sqlitePathOpts
   where
     chanOpt
       = H.optionWith H.strParser
@@ -46,6 +47,13 @@ configOpt = build @Config chanOpt nickOpt ytKeyOpt
         . H.optShort 'y'
         . H.optHelp "Youtube API key to query metadata about videos"
         . H.optEnvVar "YT_API_KEY"
+        )
+
+    sqlitePathOpts
+      = H.optionWith H.strParser
+        ( H.optLong "sqlite-path"
+        . H.optHelp "Filepath to the sqlite db"
+        . H.optEnvVar "SQLITE_FILEPATH"
         )
 
 getConfig :: IO Config

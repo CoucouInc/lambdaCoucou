@@ -2,3 +2,5 @@
 resources
 tags
 *.log
+*.sqlite
+lambdacoucou

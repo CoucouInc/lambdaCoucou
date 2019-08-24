@@ -1,16 +1,15 @@
-{-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE DerivingVia                #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE StrictData #-}
+{-# LANGUAGE StrictData                 #-}
 
 module LambdaCoucou.State where
 
-import qualified Data.Set as Set
 import qualified Data.Map.Strict as Map
-import qualified Data.Text as Tx
-import GHC.Generics
+import qualified Data.Set        as Set
 import qualified Data.String
+import qualified Data.Text       as Tx
+import           GHC.Generics
 
 newtype YoutubeAPIKey
   = YoutubeAPIKey { getYoutubeAPIKey :: Tx.Text }
@@ -37,17 +36,19 @@ data ChannelState = ChannelState
 
 data CoucouState
   = CoucouState
-      { csLastUrl :: Maybe Tx.Text
-      , csCounter :: Int
-      , csYtAPIKey :: YoutubeAPIKey
-      , csChannels :: Map.Map ChannelName ChannelState
+      { csLastUrl    :: Maybe Tx.Text
+      , csCounter    :: Int
+      , csYtAPIKey   :: YoutubeAPIKey
+      , csChannels   :: Map.Map ChannelName ChannelState
+      , csSQLitePath :: FilePath
       }
   deriving (Show, Generic)
 
-initialState :: YoutubeAPIKey -> CoucouState
-initialState key = CoucouState
+initialState :: YoutubeAPIKey -> FilePath -> CoucouState
+initialState key fp = CoucouState
   { csLastUrl = Nothing
   , csCounter = 0
-  , csYtAPIKey = key
   , csChannels = mempty
+  , csYtAPIKey = key
+  , csSQLitePath = fp
   }
