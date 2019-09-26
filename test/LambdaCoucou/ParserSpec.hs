@@ -108,10 +108,12 @@ tests = H.describe "Parser" $ do
         LC.Cmd.Cancer (LC.Cancer.SpecificCancer "foo.bar") Nothing
 
 
-    H.describe "shout coucou command" $
+    H.describe "misc coucou command" $ do
       H.it "parses coucou command" $
-        LC.P.parseCommand "&coucou" `T.M.shouldParse` LC.Cmd.ShoutCoucou
+        LC.P.parseCommand "&coucou  " `T.M.shouldParse` LC.Cmd.ShoutCoucou
 
+      H.it "parses hey coucou command" $
+        LC.P.parseCommand "&coucou foobared  " `T.M.shouldParse` LC.Cmd.HeyCoucou
 
     H.describe "help command" $ do
       H.it "parses general" $

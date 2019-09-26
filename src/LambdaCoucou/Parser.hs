@@ -26,7 +26,7 @@ commandParser = prefix *> M.choice
   , M.try cryptoCommandParser
   , M.try dateCommandParser
   , M.try cancerCommandParser
-  , M.try shoutCoucouCommandParser
+  , M.try miscCoucouCommandParser
   , M.try helpCommandParser
   , M.try prCommandParser
   , M.try jokeCommandParser
@@ -76,8 +76,11 @@ cancerCommandParser = do
 
 
 -------------------- Coucou --------------------
-shoutCoucouCommandParser :: Parser LC.Cmd.CoucouCmd
-shoutCoucouCommandParser = C.string "coucou" $> LC.Cmd.ShoutCoucou
+miscCoucouCommandParser :: Parser LC.Cmd.CoucouCmd
+miscCoucouCommandParser = do
+  C.string "coucou"
+  LC.P.spaces
+  (M.eof $> LC.Cmd.ShoutCoucou) <|> ((LC.P.utf8Word <* LC.P.spaces <* M.eof) $> LC.Cmd.HeyCoucou)
 
 
 -------------------- Help --------------------

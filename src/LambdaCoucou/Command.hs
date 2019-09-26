@@ -13,6 +13,7 @@ data CoucouCmd
   | Date Target
   | Cancer CancerType Target
   | ShoutCoucou
+  | HeyCoucou
   | Help HelpCommand Target
   | PR Target
   | Joke Target

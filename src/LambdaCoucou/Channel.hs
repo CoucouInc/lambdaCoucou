@@ -149,4 +149,3 @@ shoutCoucouCommandHandler chanName = do
       idx <- liftIO $ Rng.randomRIO (0, s - 1)
       let usr = Set.elemAt idx usrList
       pure $ Just $ "coucou " <> usr
-

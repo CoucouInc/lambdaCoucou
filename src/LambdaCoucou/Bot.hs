@@ -3,13 +3,15 @@
 
 module LambdaCoucou.Bot where
 
-import           Control.Lens              ((&), (.~))
+import           Control.Lens              ((^.), (&), (.~))
 import           Control.Monad
 import           Control.Monad.IO.Class    (liftIO)
+import qualified Control.Monad.Reader      as Rdr
 import           Data.Text                 (Text)
 import qualified Network.IRC.Client        as IRC.C
 import qualified Network.IRC.Client.Events as IRC.Ev
 import qualified Network.IRC.Client.Lens   as IRC.L
+import qualified GHC.Conc                  as TVar
 
 import qualified LambdaCoucou.Cancer       as LC.Cancer
 import qualified LambdaCoucou.Channel      as LC.Chan
@@ -74,12 +76,16 @@ commandHandler = IRC.Ev.EventHandler
   (\source (_target, raw) -> case (source, raw) of
     -- only ignore bots for this handler. A url produced by another bot
     -- should still trigger updateLastUrlHandler
-    (IRC.Ev.Channel chanName nick, Right msg) -> unless (blacklisted nick) $
-      case LC.P.parseCommand msg of
-        Left _err -> pure ()
-        Right cmd -> do
-          liftIO $ putStrLn $ "handling command: " <> show cmd
-          execCommand (LC.St.ChannelName chanName) cmd >>= replyTo source
+    (IRC.Ev.Channel chanName nick, Right msg) -> unless (blacklisted nick) $ do
+      instanceCfg <- Rdr.asks (^. IRC.C.instanceConfig)
+      ownNick <- (^. IRC.C.nick) <$> liftIO (TVar.readTVarIO instanceCfg)
+      if msg == "coucou " <> ownNick
+        then replyTo source (Just $ "coucou " <> nick)
+        else case LC.P.parseCommand msg of
+          Left _err -> pure ()
+          Right cmd -> do
+            liftIO $ putStrLn $ "handling command: " <> show cmd
+            execCommand (LC.St.ChannelName chanName) nick cmd >>= replyTo source
     _ -> pure ()
   )
 
@@ -93,10 +99,11 @@ blacklisted nick = nick `elem` ["coucoubot", "zoe_bot", "M`arch`ov"]
 
 execCommand
   :: LC.St.ChannelName
+  -> Text
   -> LC.Cmd.CoucouCmd
   -> IRC.C.IRC LC.St.CoucouState (Maybe Text)
 
-execCommand chanName = \case
+execCommand chanName nick = \case
   LC.Cmd.Nop -> pure Nothing
   LC.Cmd.Url mbTarget -> LC.Url.fetchUrlCommandHandler mbTarget
   LC.Cmd.Crypto coin target -> LC.C.cryptoCommandHandler coin target
@@ -109,6 +116,7 @@ execCommand chanName = \case
       Just x  -> LC.Url.updateLastUrl x
     pure reply
   LC.Cmd.ShoutCoucou -> LC.Chan.shoutCoucouCommandHandler chanName
+  LC.Cmd.HeyCoucou -> pure $ Just $ "écoucou " <> nick
   LC.Cmd.PR target -> LC.PR.prCommandHandler target
   LC.Cmd.Help hlpCmd target -> LC.Hlp.helpCommandHandler hlpCmd target
   LC.Cmd.Joke target -> LC.Joke.jokeCommandHandler target
