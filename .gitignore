@@ -1,5 +1,5 @@
 .stack-work
-resources
+/resources/
 tags
 *.log
 *.sqlite

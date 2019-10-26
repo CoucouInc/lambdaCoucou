@@ -180,11 +180,15 @@ fetchGeneralUrlData textUrl = do
 parseTitle :: Text -> Maybe Text
 parseTitle body =
   let tags = HTML.parseTags body
-      mbTitle = tail $ dropWhile (HTML.~/= HTML.TagOpen ("title" :: Text) []) tags
+      mbTitle = dropWhile (not . isTitleTag) tags
   in case mbTitle of
-       []        -> Nothing
-       (title:_) -> Just (HTML.fromTagText title)
+       []          -> Nothing
+       [_]         -> Nothing
+       (_:title:_) -> Just (HTML.fromTagText title)
 
+
+isTitleTag :: HTML.Tag Text -> Bool
+isTitleTag tag = HTML.isTagOpenName "title" tag || HTML.isTagOpenName "TITLE" tag
 
 
 fetchYtUrlData

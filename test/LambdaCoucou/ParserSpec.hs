@@ -55,7 +55,6 @@ tests = H.describe "Parser" $ do
       H.it "doesn't parses a target when multi words after delimiter" $
         LC.P.parseCommand `T.M.shouldFailOn` "&url  >   foo bar"
 
-
     H.describe "crypto command" $ do
       H.it "parses bitcoin" $
         LC.P.parseCommand "&crypto  btc" `T.M.shouldParse` LC.Cmd.Crypto (Right LC.C.Bitcoin) Nothing

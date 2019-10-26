@@ -4,6 +4,7 @@ module LambdaCoucou.UrlSpec where
 
 import qualified Test.Hspec              as H
 import qualified Test.Hspec.Expectations as HE
+import qualified Data.Text.IO            as Tx.IO
 
 import qualified LambdaCoucou.Url as Url
 
@@ -40,3 +41,8 @@ tests = H.describe "Url" $ do
       let ytId = "foo"
       Url.parseYoutubeIdShort ("https://www.youtu.be/" <> ytId)
         `HE.shouldBe` Just ytId
+
+  H.describe "parseTitle" $
+    H.it "parses capitalized tags" $ do
+      raw <- Tx.IO.readFile "./test/resources/capitalised-tags.html"
+      Url.parseTitle raw `HE.shouldBe` Just " target title "

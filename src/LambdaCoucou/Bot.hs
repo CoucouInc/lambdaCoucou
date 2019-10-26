@@ -95,7 +95,7 @@ replyTo source = maybe (pure ()) (IRC.C.replyTo source)
 
 -- | a list of other bots to ignore for some commands
 blacklisted :: Text -> Bool
-blacklisted nick = nick `elem` ["coucoubot", "zoe_bot", "M`arch`ov"]
+blacklisted nick = nick `elem` ["coucoubot", "zoe_bot", "M`arch`ov", "coucoucou"]
 
 execCommand
   :: LC.St.ChannelName
