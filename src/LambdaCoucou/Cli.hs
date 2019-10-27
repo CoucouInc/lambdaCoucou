@@ -26,34 +26,34 @@ configOpt :: HKD Config H.Opt
 configOpt = build @Config chanOpt nickOpt ytKeyOpt sqlitePathOpts
   where
     chanOpt
-      = H.optionWith H.strParser
-        ( H.optLong "chan"
-        . H.optShort 'c'
-        . H.optHelp "Channel to connect to"
-        . H.optDefault "#gougoutest"
+      = H.option H.strParser
+        ( H.long "chan"
+        . H.short 'c'
+        . H.help "Channel to connect to"
+        . H.defaultVal "#gougoutest"
         )
 
     nickOpt
-      = H.optionWith H.strParser
-        ( H.optLong "nick"
-        . H.optShort 'n'
-        . H.optHelp "Nickname of the bot"
-        . H.optDefault "testLambdacoucou"
+      = H.option H.strParser
+        ( H.long "nick"
+        . H.short 'n'
+        . H.help "Nickname of the bot"
+        . H.defaultVal "testLambdacoucou"
         )
 
     ytKeyOpt
-      = H.optionWith H.strParser
-        ( H.optLong "yt-key"
-        . H.optShort 'y'
-        . H.optHelp "Youtube API key to query metadata about videos"
-        . H.optEnvVar "YT_API_KEY"
+      = H.option H.strParser
+        ( H.long "yt-key"
+        . H.short 'y'
+        . H.help "Youtube API key to query metadata about videos"
+        . H.envVar "YT_API_KEY"
         )
 
     sqlitePathOpts
-      = H.optionWith H.strParser
-        ( H.optLong "sqlite-path"
-        . H.optHelp "Filepath to the sqlite db"
-        . H.optEnvVar "SQLITE_FILEPATH"
+      = H.option H.strParser
+        ( H.long "sqlite-path"
+        . H.help "Filepath to the sqlite db"
+        . H.envVar "SQLITE_FILEPATH"
         )
 
 getConfig :: IO Config

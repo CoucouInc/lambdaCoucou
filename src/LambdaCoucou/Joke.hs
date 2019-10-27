@@ -32,5 +32,5 @@ fetchDadJoke = do
   case result of
     Left err -> pure $ LC.Http.showHttpException err
     Right raw -> case Tx.Enc.decodeUtf8' (Req.responseBody raw) of
-      Left err -> pure "Invalid unicode response from the third party :/"
+      Left _err -> pure "Invalid unicode response from the third party :/"
       Right res -> pure res

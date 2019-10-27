@@ -1,4 +1,4 @@
-resolver: lts-13.29
+resolver: lts-14.11
 
 packages:
 - '.'
@@ -6,18 +6,10 @@ packages:
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
 extra-deps:
-  - git: https://github.com/alexpeits/harg.git
-    commit: 4233bbb0ec8648e61838efc02a7f96b983dec841
-  - higgledy-0.2.1.0 # harg dependency
+  - harg-0.4.0.0
+  - higgledy-0.3.1.0 # harg dependency
 
   - datetime-0.3.1
-
-  - req-2.1.0
-  - retry-0.8.0.1 # req dependency
-
-  # this version has all the default event handler exposed
-  # see: https://github.com/barrucadu/irc-client/pull/47
-  - irc-client-1.1.1.0
 
 flags: {}
 
