@@ -151,7 +151,9 @@ fetchGeneralUrlData
   -> m Text
 
 fetchGeneralUrlData textUrl = do
-  parsedUrl <- case Req.parseUrl (Tx.Enc.encodeUtf8 textUrl) of
+  -- drop any fragment in the url, until the issue is resolved upstream:
+  -- https://github.com/mrkkrp/req/issues/73
+  parsedUrl <- case Req.parseUrl (Tx.Enc.encodeUtf8 $ Tx.takeWhile (/= '#') textUrl) of
     Nothing -> Ex.throwError UnparsableUrl
     Just x  -> pure x
 
