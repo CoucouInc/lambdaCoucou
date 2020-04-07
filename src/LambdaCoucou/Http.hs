@@ -12,6 +12,7 @@ import qualified Data.Text                 as Tx
 import qualified Network.HTTP.Client       as HTTP.C
 import qualified Network.HTTP.Req          as Req
 import qualified Network.HTTP.Types.Status as HTTP.Status
+import qualified Control.Exception.Safe as Exc
 
 showHttpException :: Req.HttpException -> Text
 showHttpException = \case
@@ -38,3 +39,8 @@ instance (MonadIO m) => Req.MonadHttp (ReqMonad m) where
 
 runFetch :: (MonadIO m) => ReqMonad m a -> m (Either Req.HttpException a)
 runFetch = Ex.runExceptT . runReqMonad
+
+runFetchEx :: (MonadIO m, Exc.MonadThrow m) => ReqMonad m a -> m a
+runFetchEx action = Ex.runExceptT (runReqMonad action) >>= \case
+  Left err -> Exc.throwIO err
+  Right x -> pure x

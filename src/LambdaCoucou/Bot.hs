@@ -3,15 +3,16 @@
 
 module LambdaCoucou.Bot where
 
-import           Control.Lens              ((^.), (&), (.~))
+import qualified Control.Concurrent.Async  as Async
+import           Control.Lens              ((&), (.~), (^.))
 import           Control.Monad
 import           Control.Monad.IO.Class    (liftIO)
 import qualified Control.Monad.Reader      as Rdr
 import           Data.Text                 (Text)
+import qualified GHC.Conc                  as TVar
 import qualified Network.IRC.Client        as IRC.C
 import qualified Network.IRC.Client.Events as IRC.Ev
 import qualified Network.IRC.Client.Lens   as IRC.L
-import qualified GHC.Conc                  as TVar
 
 import qualified LambdaCoucou.Cancer       as LC.Cancer
 import qualified LambdaCoucou.Channel      as LC.Chan
@@ -27,6 +28,7 @@ import qualified LambdaCoucou.PR           as LC.PR
 import qualified LambdaCoucou.State        as LC.St
 import qualified LambdaCoucou.Url          as LC.Url
 import qualified LambdaCoucou.Joke         as LC.Joke
+import qualified LambdaCoucou.Twitch         as LC.Twitch
 
 runBot :: IO ()
 runBot = do
@@ -43,7 +45,9 @@ runBot = do
 
   IRC.C.runIRCAction (IRC.C.fork $ LC.Mon.monitorRates (LC.Cli.sqlitePath config)) ircState
 
-  IRC.C.runClientWith ircState
+  void $ Async.race
+    (LC.Twitch.watchStreams ircState)
+    (IRC.C.runClientWith ircState)
   putStrLn "exiting"
 
 handlers :: [IRC.Ev.EventHandler LC.St.CoucouState]
