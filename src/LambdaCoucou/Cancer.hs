@@ -1,26 +1,23 @@
 module LambdaCoucou.Cancer where
 
+import qualified Control.Monad.Except as Ex
+import qualified LambdaCoucou.HandlerUtils as LC.Hdl
+import qualified LambdaCoucou.Http as LC.Http
+import qualified LambdaCoucou.State as LC.St
+import qualified LambdaCoucou.Url as LC.Url
+import Network.HTTP.Req ((/:))
+import qualified Network.HTTP.Req as Req
+import qualified Network.IRC.Client as IRC.C
 import RIO
+import qualified RIO.Text as T
 import RIO.Vector ((!?))
 import qualified RIO.Vector as V
-import qualified RIO.Text as T
+import qualified System.Random as Rng
 
-import qualified Control.Monad.Except      as Ex
-import           Network.HTTP.Req          ((/:))
-import qualified Network.HTTP.Req          as Req
-import qualified Network.IRC.Client        as IRC.C
-import qualified System.Random             as Rng
-
-import qualified LambdaCoucou.HandlerUtils as LC.Hdl
-import qualified LambdaCoucou.Http         as LC.Http
-import qualified LambdaCoucou.State        as LC.St
-import qualified LambdaCoucou.Url          as LC.Url
-
-cancerCommandHandler
-  :: CancerType
-  -> Maybe Text
-  -> IRC.C.IRC LC.St.CoucouState (Maybe Text)
-
+cancerCommandHandler ::
+  CancerType ->
+  Maybe Text ->
+  IRC.C.IRC LC.St.CoucouState (Maybe Text)
 cancerCommandHandler cancer target = Ex.runExceptT (getCancer cancer) >>= \case
   Left err -> pure $ Just $ showCancerError err
   Right msg -> do
@@ -50,10 +47,10 @@ data CancerType
   | SpecificCancer Text
   deriving (Show, Eq)
 
-getCancer
-  :: (MonadIO m)
-  => CancerType -> Ex.ExceptT CancerError m Text
-
+getCancer ::
+  (MonadIO m) =>
+  CancerType ->
+  Ex.ExceptT CancerError m Text
 getCancer cancer = do
   list <- fetchCancerList
   case cancer of
@@ -65,27 +62,26 @@ getCancer cancer = do
       let lowC = T.toLower c
       case V.find (T.isInfixOf lowC . T.toLower . fst) list of
         Nothing -> Ex.throwError (CancerNotFound c)
-        Just (k, v)  -> pure $ k <> ": " <> v
+        Just (k, v) -> pure $ k <> ": " <> v
 
-
-fetchCancerList
-  :: MonadIO m
-  => Ex.ExceptT CancerError m (Vector (Text, Text))
-
+fetchCancerList ::
+  MonadIO m =>
+  Ex.ExceptT CancerError m (Vector (Text, Text))
 fetchCancerList = do
-  resp <- Ex.withExceptT HttpExc $ LC.Http.runReqMonad $ Req.req
-    Req.GET
-    (Req.https "raw.githubusercontent.com" /: "CoucouInc" /: "lalalaliste" /: "master" /: "cancer.txt")
-    Req.NoReqBody
-    Req.bsResponse
-    mempty
-
+  resp <-
+    Ex.withExceptT HttpExc $ LC.Http.runReqMonad $
+      Req.req
+        Req.GET
+        (Req.https "raw.githubusercontent.com" /: "CoucouInc" /: "lalalaliste" /: "master" /: "cancer.txt")
+        Req.NoReqBody
+        Req.bsResponse
+        mempty
   cancerLines <- case decodeUtf8' (Req.responseBody resp) of
     Left _err -> Ex.throwError DecodingError
-    Right x   -> pure (T.lines x)
+    Right x -> pure (T.lines x)
   pure $ V.fromList $ fmap parseLine cancerLines
 
 parseLine :: Text -> (Text, Text)
 parseLine l =
   let (k, v) = T.span (/= ':') l
-  in (k, T.strip (T.drop 1 v))
+   in (k, T.strip (T.drop 1 v))

@@ -1,10 +1,9 @@
 module LambdaCoucou.Command where
 
+import LambdaCoucou.Cancer (CancerType)
+import LambdaCoucou.Crypto (CryptoCoin)
+import LambdaCoucou.Help (HelpCommand)
 import RIO
-
-import           LambdaCoucou.Crypto (CryptoCoin)
-import           LambdaCoucou.Cancer (CancerType)
-import           LambdaCoucou.Help   (HelpCommand)
 
 type Target = Maybe Text
 

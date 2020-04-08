@@ -1,12 +1,10 @@
 module LambdaCoucou.ParserUtils where
 
+import qualified Data.Char as Chr
 import RIO
 import qualified RIO.Text as T
-
-import qualified Text.Megaparsec      as M
+import qualified Text.Megaparsec as M
 import qualified Text.Megaparsec.Char as C
-
-import qualified Data.Char            as Chr
 
 type Parser = M.Parsec Void Text
 
