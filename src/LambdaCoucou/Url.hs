@@ -1,3 +1,4 @@
+{-# LANGUAGE StrictData #-}
 module LambdaCoucou.Url where
 
 import qualified Control.Monad.Except as Ex
@@ -20,7 +21,6 @@ import qualified RIO.State as St
 import qualified RIO.Text as T
 import qualified RIO.Text.Partial as T'
 import RIO.Vector ((!?))
-import System.IO (putStrLn)
 import qualified Text.HTML.TagSoup as HTML
 import qualified Text.Megaparsec as M
 import qualified Text.Megaparsec.Char as C
@@ -183,25 +183,40 @@ parseTitle body =
 isTitleTag :: HTML.Tag Text -> Bool
 isTitleTag tag = HTML.isTagOpenName "title" tag || HTML.isTagOpenName "TITLE" tag
 
-newtype YtVideosOverview = YtVideosOverview (Vector YtVideoSnippet)
+newtype YtResponseSnippets a = YtResponseSnippets { getYtResponseSnippets :: Vector a }
   deriving (Show)
 
-instance JSON.FromJSON YtVideosOverview where
-  parseJSON = JSON.withObject "videoOverview" $ \o ->
-    YtVideosOverview <$> o .: "items"
+instance (JSON.FromJSON a) => JSON.FromJSON (YtResponseSnippets a) where
+  parseJSON = JSON.withObject "videoOverview" $ \o -> do
+    YtResponseSnippets . fmap getSnippet <$> o .: "items"
 
-newtype YtVideoSnippet = YtVideoSnippet
-  { yvsTitle :: Text
+newtype Snippet a = Snippet { getSnippet :: a }
+
+instance (JSON.FromJSON a) => JSON.FromJSON (Snippet a) where
+  parseJSON = JSON.withObject "snippet" $ \o -> Snippet <$> o .: "snippet"
+
+newtype ChannelId = ChannelId { getChannelId :: Text }
+  deriving stock (Show)
+  deriving newtype (JSON.FromJSON)
+
+data YtVideo = YtVideo
+  { yvTitle :: Text
+  , yvChannelId :: ChannelId
   }
   deriving (Show)
 
-instance JSON.FromJSON YtVideoSnippet where
-  parseJSON = JSON.withObject "overview" $ \o -> do
-    snippet <- o .: "snippet"
-    JSON.withObject
-      "snippet"
-      (\snip -> YtVideoSnippet <$> snip .: "title")
-      snippet
+instance JSON.FromJSON YtVideo where
+  parseJSON = JSON.withObject "video" $ \v ->
+    YtVideo <$> v .: "title" <*> v .: "channelId"
+
+newtype YtChannel = YtChannel
+  { ycTitle :: Text
+  }
+  deriving stock (Show)
+
+instance JSON.FromJSON YtChannel where
+  parseJSON = JSON.withObject "channel" $ \c ->
+    YtChannel <$> c .: "title"
 
 fetchYtUrlData ::
   ( MonadIO m,
@@ -215,29 +230,52 @@ fetchYtUrlData ytApiKey textUrl = do
   ytId <- case parseYoutubeIdLong textUrl <|> parseYoutubeIdShort textUrl of
     Just x -> pure x
     Nothing -> Ex.throwError YoutubeIdNotFound
-  -- (YtVideosOverview overview) <-
-  bsResp <-
+  (YtResponseSnippets overview) <-
     either Ex.throwError (pure . Req.responseBody)
       =<< runFetch
         ( Req.req
             Req.GET
             (Req.https "www.googleapis.com" /: "youtube" /: "v3" /: "videos")
             Req.NoReqBody
-            Req.bsResponse
+            Req.jsonResponse
             ( "part" =: ("snippet" :: Text)
                 <> "id" =: ytId
                 <> "key" =: LC.St.getYoutubeAPIKey ytApiKey
             )
         )
 
-  B.putStr bsResp
-  let (r :: Either String YtVideosOverview) = JSON.eitherDecodeStrict bsResp
-  liftIO $ putStrLn $ show r
-  let Right (YtVideosOverview overview) = JSON.eitherDecodeStrict bsResp
-  let mbTitle = yvsTitle <$> overview !? 0
-  case mbTitle of
+  video <- case overview !? 0 of
     Nothing -> Ex.throwError TitleNotFound
-    Just title -> pure title
+    Just v -> pure v
+
+  channel <- fetchYtChannel ytApiKey (yvChannelId video)
+
+  pure $ yvTitle video <> " [" <> ycTitle channel <> "]"
+
+fetchYtChannel ::
+  (MonadIO m, Req.MonadHttp m, Ex.MonadError FetchError m) =>
+  LC.St.YoutubeAPIKey ->
+  ChannelId ->
+  m YtChannel
+fetchYtChannel ytApiKey (ChannelId channelId) = do
+  (YtResponseSnippets resp) <-
+    either Ex.throwError (pure . Req.responseBody)
+      =<< runFetch
+        ( Req.req
+            Req.GET
+            (Req.https "www.googleapis.com" /: "youtube" /: "v3" /: "channels")
+            Req.NoReqBody
+            Req.jsonResponse
+            ("part" =: ("snippet" :: Text)
+              <> "id" =: channelId
+              <> "key" =: LC.St.getYoutubeAPIKey ytApiKey
+            )
+        )
+
+  case resp !? 0 of
+    Nothing -> throwString $ "Cannot find channel with id " <> T.unpack channelId
+    Just chan -> pure chan
+
 
 parseYoutubeIdLong :: Text -> Maybe Text
 parseYoutubeIdLong textUrl =

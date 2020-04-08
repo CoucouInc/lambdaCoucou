@@ -37,6 +37,3 @@ runFetchEx :: (MonadIO m, MonadThrow m) => ReqMonad m a -> m a
 runFetchEx action = Ex.runExceptT (runReqMonad action) >>= \case
   Left err -> throwIO err
   Right x -> pure x
-
-req :: (MonadIO m) => Req.Req a -> m a
-req = Req.runReq Req.defaultHttpConfig
