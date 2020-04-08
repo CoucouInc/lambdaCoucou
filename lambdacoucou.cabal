@@ -66,7 +66,6 @@ library
     , irc-client
     , irc-ctcp
     , lens
-    , lens-aeson
     , megaparsec
     , mtl
     , random
@@ -101,7 +100,6 @@ executable lambdacoucou-test
   build-depends:       base >= 4.7 && < 5
                      , lambdacoucou
                      , rio
-                     , ring-buffer
 
 test-suite test
   type:                exitcode-stdio-1.0

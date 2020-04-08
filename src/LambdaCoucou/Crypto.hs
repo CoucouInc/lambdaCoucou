@@ -2,9 +2,9 @@
 
 module LambdaCoucou.Crypto where
 
-import Control.Lens ((^?))
+import Data.Aeson ((.:))
+import qualified Data.Aeson as JSON
 import qualified Control.Monad.Except as Ex
-import qualified Data.Aeson.Lens as AL
 import Data.Scientific
 import qualified Database.SQLite.Simple as SQL
 import qualified Database.SQLite.Simple.FromField as SQL
@@ -56,6 +56,16 @@ symbol = \case
   Bitcoin -> "btc"
   Ethereum -> "eth"
 
+newtype CryptoPrice = CryptoPrice { getCryptoPrice :: Scientific }
+  deriving (Show)
+
+instance JSON.FromJSON CryptoPrice where
+  parseJSON = JSON.withObject "result" $ \result -> do
+    res <- result .: "result"
+    JSON.withObject "price"
+      (\price -> CryptoPrice <$> price .: "price")
+      res
+
 getRateInEuro ::
   (MonadIO m) =>
   CryptoCoin ->
@@ -74,9 +84,10 @@ getRateInEuro coin = Ex.runExceptT $ do
               Req.bsResponse
               mempty
           )
-  case bsResp ^? AL.key "result" . AL.key "price" . AL._Number of
+
+  case JSON.decodeStrict bsResp of
     Nothing -> Ex.throwError (CryptoNotFound coin)
-    Just x -> pure x
+    Just (CryptoPrice price) -> pure price
 
 showRate :: CryptoCoin -> Scientific -> Text
 showRate coin val =

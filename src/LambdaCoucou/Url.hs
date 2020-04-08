@@ -1,9 +1,9 @@
 module LambdaCoucou.Url where
 
-import qualified Data.RingBuffer as RB
-import Control.Lens ((^?))
 import qualified Control.Monad.Except as Ex
-import qualified Data.Aeson.Lens as AL
+import Data.Aeson ((.:))
+import qualified Data.Aeson as JSON
+import qualified Data.RingBuffer as RB
 import qualified LambdaCoucou.HandlerUtils as LC.Hdl
 import qualified LambdaCoucou.Http as LC.Http
 import qualified LambdaCoucou.ParserUtils as LC.P
@@ -19,6 +19,8 @@ import qualified RIO.Map as Map
 import qualified RIO.State as St
 import qualified RIO.Text as T
 import qualified RIO.Text.Partial as T'
+import RIO.Vector ((!?))
+import System.IO (putStrLn)
 import qualified Text.HTML.TagSoup as HTML
 import qualified Text.Megaparsec as M
 import qualified Text.Megaparsec.Char as C
@@ -88,6 +90,7 @@ fetchUrlData ::
 fetchUrlData ytApiKey rawUrl =
   if isYoutube rawUrl
     then runFetch $ fetchYtUrlData ytApiKey rawUrl
+    -- then LC.Http.req $ fetchYtUrlData ytApiKey rawUrl
     else runFetch $ fetchGeneralUrlData rawUrl
 
 data FetchError
@@ -180,6 +183,26 @@ parseTitle body =
 isTitleTag :: HTML.Tag Text -> Bool
 isTitleTag tag = HTML.isTagOpenName "title" tag || HTML.isTagOpenName "TITLE" tag
 
+newtype YtVideosOverview = YtVideosOverview (Vector YtVideoSnippet)
+  deriving (Show)
+
+instance JSON.FromJSON YtVideosOverview where
+  parseJSON = JSON.withObject "videoOverview" $ \o ->
+    YtVideosOverview <$> o .: "items"
+
+newtype YtVideoSnippet = YtVideoSnippet
+  { yvsTitle :: Text
+  }
+  deriving (Show)
+
+instance JSON.FromJSON YtVideoSnippet where
+  parseJSON = JSON.withObject "overview" $ \o -> do
+    snippet <- o .: "snippet"
+    JSON.withObject
+      "snippet"
+      (\snip -> YtVideoSnippet <$> snip .: "title")
+      snippet
+
 fetchYtUrlData ::
   ( MonadIO m,
     Req.MonadHttp m,
@@ -192,6 +215,7 @@ fetchYtUrlData ytApiKey textUrl = do
   ytId <- case parseYoutubeIdLong textUrl <|> parseYoutubeIdShort textUrl of
     Just x -> pure x
     Nothing -> Ex.throwError YoutubeIdNotFound
+  -- (YtVideosOverview overview) <-
   bsResp <-
     either Ex.throwError (pure . Req.responseBody)
       =<< runFetch
@@ -205,7 +229,12 @@ fetchYtUrlData ytApiKey textUrl = do
                 <> "key" =: LC.St.getYoutubeAPIKey ytApiKey
             )
         )
-  let mbTitle = bsResp ^? AL.key "items" . AL.nth 0 . AL.key "snippet" . AL.key "title" . AL._String
+
+  B.putStr bsResp
+  let (r :: Either String YtVideosOverview) = JSON.eitherDecodeStrict bsResp
+  liftIO $ putStrLn $ show r
+  let Right (YtVideosOverview overview) = JSON.eitherDecodeStrict bsResp
+  let mbTitle = yvsTitle <$> overview !? 0
   case mbTitle of
     Nothing -> Ex.throwError TitleNotFound
     Just title -> pure title
