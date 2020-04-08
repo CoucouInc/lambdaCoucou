@@ -1,15 +1,12 @@
-{-# LANGUAGE LambdaCase        #-}
-{-# LANGUAGE OverloadedStrings #-}
-
 module LambdaCoucou.Bot where
 
+import RIO
+import System.IO (putStrLn)
+
 import qualified Control.Concurrent.Async  as Async
-import           Control.Lens              ((&), (.~), (^.))
-import           Control.Monad
-import           Control.Monad.IO.Class    (liftIO)
-import qualified Control.Monad.Reader      as Rdr
-import           Data.Text                 (Text)
+import           Control.Lens              ((&), (.~))
 import qualified GHC.Conc                  as TVar
+
 import qualified Network.IRC.Client        as IRC.C
 import qualified Network.IRC.Client.Events as IRC.Ev
 import qualified Network.IRC.Client.Lens   as IRC.L
@@ -81,7 +78,7 @@ commandHandler = IRC.Ev.EventHandler
     -- only ignore bots for this handler. A url produced by another bot
     -- should still trigger updateLastUrlHandler
     (IRC.Ev.Channel chanName nick, Right msg) -> unless (blacklisted nick) $ do
-      instanceCfg <- Rdr.asks (^. IRC.C.instanceConfig)
+      instanceCfg <- asks (^. IRC.C.instanceConfig)
       ownNick <- (^. IRC.C.nick) <$> liftIO (TVar.readTVarIO instanceCfg)
       if msg == "coucou " <> ownNick
         then replyTo source (Just $ "coucou " <> nick)

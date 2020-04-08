@@ -1,15 +1,11 @@
-{-# LANGUAGE LambdaCase        #-}
-{-# LANGUAGE OverloadedStrings #-}
-
 module LambdaCoucou.Cancer where
 
+import RIO
+import RIO.Vector ((!?))
+import qualified RIO.Vector as V
+import qualified RIO.Text as T
+
 import qualified Control.Monad.Except      as Ex
-import           Control.Monad.IO.Class
-import           Data.Text                 (Text)
-import qualified Data.Text                 as Tx
-import qualified Data.Text.Encoding        as Tx.Enc
-import           Data.Vector               ((!))
-import qualified Data.Vector               as V
 import           Network.HTTP.Req          ((/:))
 import qualified Network.HTTP.Req          as Req
 import qualified Network.IRC.Client        as IRC.C
@@ -62,19 +58,19 @@ getCancer cancer = do
   list <- fetchCancerList
   case cancer of
     RandomCancer -> do
-      idx <- liftIO $ Rng.randomRIO (0, V.length list - 1)
-      let (k, v) = list ! idx
+      idx <- liftIO $ Rng.randomRIO (0, length list - 1)
+      let Just (k, v) = list !? idx
       pure $ k <> ": " <> v
     SpecificCancer c -> do
-      let lowC = Tx.toLower c
-      case V.find (Tx.isInfixOf lowC . Tx.toLower . fst) list of
+      let lowC = T.toLower c
+      case V.find (T.isInfixOf lowC . T.toLower . fst) list of
         Nothing -> Ex.throwError (CancerNotFound c)
         Just (k, v)  -> pure $ k <> ": " <> v
 
 
 fetchCancerList
   :: MonadIO m
-  => Ex.ExceptT CancerError m (V.Vector (Text, Text))
+  => Ex.ExceptT CancerError m (Vector (Text, Text))
 
 fetchCancerList = do
   resp <- Ex.withExceptT HttpExc $ LC.Http.runReqMonad $ Req.req
@@ -84,12 +80,12 @@ fetchCancerList = do
     Req.bsResponse
     mempty
 
-  cancerLines <- case Tx.Enc.decodeUtf8' (Req.responseBody resp) of
+  cancerLines <- case decodeUtf8' (Req.responseBody resp) of
     Left _err -> Ex.throwError DecodingError
-    Right x   -> pure (Tx.lines x)
+    Right x   -> pure (T.lines x)
   pure $ V.fromList $ fmap parseLine cancerLines
 
 parseLine :: Text -> (Text, Text)
 parseLine l =
-  let (k, v) = Tx.span (/= ':') l
-  in (k, Tx.strip (Tx.drop 1 v))
+  let (k, v) = T.span (/= ':') l
+  in (k, T.strip (T.drop 1 v))

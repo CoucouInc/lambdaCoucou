@@ -1,23 +1,16 @@
-{-# LANGUAGE DataKinds         #-}
-{-# LANGUAGE DeriveAnyClass    #-}
-{-# LANGUAGE FlexibleContexts  #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TypeApplications  #-}
-
 module LambdaCoucou.Channel where
 
-import           Control.Applicative
-import           Control.Lens                 (at, (%~), (&), (<%=), (^.),
-                                               _Just)
-import           Control.Monad
-import qualified Control.Monad.Catch          as MT
-import           Control.Monad.IO.Class       (liftIO)
+import RIO
+import qualified RIO.Map as Map
+import qualified RIO.Set as Set
+import qualified RIO.Set.Partial as Set'
+import qualified RIO.Text as T
+import qualified RIO.Text.Partial as T'
+import System.IO (putStrLn)
+
+import           Control.Lens                 (at, (%~), (&), (<%=), _Just)
 import qualified Control.Monad.State.Strict   as St
 import           Data.Generics.Product.Fields (field)
-import qualified Data.Map.Strict              as Map
-import qualified Data.Set                     as Set
-import           Data.Text                    (Text)
-import qualified Data.Text                    as Tx
 import qualified Network.IRC.Client           as IRC.C
 import qualified Network.IRC.Client.Events    as IRC.Ev
 import qualified System.Random                as Rng
@@ -34,10 +27,14 @@ channelStateHandlers =
   ]
 
 data InvalidNameReply = InvalidNameReply
-  deriving (Show, MT.Exception)
+  deriving (Show, Typeable)
+
+instance Exception InvalidNameReply
 
 data InvalidChannelType = InvalidChannelType
-  deriving (Show, MT.Exception)
+  deriving (Show, Typeable)
+
+instance Exception InvalidChannelType
 
 --  353 == RPL_NAMREPLY list of nicks in a given channel
 onJoinChannelState :: IRC.Ev.EventHandler LC.St.CoucouState
@@ -48,29 +45,29 @@ onJoinChannelState = IRC.Ev.EventHandler
     case args of
       [_ownNick, rawChanType, chanName, nickList] ->
         case parseChanType rawChanType of
-          Nothing -> MT.throwM InvalidChannelType
+          Nothing -> throwM InvalidChannelType
           Just chanType -> do
             let nicks = fmap parseNick
                   $ filter (/= nick)
-                  $ Tx.words nickList
+                  $ T.words nickList
             let chanSt = LC.St.ChannelState
                   { LC.St.cstUsers = Set.fromList nicks
                   , LC.St.cstType = chanType
                   }
             field @"csChannels" <%= Map.insert (LC.St.ChannelName chanName) chanSt
-      _ -> MT.throwM InvalidNameReply
+      _ -> throwM InvalidNameReply
     pure ()
   )
 
 parseNick :: Text -> Text
 parseNick n
-  | Tx.null n = n
-  | Tx.head n == '*' || Tx.head n == '@' = Tx.tail n
+  | T.null n = n
+  | T'.head n == '*' || T'.head n == '@' = T'.tail n
   | otherwise = n
 
 parseChanType :: Text -> Maybe LC.St.ChannelType
-parseChanType ct = case Tx.uncons ct of
-  Just (typ, rest) | Tx.null rest -> case typ of
+parseChanType ct = case T.uncons ct of
+  Just (typ, rest) | T.null rest -> case typ of
     '@' -> Just LC.St.Secret
     '*' -> Just LC.St.Private
     '=' -> Just LC.St.Public
@@ -147,5 +144,5 @@ shoutCoucouCommandHandler chanName = do
     then pure Nothing
     else do
       idx <- liftIO $ Rng.randomRIO (0, s - 1)
-      let usr = Set.elemAt idx usrList
+      let usr = Set'.elemAt idx usrList
       pure $ Just $ "coucou " <> usr

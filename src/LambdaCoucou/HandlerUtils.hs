@@ -1,8 +1,6 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module LambdaCoucou.HandlerUtils where
 
-import Data.Text (Text)
+import RIO
 
 addTarget :: Maybe Text -> Text -> Text
 addTarget mbTarget msg = case mbTarget of

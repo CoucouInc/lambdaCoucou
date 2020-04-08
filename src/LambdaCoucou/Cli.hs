@@ -1,14 +1,11 @@
-{-# LANGUAGE DeriveGeneric     #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE StrictData        #-}
-{-# LANGUAGE TypeApplications  #-}
+{-# LANGUAGE StrictData #-}
 
 module LambdaCoucou.Cli where
 
+import RIO
+
 import           Control.Monad.Identity (runIdentity)
 import           Data.Generic.HKD       (HKD, build, construct)
-import           Data.Text              (Text)
-import           GHC.Generics
 import qualified Options.Harg           as H
 
 import qualified LambdaCoucou.State as LC.St

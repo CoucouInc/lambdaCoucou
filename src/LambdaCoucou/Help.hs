@@ -1,8 +1,7 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module LambdaCoucou.Help where
 
-import           Data.Text                 (Text)
+import RIO
+
 import qualified Network.IRC.Client        as IRC.C
 
 import qualified LambdaCoucou.HandlerUtils as LC.Hdl

@@ -42,6 +42,19 @@ library
     , LambdaCoucou.TwitchTypes
     , LambdaCoucou.TwitchHook
 
+  extensions:
+      DataKinds
+    , DeriveGeneric
+    , DerivingVia
+    , FlexibleContexts
+    , GeneralizedNewtypeDeriving
+    , LambdaCase
+    , NamedFieldPuns
+    , NoImplicitPrelude
+    , OverloadedStrings
+    , ScopedTypeVariables
+    , TypeApplications
+
   build-depends:
       base >= 4.7 && < 5
     , aeson
@@ -78,6 +91,7 @@ library
     , stm-chans
     , wai-extra
     , aeson-pretty
+    , rio
 
 executable lambdacoucou
   hs-source-dirs:      bin

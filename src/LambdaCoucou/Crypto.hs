@@ -1,16 +1,14 @@
-{-# LANGUAGE LambdaCase        #-}
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE StrictData        #-}
 
 module LambdaCoucou.Crypto where
 
+import RIO
+import qualified RIO.Text as T
+
 import           Control.Lens                     ((^?))
 import qualified Control.Monad.Except             as Ex
-import           Control.Monad.IO.Class
 import qualified Data.Aeson.Lens                  as AL
 import           Data.Scientific
-import           Data.Text                        (Text)
-import qualified Data.Text                        as Tx
 import           Network.HTTP.Req                 ((/:))
 import qualified Network.HTTP.Req                 as Req
 import qualified Network.IRC.Client               as IRC.C
@@ -88,7 +86,7 @@ showRate coin val
   = "1 "
   <> symbol coin
   <> " vaut "
-  <> Tx.pack (show val)
+  <> T.pack (show val)
   <> " euros grâce au pouvoir de la spéculation !"
 
 showUnknownCoin :: Text -> Text
@@ -109,5 +107,5 @@ instance SQL.FromField CryptoCoin where
     SQL.SQLText txt -> case txt of
       "BTC" -> SQL.Ok Bitcoin
       "ETH" -> SQL.Ok Ethereum
-      _ -> SQL.returnError SQL.ConversionFailed f ("Unexpected value: " <> Tx.unpack txt)
+      _ -> SQL.returnError SQL.ConversionFailed f ("Unexpected value: " <> T.unpack txt)
     _ -> SQL.returnError SQL.Incompatible f "Cannot parse CryptoCoin value"

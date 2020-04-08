@@ -1,6 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE OverloadedStrings #-}
-
 module LambdaCoucou.RepublicanCalendar
   -- ( gregorian2republican
   -- , prettyDate
@@ -8,8 +5,8 @@ module LambdaCoucou.RepublicanCalendar
   -- )
   where
 
-import Data.Text (Text)
-import qualified Data.Text as Tx
+import RIO
+import qualified RIO.Text as T
 
 data RMonth
   = Vnd
@@ -267,7 +264,7 @@ gregorian2republican x@(y, m, _) =
         _   -> Nothing
 
 showR :: (Year, RMonth, Day) -> Text
-showR (y, m, d) = Tx.pack $ show d <> " " <> show m <> " " <> show y
+showR (y, m, d) = T.pack $ show d <> " " <> show m <> " " <> show y
 
 
 prettyDate :: (Year, RMonth, Day) -> Text

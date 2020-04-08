@@ -1,44 +1,42 @@
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE StrictData #-}
 {-# LANGUAGE RecordWildCards #-}
 
 module LambdaCoucou.TwitchTypes where
 
-import Control.Applicative
+import RIO
+import qualified RIO.Time as Time
+import qualified RIO.Vector as V
+import qualified RIO.Vector.Partial as V'
+
 import qualified Control.Concurrent.MVar as MVar
 import Data.Aeson ((.:), (.=))
 import qualified Data.Aeson as JSON
-import qualified Data.Text as Tx
-import qualified Data.Time.Clock as Clk
-import qualified Data.Vector as V
 import qualified Servant.API as SAPI
 import qualified Control.Concurrent.STM.TBMChan as Chan
 
-newtype UserLogin = UserLogin {getUserLogin :: Tx.Text}
+newtype UserLogin = UserLogin {getUserLogin :: Text}
   deriving (Show, Eq)
   deriving newtype (JSON.FromJSON)
 
-newtype ClientID = ClientID {getClientID :: Tx.Text}
+newtype ClientID = ClientID {getClientID :: Text}
   deriving stock (Show, Eq)
   deriving newtype (SAPI.ToHttpApiData)
 
-newtype ClientSecret = ClientSecret {getClientSecret :: Tx.Text}
+newtype ClientSecret = ClientSecret {getClientSecret :: Text}
   deriving newtype (SAPI.ToHttpApiData)
 
-newtype ClientAuthToken = ClientAuthToken {getClientAuthToken :: Tx.Text}
+newtype ClientAuthToken = ClientAuthToken {getClientAuthToken :: Text}
   deriving stock (Show, Eq)
   deriving newtype (SAPI.ToHttpApiData, JSON.FromJSON)
 
-newtype UserID = UserID {getUserID :: Tx.Text}
+newtype UserID = UserID {getUserID :: Text}
   deriving (Show, Eq)
   deriving newtype (JSON.FromJSON)
 
 data StreamData
   = StreamData
-      { sdTitle :: Tx.Text,
-        sdStartedAt :: Tx.Text,
+      { sdTitle :: Text,
+        sdStartedAt :: Text,
         sdUserID :: UserID,
         sdUserName :: UserLogin
       }
@@ -54,8 +52,8 @@ instance JSON.FromJSON StreamData where
 
 data User
   = User
-      { usrChannelDescription :: Tx.Text,
-        usrDisplayName :: Tx.Text,
+      { usrChannelDescription :: Text,
+        usrDisplayName :: Text,
         usrLoginName :: UserLogin,
         usrID :: UserID,
         usrViewCount :: Int
@@ -81,15 +79,15 @@ instance (JSON.FromJSON a) => JSON.FromJSON (SingleTwitchResponse a) where
     where
       dataParser arr = case V.length arr of
         0 -> fail $ "No data received: " <> show arr
-        1 -> SingleTwitchResponse <$> JSON.parseJSON (V.head arr)
+        1 -> SingleTwitchResponse <$> JSON.parseJSON (V'.head arr)
         _ -> fail $ "Expected one datum but got: " <> show arr
 
 data StreamState
   = StreamState
-      { twitchClientID :: Tx.Text,
-        twitchClientSecret :: Tx.Text,
+      { twitchClientID :: Text,
+        twitchClientSecret :: Text,
         twitchClientAuthToken :: ClientAuthToken,
-        twitchStreams :: V.Vector TwitchStream
+        twitchStreams :: Vector TwitchStream
       }
   deriving (Show, Eq)
 
@@ -97,11 +95,11 @@ data TwitchStream
   = TwitchStream
       { twitchUserLogin :: UserLogin,
         -- | irc nick for the corresponding streamer
-        ircNick :: Tx.Text,
+        ircNick :: Text,
         -- | channels to notify when the stream goes online
-        ircChannels :: V.Vector Tx.Text,
+        ircChannels :: Vector Text,
         -- | used as a flag to see if a stream just went live. The date isn't parsed and is treated as an opaque string
-        lastStartDate :: Maybe Tx.Text
+        lastStartDate :: Maybe Text
       }
   deriving (Show, Eq)
 
@@ -119,7 +117,7 @@ instance JSON.FromJSON ClientCredentialsResponse where
 data ClientCredentials
   = ClientCredentials
       { ccClientAuthToken :: ClientAuthToken,
-        ccExpiresAt :: Clk.UTCTime
+        ccExpiresAt :: Time.UTCTime
       }
   deriving (Show, Eq)
 
@@ -143,7 +141,7 @@ instance JSON.ToJSON HubMode where
     Unsubscribe -> "unsubscribe"
 
 
-newtype HubChallenge = HubChallenge {getHubChallenge :: Tx.Text}
+newtype HubChallenge = HubChallenge {getHubChallenge :: Text}
   deriving stock (Show, Eq)
   deriving newtype (SAPI.FromHttpApiData, SAPI.ToHttpApiData, SAPI.MimeRender SAPI.PlainText)
 
@@ -151,7 +149,7 @@ newtype HubLeaseSeconds = HubLeaseSeconds {getHubLeaseSeconds :: Int}
   deriving stock (Show, Eq)
   deriving newtype (SAPI.FromHttpApiData, SAPI.ToHttpApiData, JSON.ToJSON)
 
-newtype HubTopic = HubTopic {getHubTopic :: Tx.Text}
+newtype HubTopic = HubTopic {getHubTopic :: Text}
   deriving stock (Show, Eq)
   deriving newtype (SAPI.FromHttpApiData, SAPI.ToHttpApiData, JSON.ToJSON)
 
@@ -178,7 +176,7 @@ instance JSON.FromJSON StreamNotification where
 
 data SubscribeParams
   = SubscribeParams
-      { spCallback :: Tx.Text,
+      { spCallback :: Text,
         spMode :: HubMode,
         spTopic :: HubTopic,
         spLease :: HubLeaseSeconds
@@ -198,14 +196,14 @@ instance JSON.ToJSON SubscribeParams where
 data Lease
   = Lease
       { leaseTopic :: HubTopic,
-        leaseExpiresAt :: Clk.UTCTime
+        leaseExpiresAt :: Time.UTCTime
       }
   deriving (Show, Eq)
 
 data StreamWatcherSpec = StreamWatcherSpec
   { swsTwitchUserLogin :: UserLogin
-  , swsIRCNick :: Tx.Text
-  , swsIRCChan :: Tx.Text
+  , swsIRCNick :: Text
+  , swsIRCChan :: Text
   }
 
 data ClientEnv

@@ -1,28 +1,15 @@
-{-# LANGUAGE DataKinds                  #-}
-{-# LANGUAGE DerivingStrategies         #-}
-{-# LANGUAGE FlexibleContexts           #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE LambdaCase                 #-}
-{-# LANGUAGE OverloadedStrings          #-}
-{-# LANGUAGE StrictData                 #-}
-{-# LANGUAGE TypeApplications           #-}
-
 module LambdaCoucou.Url where
 
-import           Control.Applicative
+import RIO
+import qualified RIO.Text as T
+import qualified RIO.Text.Partial as T'
+import qualified RIO.ByteString as B
+import qualified RIO.State as St
+
 import           Control.Lens                 ((%=), (^?))
 import qualified Control.Monad.Except         as Ex
-import           Control.Monad.IO.Class
-import qualified Control.Monad.State.Strict   as St
 import qualified Data.Aeson.Lens              as AL
-import qualified Data.ByteString              as BS
 import           Data.Generics.Product.Fields (field)
-import qualified Data.List                    as List
-import           Data.Text                    (Text)
-import qualified Data.Text                    as Tx
-import qualified Data.Text.Encoding           as Tx.Enc
-import qualified Data.Text.Encoding.Error     as Tx.Enc
-import           Data.Void
 import           Network.HTTP.Req             ((/:), (=:))
 import qualified Network.HTTP.Req             as Req
 import qualified Network.HTTP.Types.URI       as HTTP.Uri
@@ -100,8 +87,8 @@ fetchUrlData ytApiKey rawUrl =
 data FetchError
   = UnparsableUrl
   | HttpExc Req.HttpException
-  | InvalidContentType BS.ByteString
-  | DecodingError Tx.Enc.UnicodeException
+  | InvalidContentType ByteString
+  | DecodingError UnicodeException
   | TitleNotFound
   | YoutubeIdNotFound
   deriving (Show)
@@ -113,7 +100,9 @@ showFetchError textUrl = \case
   HttpExc exc
     -> "Http exception: " <> LC.Http.showHttpException exc <> " for url: " <> textUrl
   InvalidContentType ct ->
-    "Invalid content type: " <> Tx.Enc.decodeUtf8 ct <> " for url: " <> textUrl
+    -- the content type is coming from an http header, as a bytestring, alreadyd decoded as utf8
+    let Right decoded = T.decodeUtf8' ct
+    in "Invalid content type: " <> decoded <> " for url: " <> textUrl
   DecodingError _ ->
     "UTF8 decoding error for url: " <> textUrl
   TitleNotFound ->
@@ -122,6 +111,7 @@ showFetchError textUrl = \case
     "Could not find the youtube video's id for url: " <> textUrl
 
 
+-- TODO: rework that to simply throw exceptions
 newtype ReqMonad m a = ReqMonad { runReqMonad :: Ex.ExceptT FetchError m a }
   deriving newtype (Functor, Applicative, Monad, Ex.MonadError FetchError, MonadIO)
 
@@ -134,7 +124,7 @@ runFetch = Ex.runExceptT . runReqMonad
 
 isYoutube :: Text -> Bool
 isYoutube rawUrl
-  = any (`Tx.isInfixOf` rawUrl)
+  = any (`T.isInfixOf` rawUrl)
     [ "https://youtube.com"
     , "https://www.youtube.com"
     , "https://youtu.be"
@@ -153,7 +143,7 @@ fetchGeneralUrlData
 fetchGeneralUrlData textUrl = do
   -- drop any fragment in the url, until the issue is resolved upstream:
   -- https://github.com/mrkkrp/req/issues/73
-  parsedUrl <- case Req.parseUrl (Tx.Enc.encodeUtf8 $ Tx.takeWhile (/= '#') textUrl) of
+  parsedUrl <- case Req.parseUrl (T.encodeUtf8 $ T.takeWhile (/= '#') textUrl) of
     Nothing -> Ex.throwError UnparsableUrl
     Just x  -> pure x
 
@@ -167,12 +157,12 @@ fetchGeneralUrlData textUrl = do
   case Req.responseHeader resp "Content-Type" of
     Nothing -> pure ()
     Just ct ->
-      let r | BS.isInfixOf "text" ct = pure ()
-            | BS.isInfixOf "html" ct = pure ()
+      let r | B.isInfixOf "text" ct = pure ()
+            | B.isInfixOf "html" ct = pure ()
             | otherwise = Ex.throwError (InvalidContentType ct)
       in r
 
-  body <- case Tx.Enc.decodeUtf8' (Req.responseBody resp) of
+  body <- case T.decodeUtf8' (Req.responseBody resp) of
     Left err -> Ex.throwError (DecodingError err)
     Right x  -> pure x
 
@@ -225,18 +215,18 @@ fetchYtUrlData ytApiKey textUrl = do
 parseYoutubeIdLong :: Text -> Maybe Text
 parseYoutubeIdLong textUrl =
   -- 0x3f is the character '?'
-  let (_, query) = BS.break (== 0x3f) (Tx.Enc.encodeUtf8 textUrl)
-  in case List.lookup "v" (HTTP.Uri.parseQueryText query) of
+  let (_, query) = B.break (== 0x3f) (T.encodeUtf8 textUrl)
+  in case lookup "v" (HTTP.Uri.parseQueryText query) of
     Nothing       -> Nothing
     Just (Just x) -> pure x
     Just _        -> Nothing
 
 parseYoutubeIdShort :: Text -> Maybe Text
 parseYoutubeIdShort textUrl =
-  let withoutProto = Tx.drop (Tx.length "https://") textUrl
-      (_, pathAndQuery) = Tx.break (== '/') withoutProto
-      path = Tx.takeWhile (/= '?') (Tx.tail pathAndQuery)
+  let withoutProto = T.drop (T.length "https://") textUrl
+      (_, pathAndQuery) = T.break (== '/') withoutProto
+      path = T.takeWhile (/= '?') (T'.tail pathAndQuery)
 
-  in if "youtu.be" `Tx.isInfixOf` textUrl
-      then if Tx.null path then Nothing else Just path
+  in if "youtu.be" `T.isInfixOf` textUrl
+      then if T.null path then Nothing else Just path
       else Nothing

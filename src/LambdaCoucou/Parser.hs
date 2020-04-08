@@ -1,11 +1,7 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module LambdaCoucou.Parser where
 
-import           Control.Applicative      hiding (many, some)
-import           Data.Functor             (($>))
-import           Data.Text                (Text)
-import           Data.Void                (Void)
+import RIO
+
 import qualified Text.Megaparsec          as M
 import qualified Text.Megaparsec.Char     as C
 

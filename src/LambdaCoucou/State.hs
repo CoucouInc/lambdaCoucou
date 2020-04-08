@@ -1,24 +1,17 @@
-{-# LANGUAGE DeriveGeneric              #-}
-{-# LANGUAGE DerivingVia                #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE StrictData                 #-}
+{-# LANGUAGE StrictData #-}
 
 module LambdaCoucou.State where
 
-import qualified Data.Map.Strict as Map
-import qualified Data.Set        as Set
-import qualified Data.String
-import qualified Data.Text       as Tx
-import           GHC.Generics
+import RIO
 
 newtype YoutubeAPIKey
-  = YoutubeAPIKey { getYoutubeAPIKey :: Tx.Text }
-  deriving Data.String.IsString via Tx.Text
+  = YoutubeAPIKey { getYoutubeAPIKey :: Text }
+  deriving IsString via Text
 
 instance Show YoutubeAPIKey where
   show _ = "YoutubeAPIKey <hidden>"
 
-newtype ChannelName = ChannelName { getChannelName :: Tx.Text }
+newtype ChannelName = ChannelName { getChannelName :: Text }
   deriving stock (Show, Eq)
   deriving newtype (Ord)
 
@@ -29,17 +22,17 @@ data ChannelType
   deriving (Show, Eq)
 
 data ChannelState = ChannelState
-  { cstUsers :: Set.Set Tx.Text
+  { cstUsers :: Set Text
   , cstType :: ChannelType
   }
   deriving (Show, Eq, Generic)
 
 data CoucouState
   = CoucouState
-      { csLastUrl    :: Maybe Tx.Text
+      { csLastUrl    :: Maybe Text
       , csCounter    :: Int
       , csYtAPIKey   :: YoutubeAPIKey
-      , csChannels   :: Map.Map ChannelName ChannelState
+      , csChannels   :: Map ChannelName ChannelState
       , csSQLitePath :: FilePath
       }
   deriving (Show, Generic)

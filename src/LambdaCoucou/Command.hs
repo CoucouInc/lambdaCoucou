@@ -1,6 +1,7 @@
 module LambdaCoucou.Command where
 
-import           Data.Text           (Text)
+import RIO
+
 import           LambdaCoucou.Crypto (CryptoCoin)
 import           LambdaCoucou.Cancer (CancerType)
 import           LambdaCoucou.Help   (HelpCommand)

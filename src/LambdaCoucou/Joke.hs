@@ -1,10 +1,8 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module LambdaCoucou.Joke where
 
-import           Control.Monad.IO.Class
-import           Data.Text                 (Text)
-import qualified Data.Text.Encoding        as Tx.Enc
+import RIO
+import qualified RIO.Text as T
+
 import qualified Network.HTTP.Req          as Req
 
 import qualified LambdaCoucou.HandlerUtils as LC.Hdl
@@ -31,6 +29,6 @@ fetchDadJoke = do
 
   case result of
     Left err -> pure $ LC.Http.showHttpException err
-    Right raw -> case Tx.Enc.decodeUtf8' (Req.responseBody raw) of
+    Right raw -> case T.decodeUtf8' (Req.responseBody raw) of
       Left _err -> pure "Invalid unicode response from the third party :/"
       Right res -> pure res
