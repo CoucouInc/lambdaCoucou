@@ -24,7 +24,7 @@ helpCommandHandler hlpCmd target = do
   let generalMsg = "`&help cmd` with cmd one of [url, crypto, date, cancer, coucou, joke]"
   let msg = case hlpCmd of
         Url ->
-          "Grab the title of the last url seen in the chan."
+          "[λurl | λurl n] Grab the title of the last url seen in the chan. If n given > 0, gives the previous n url. λurl 1 is the second to last url."
         Crypto ->
           "Get the current exchange rate for the given crypto coin."
         Date ->

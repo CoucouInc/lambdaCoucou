@@ -14,6 +14,7 @@ import qualified RIO.Text as T
 import qualified RIO.Text.Partial as T'
 import System.IO (putStrLn)
 import qualified System.Random as Rng
+import qualified Data.RingBuffer as RB
 
 channelStateHandlers :: [IRC.Ev.EventHandler LC.St.CoucouState]
 channelStateHandlers =
@@ -46,6 +47,7 @@ onJoinChannelState =
             case parseChanType rawChanType of
               Nothing -> throwM InvalidChannelType
               Just chanType -> do
+                lastUrls <- liftIO $ RB.new 10
                 let nicks =
                       fmap parseNick
                         $ filter (/= nick)
@@ -53,7 +55,8 @@ onJoinChannelState =
                 let chanSt =
                       LC.St.ChannelState
                         { LC.St.cstUsers = Set.fromList nicks,
-                          LC.St.cstType = chanType
+                          LC.St.cstType = chanType,
+                          LC.St.cstLastUrls = lastUrls
                         }
                 field @"csChannels" <%= Map.insert (LC.St.ChannelName chanName) chanSt
           _ -> throwM InvalidNameReply

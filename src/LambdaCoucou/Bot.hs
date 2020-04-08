@@ -10,7 +10,6 @@ import qualified LambdaCoucou.Command as LC.Cmd
 import qualified LambdaCoucou.Crypto as LC.C
 import qualified LambdaCoucou.CryptoMonitor as LC.Mon
 import qualified LambdaCoucou.Date as LC.Date
-import qualified LambdaCoucou.Debug as LC.Dbg
 import qualified LambdaCoucou.Help as LC.Hlp
 import qualified LambdaCoucou.Joke as LC.Joke
 import qualified LambdaCoucou.PR as LC.PR
@@ -22,6 +21,7 @@ import qualified Network.IRC.Client as IRC.C
 import qualified Network.IRC.Client.Events as IRC.Ev
 import qualified Network.IRC.Client.Lens as IRC.L
 import RIO
+import qualified System.Environment as Env
 import System.IO (putStrLn)
 
 runBot :: IO ()
@@ -42,9 +42,18 @@ runBot = do
       instanceConfig
       (LC.St.initialState (LC.Cli.ytApiKey config) (LC.Cli.sqlitePath config))
   IRC.C.runIRCAction (IRC.C.fork $ LC.Mon.monitorRates (LC.Cli.sqlitePath config)) ircState
+
+  let noopTwitch val = do
+        putStrLn $ "TWITCH_MODULE set to " <> show val <> " ≠ 1 -> not watching any streams"
+        forever (threadDelay maxBound)
+
+  (twitchProcess :: IO ()) <- Env.lookupEnv "TWITCH_MODULE" >>= \env -> case env of
+    Just "1" -> pure $ LC.Twitch.watchStreams ircState
+    _ -> pure $ noopTwitch env
+
   void $
     Async.race
-      (LC.Twitch.watchStreams ircState)
+      twitchProcess
       (IRC.C.runClientWith ircState)
   putStrLn "exiting"
 
@@ -52,7 +61,6 @@ handlers :: [IRC.Ev.EventHandler LC.St.CoucouState]
 handlers =
   [ LC.Url.updateLastUrlHandler,
     LC.Date.ctcpTimeHandler,
-    LC.Dbg.debugEventHandler,
     commandHandler
   ]
     ++ LC.Chan.channelStateHandlers
@@ -103,15 +111,15 @@ execCommand ::
   IRC.C.IRC LC.St.CoucouState (Maybe Text)
 execCommand chanName nick = \case
   LC.Cmd.Nop -> pure Nothing
-  LC.Cmd.Url mbTarget -> LC.Url.fetchUrlCommandHandler mbTarget
+  LC.Cmd.Url offset mbTarget -> LC.Url.fetchUrlCommandHandler chanName offset mbTarget
   LC.Cmd.Crypto coin target -> LC.C.cryptoCommandHandler coin target
   LC.Cmd.Date target -> LC.Date.dateCommandHandler target
   LC.Cmd.Cancer cancer target -> do
-    reply <- LC.Cancer.cancerCommandHandler cancer target
+    reply <- LC.Cancer.cancerCommandHandler chanName cancer target
     -- a cancer command will produce a url
     case reply of
       Nothing -> pure ()
-      Just x -> LC.Url.updateLastUrl x
+      Just x -> LC.Url.updateLastUrl chanName x
     pure reply
   LC.Cmd.ShoutCoucou -> LC.Chan.shoutCoucouCommandHandler chanName
   LC.Cmd.HeyCoucou -> pure $ Just $ "écoucou " <> nick

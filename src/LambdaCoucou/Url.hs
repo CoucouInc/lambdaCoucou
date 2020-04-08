@@ -1,9 +1,9 @@
 module LambdaCoucou.Url where
 
-import Control.Lens ((%=), (^?))
+import qualified Data.RingBuffer as RB
+import Control.Lens ((^?))
 import qualified Control.Monad.Except as Ex
 import qualified Data.Aeson.Lens as AL
-import Data.Generics.Product.Fields (field)
 import qualified LambdaCoucou.HandlerUtils as LC.Hdl
 import qualified LambdaCoucou.Http as LC.Http
 import qualified LambdaCoucou.ParserUtils as LC.P
@@ -15,6 +15,7 @@ import qualified Network.IRC.Client as IRC.C
 import qualified Network.IRC.Client.Events as IRC.Ev
 import RIO
 import qualified RIO.ByteString as B
+import qualified RIO.Map as Map
 import qualified RIO.State as St
 import qualified RIO.Text as T
 import qualified RIO.Text.Partial as T'
@@ -23,30 +24,40 @@ import qualified Text.Megaparsec as M
 import qualified Text.Megaparsec.Char as C
 
 fetchUrlCommandHandler ::
+  LC.St.ChannelName ->
+  Int ->
   Maybe Text ->
   IRC.C.IRC LC.St.CoucouState (Maybe Text)
-fetchUrlCommandHandler target = do
-  st <- St.get
-  case LC.St.csLastUrl st of
+fetchUrlCommandHandler chanName offset target = do
+  state <- St.get
+  mbLastUrl <- case Map.lookup chanName (LC.St.csChannels state) of
     Nothing -> pure Nothing
+    Just channel -> liftIO $ RB.latest (LC.St.cstLastUrls channel) offset
+
+  case mbLastUrl of
+    Nothing -> pure $ Just $ "No URL found for offset " <> T.pack (show offset)
     Just url ->
       Just . LC.Hdl.addTarget target
         . either
           (showFetchError url)
           (\title -> title <> " [" <> url <> "]")
-        <$> fetchUrlData (LC.St.csYtAPIKey st) url
+        <$> fetchUrlData (LC.St.csYtAPIKey state) url
 
 updateLastUrlHandler :: IRC.Ev.EventHandler LC.St.CoucouState
 updateLastUrlHandler =
   IRC.Ev.EventHandler
     (IRC.Ev.matchType IRC.Ev._Privmsg)
     ( \source (_target, raw) -> case (source, raw) of
-        (IRC.Ev.Channel _ _, Right msg) -> updateLastUrl msg
+        (IRC.Ev.Channel chanName _, Right msg) -> updateLastUrl (LC.St.ChannelName chanName) msg
         _ -> pure ()
     )
 
-updateLastUrl :: (St.MonadState LC.St.CoucouState m) => Text -> m ()
-updateLastUrl msg = field @"csLastUrl" %= (parseUrl msg <|>)
+updateLastUrl :: (MonadIO m, St.MonadState LC.St.CoucouState m) => LC.St.ChannelName -> Text -> m ()
+updateLastUrl chanName msg = Map.lookup chanName <$> St.gets LC.St.csChannels >>= \case
+  Nothing -> pure ()
+  Just chanState -> case parseUrl msg of
+    Nothing -> pure ()
+    Just url -> liftIO $ RB.append url (LC.St.cstLastUrls chanState)
 
 parseUrl :: Text -> Maybe Text
 parseUrl = hush . M.parse urlParser ""

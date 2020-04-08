@@ -27,15 +27,25 @@ tests = H.describe "Parser" $ do
     H.it "parses no op when no command" $
       LC.P.parseCommand "whatever" `T.M.shouldParse` LC.Cmd.Nop
     H.it "parses different prefixes" $ do
-      LC.P.parseCommand "λurl" `T.M.shouldParse` LC.Cmd.Url Nothing
-      LC.P.parseCommand "Σurl" `T.M.shouldParse` LC.Cmd.Url Nothing
+      LC.P.parseCommand "λurl" `T.M.shouldParse` LC.Cmd.Url 0 Nothing
+      LC.P.parseCommand "Σurl" `T.M.shouldParse` LC.Cmd.Url 0 Nothing
     H.describe "url command" $ do
       H.it "parses url command" $
-        LC.P.parseCommand "&url" `T.M.shouldParse` LC.Cmd.Url Nothing
+        LC.P.parseCommand "&url" `T.M.shouldParse` LC.Cmd.Url 0 Nothing
+      H.it "parses url command with an offset" $
+        LC.P.parseCommand "&url 4" `T.M.shouldParse` LC.Cmd.Url 4 Nothing
+      H.it "parses url command with multi digit offset" $
+        LC.P.parseCommand "&url 42" `T.M.shouldParse` LC.Cmd.Url 42 Nothing
+      H.it "parses url command with multi digit offset and some trailing space" $
+        LC.P.parseCommand "&url 42  " `T.M.shouldParse` LC.Cmd.Url 42 Nothing
       H.it "parses a target" $
-        LC.P.parseCommand "&url > foo" `T.M.shouldParse` LC.Cmd.Url (Just "foo")
+        LC.P.parseCommand "&url > foo" `T.M.shouldParse` LC.Cmd.Url 0 (Just "foo")
+      H.it "parses a target with an offset" $
+        LC.P.parseCommand "&url 3 > foo" `T.M.shouldParse` LC.Cmd.Url 3 (Just "foo")
       H.it "parses a target with multiple space around >" $
-        LC.P.parseCommand "&url  >   foo" `T.M.shouldParse` LC.Cmd.Url (Just "foo")
+        LC.P.parseCommand "&url  >   foo" `T.M.shouldParse` LC.Cmd.Url 0 (Just "foo")
+      H.it "parses a target and an offset with multiple space around >" $
+        LC.P.parseCommand "&url  2 >   foo" `T.M.shouldParse` LC.Cmd.Url 2 (Just "foo")
       H.it "doesn't parses a target when multi words after delimiter" $
         LC.P.parseCommand `T.M.shouldFailOn` "&url  >   foo bar"
     H.describe "crypto command" $ do
@@ -79,7 +89,7 @@ tests = H.describe "Parser" $ do
       H.it "parses general" $
         LC.P.parseCommand "&help" `T.M.shouldParse` LC.Cmd.Help LC.Hlp.General Nothing
       H.it "parses url" $
-        LC.P.parseCommand "&help" `T.M.shouldParse` LC.Cmd.Help LC.Hlp.General Nothing
+        LC.P.parseCommand "&help url" `T.M.shouldParse` LC.Cmd.Help LC.Hlp.Url Nothing
       H.it "parses crypto" $
         LC.P.parseCommand "&help crypto" `T.M.shouldParse` LC.Cmd.Help LC.Hlp.Crypto Nothing
       H.it "parses date" $

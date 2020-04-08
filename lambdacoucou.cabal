@@ -27,7 +27,6 @@ library
     , LambdaCoucou.Crypto
     , LambdaCoucou.CryptoMonitor
     , LambdaCoucou.Date
-    , LambdaCoucou.Debug
     , LambdaCoucou.HandlerUtils
     , LambdaCoucou.Help
     , LambdaCoucou.Http
@@ -84,6 +83,7 @@ library
     , time
     , wai-extra
     , warp
+    , ring-buffer
 
 executable lambdacoucou
   hs-source-dirs:      bin
@@ -101,6 +101,7 @@ executable lambdacoucou-test
   build-depends:       base >= 4.7 && < 5
                      , lambdacoucou
                      , rio
+                     , ring-buffer
 
 test-suite test
   type:                exitcode-stdio-1.0

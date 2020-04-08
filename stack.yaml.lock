@@ -19,12 +19,12 @@ packages:
   original:
     hackage: higgledy-0.3.1.0
 - completed:
-    hackage: datetime-0.3.1@sha256:7e275bd0ce7a2f66445bedfa0006abaf4d41af4c2204c3f8004c17eab5480e74,1534
+    hackage: ring-buffer-0.4@sha256:bd931d0cb457c1b33c22b54f2e59ac6008f7a382284c5a4ac9c7659458863e83,1521
     pantry-tree:
-      size: 334
-      sha256: d41d182c143676464cb1774f0b7777e870ddeaf8b6cd5fee6ff0114997a1f504
+      size: 318
+      sha256: 020baf442e8a717f885bac1f9320106eea2c90b50129464cf9ff1ccda6bde1e1
   original:
-    hackage: datetime-0.3.1
+    hackage: ring-buffer-0.4
 snapshots:
 - completed:
     size: 524996

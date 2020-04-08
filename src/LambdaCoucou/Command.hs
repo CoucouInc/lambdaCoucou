@@ -8,7 +8,7 @@ import RIO
 type Target = Maybe Text
 
 data CoucouCmd
-  = Url Target
+  = Url Int Target
   | Crypto (Either Text CryptoCoin) Target
   | Date Target
   | Cancer CancerType Target

@@ -3,6 +3,7 @@
 module LambdaCoucou.State where
 
 import RIO
+import qualified Data.RingBuffer as RB
 
 newtype YoutubeAPIKey
   = YoutubeAPIKey {getYoutubeAPIKey :: Text}
@@ -24,25 +25,24 @@ data ChannelType
 data ChannelState
   = ChannelState
       { cstUsers :: Set Text,
-        cstType :: ChannelType
+        cstType :: ChannelType,
+        cstLastUrls :: RB.RingBuffer Vector Text
       }
-  deriving (Show, Eq, Generic)
+  deriving (Generic)
 
 data CoucouState
   = CoucouState
-      { csLastUrl :: Maybe Text,
-        csCounter :: Int,
+      { csCounter :: Int,
         csYtAPIKey :: YoutubeAPIKey,
         csChannels :: Map ChannelName ChannelState,
         csSQLitePath :: FilePath
       }
-  deriving (Show, Generic)
+  deriving (Generic)
 
 initialState :: YoutubeAPIKey -> FilePath -> CoucouState
 initialState key fp =
   CoucouState
-    { csLastUrl = Nothing,
-      csCounter = 0,
+    { csCounter = 0,
       csChannels = mempty,
       csYtAPIKey = key,
       csSQLitePath = fp

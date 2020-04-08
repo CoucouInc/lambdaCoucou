@@ -6,6 +6,7 @@ import qualified LambdaCoucou.Crypto as LC.C
 import qualified LambdaCoucou.Help as LC.Hlp
 import qualified LambdaCoucou.ParserUtils as LC.P
 import RIO
+import qualified RIO.Partial as RIO'
 import qualified Text.Megaparsec as M
 import qualified Text.Megaparsec.Char as C
 
@@ -36,7 +37,13 @@ prefix = C.char 'λ' <|> C.char '&' <|> C.char 'Σ' -- Σ for sigma_g
 urlCommandParser :: Parser LC.Cmd.CoucouCmd
 urlCommandParser = do
   C.string "url"
-  LC.Cmd.Url <$> targetParser
+  LC.Cmd.Url <$> (M.try offsetParser <|> pure 0) <*> targetParser
+
+  where
+    offsetParser = do
+      M.some C.spaceChar
+      d <- M.some C.digitChar
+      pure $ RIO'.read d
 
 -------------------- Crypto --------------------
 cryptoCommandParser :: Parser LC.Cmd.CoucouCmd
@@ -80,7 +87,8 @@ helpCommandParser :: Parser LC.Cmd.CoucouCmd
 helpCommandParser = do
   C.string "help"
   M.choice
-    [ M.try (f "crypto" LC.Hlp.Crypto),
+    [ M.try (f "url" LC.Hlp.Url),
+      M.try (f "crypto" LC.Hlp.Crypto),
       M.try (f "date" LC.Hlp.Date),
       M.try (f "cancer" LC.Hlp.Cancer),
       M.try (f "coucou" LC.Hlp.ShoutCoucou),

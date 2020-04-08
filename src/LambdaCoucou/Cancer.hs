@@ -15,13 +15,14 @@ import qualified RIO.Vector as V
 import qualified System.Random as Rng
 
 cancerCommandHandler ::
+  LC.St.ChannelName ->
   CancerType ->
   Maybe Text ->
   IRC.C.IRC LC.St.CoucouState (Maybe Text)
-cancerCommandHandler cancer target = Ex.runExceptT (getCancer cancer) >>= \case
+cancerCommandHandler chanName cancer target = Ex.runExceptT (getCancer cancer) >>= \case
   Left err -> pure $ Just $ showCancerError err
   Right msg -> do
-    LC.Url.updateLastUrl msg
+    LC.Url.updateLastUrl chanName msg
     pure $ Just $ LC.Hdl.addTarget target msg
 
 data CancerError
