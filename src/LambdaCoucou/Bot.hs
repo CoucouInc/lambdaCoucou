@@ -8,7 +8,6 @@ import qualified LambdaCoucou.Channel as LC.Chan
 import qualified LambdaCoucou.Cli as LC.Cli
 import qualified LambdaCoucou.Command as LC.Cmd
 import qualified LambdaCoucou.Crypto as LC.C
-import qualified LambdaCoucou.CryptoMonitor as LC.Mon
 import qualified LambdaCoucou.Date as LC.Date
 import qualified LambdaCoucou.Help as LC.Hlp
 import qualified LambdaCoucou.Joke as LC.Joke
@@ -41,7 +40,7 @@ runBot = do
       connectionConfig
       instanceConfig
       (LC.St.initialState (LC.Cli.ytApiKey config) (LC.Cli.sqlitePath config))
-  IRC.C.runIRCAction (IRC.C.fork $ LC.Mon.monitorRates (LC.Cli.sqlitePath config)) ircState
+  IRC.C.runIRCAction (IRC.C.fork $ LC.C.monitorRates (LC.Cli.sqlitePath config)) ircState
 
   let noopTwitch val = do
         putStrLn $ "TWITCH_MODULE set to " <> show val <> " ≠ 1 -> not watching any streams"

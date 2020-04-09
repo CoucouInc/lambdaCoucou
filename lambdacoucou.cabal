@@ -25,7 +25,6 @@ library
     , LambdaCoucou.Cli
     , LambdaCoucou.Command
     , LambdaCoucou.Crypto
-    , LambdaCoucou.CryptoMonitor
     , LambdaCoucou.Date
     , LambdaCoucou.HandlerUtils
     , LambdaCoucou.Help

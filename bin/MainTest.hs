@@ -9,6 +9,7 @@ module Main where
 
 import RIO
 import qualified RIO.Text as T
+import qualified RIO.Time as Time
 import System.IO (putStrLn)
 import qualified System.Environment as Env
 
@@ -19,11 +20,9 @@ import qualified LambdaCoucou.Http as Http
 
 main :: IO ()
 main = do
-  Just key <- Env.lookupEnv "YT_API_KEY"
-  resp <- U.runFetch $ U.fetchYtUrlData
-    (St.YoutubeAPIKey $ T.pack key)
-    "https://www.youtube.com/watch?v=QVzfg61uTwE"
-
-  putStrLn $ show resp
-
+  -- CM.test
+  now <- Time.getCurrentTime
+  let d = Time.utctDay now
+  putStrLn $ show $ Time.addGregorianMonthsClip (-2) d
+  putStrLn $ show $ Time.addDays (-61) d
   putStrLn "all done"
