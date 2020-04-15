@@ -136,7 +136,8 @@ isYoutube rawUrl =
     [ "https://youtube.com",
       "https://www.youtube.com",
       "https://youtu.be",
-      "https://www.youtu.be"
+      "https://www.youtu.be",
+      "https://m.youtube.com"
     ]
 
 fetchGeneralUrlData ::
