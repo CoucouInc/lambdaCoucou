@@ -26,6 +26,7 @@ library
     , LambdaCoucou.Command
     , LambdaCoucou.Crypto
     , LambdaCoucou.Date
+    , LambdaCoucou.Debug
     , LambdaCoucou.HandlerUtils
     , LambdaCoucou.Help
     , LambdaCoucou.Http

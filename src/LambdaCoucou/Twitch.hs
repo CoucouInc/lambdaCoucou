@@ -186,9 +186,10 @@ leaseExpiresAfter :: Time.UTCTime -> Int -> Lease -> Bool
 leaseExpiresAfter now intervalInSeconds lease =
   Time.addUTCTime (10 ^ 12 * fromIntegral intervalInSeconds) now >= leaseExpiresAt lease
 
-watchStreams :: IRC.C.IRCState s -> IO ()
-watchStreams botState = do
+watchStreams :: IRC.C.IRCState s -> MVar.MVar (Maybe ClientEnv) -> IO ()
+watchStreams botState clientEnvMvar = do
   env <- liftIO makeClientEnv
+  MVar.swapMVar clientEnvMvar (Just env)
   let specs =
         [ StreamWatcherSpec
             { swsTwitchUserLogin = UserLogin "artart78",

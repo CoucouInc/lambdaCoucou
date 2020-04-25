@@ -35,11 +35,13 @@ runBot = do
           & IRC.L.channels .~ [LC.Cli.chan config]
           & IRC.L.version .~ "lambdacoucou-v2"
           & IRC.L.handlers .~ handlers
+
+  initialBotState <- LC.St.initialState (LC.Cli.ytApiKey config) (LC.Cli.sqlitePath config)
   ircState <-
     IRC.C.newIRCState
       connectionConfig
       instanceConfig
-      (LC.St.initialState (LC.Cli.ytApiKey config) (LC.Cli.sqlitePath config))
+      initialBotState
   IRC.C.runIRCAction (IRC.C.fork $ LC.C.monitorRates (LC.Cli.sqlitePath config)) ircState
 
   let noopTwitch val = do
@@ -47,7 +49,7 @@ runBot = do
         forever (threadDelay maxBound)
 
   (twitchProcess :: IO ()) <- Env.lookupEnv "TWITCH_MODULE" >>= \env -> case env of
-    Just "1" -> pure $ LC.Twitch.watchStreams ircState
+    Just "1" -> pure $ LC.Twitch.watchStreams ircState (LC.St.csTwitch initialBotState)
     _ -> pure $ noopTwitch env
 
   void $

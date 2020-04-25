@@ -4,6 +4,7 @@ module LambdaCoucou.State where
 
 import RIO
 import qualified Data.RingBuffer as RB
+import qualified LambdaCoucou.TwitchTypes as Twitch
 
 newtype YoutubeAPIKey
   = YoutubeAPIKey {getYoutubeAPIKey :: Text}
@@ -35,15 +36,18 @@ data CoucouState
       { csCounter :: Int,
         csYtAPIKey :: YoutubeAPIKey,
         csChannels :: Map ChannelName ChannelState,
-        csSQLitePath :: FilePath
+        csSQLitePath :: FilePath,
+        csTwitch :: MVar (Maybe Twitch.ClientEnv)
       }
   deriving (Generic)
 
-initialState :: YoutubeAPIKey -> FilePath -> CoucouState
-initialState key fp =
-  CoucouState
+initialState :: YoutubeAPIKey -> FilePath -> IO CoucouState
+initialState key fp = do
+  emptyTwitchState <- newMVar Nothing
+  pure $ CoucouState
     { csCounter = 0,
       csChannels = mempty,
       csYtAPIKey = key,
-      csSQLitePath = fp
+      csSQLitePath = fp,
+      csTwitch = emptyTwitchState
     }
