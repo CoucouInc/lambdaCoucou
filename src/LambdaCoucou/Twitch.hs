@@ -210,9 +210,9 @@ watchStreams botState clientEnvMvar = do
 
   Async.runConc $
     Async.conc (IRC.C.runIRCAction (processNotifications specs (ceNotifChan env)) botState)
-    <|> Async.conc (traverse_ (startWatchChannel env) specs)
-    <|> Async.conc (Hook.runWebhookServer env)
-    <|> Async.conc (watchLeases env)
+    <> Async.conc (traverse_ (startWatchChannel env) specs)
+    <> Async.conc (Hook.runWebhookServer env)
+    <> Async.conc (watchLeases env)
 
   logStr "Not watching streams anymore"
 
