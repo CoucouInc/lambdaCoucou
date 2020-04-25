@@ -72,7 +72,10 @@ callbackHandler leases hubMode topic challenge mbLease =
         now <- liftIO Time.getCurrentTime
         let expiresAt = Time.addUTCTime (fromIntegral leaseSeconds) now
         let newLease = Lease {leaseTopic = topic, leaseExpiresAt = expiresAt}
-        liftIO $ MVar.modifyMVar_ leases $ \ls -> pure (newLease : ls)
+        liftIO $ MVar.modifyMVar_ leases $ \ls ->
+          -- remove any existing lease with the same topic. This will happen
+          -- when renewing a lease
+          pure $ newLease : filter (\l -> leaseTopic l /= topic) ls
         pure challenge
 
 notificationHandler ::

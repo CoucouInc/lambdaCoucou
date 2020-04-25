@@ -1,6 +1,5 @@
 module LambdaCoucou.Twitch where
 
-import qualified Control.Concurrent.Async as Async
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM.TBMChan as Chan
 import qualified Control.Monad.STM as STM
@@ -17,6 +16,7 @@ import qualified RIO.Text as T
 import qualified RIO.Time as Time
 import qualified System.Environment as Env
 import System.IO (putStr)
+import qualified UnliftIO.Async as Async
 
 getClientCredentials ::
   (MonadIO m, MonadThrow m) =>
@@ -166,6 +166,26 @@ processNotifications specs chan = loop
                 IRC.C.send msg
                 loop
 
+-- | every 10 minutes, check if leases are expiring soon, if yes, renew them
+watchLeases :: ClientEnv -> IO ()
+watchLeases env = forever $ do
+  threadDelay (intervalInSeconds * 10 ^ 6)
+  now <- Time.getCurrentTime
+  leasesSoonToExpire <- filter (leaseExpiresAfter now intervalInSeconds) <$> MVar.readMVar envLeases
+  forM_ leasesSoonToExpire $ \l -> do
+    logStr $ "Renewing lease: " <> show l
+    postWebhook Subscribe env (leaseTopic l)
+
+  when (null leasesSoonToExpire) $ logStr "no twitch lease to renew"
+
+  where
+    envLeases = ceNotificationLeases env
+    intervalInSeconds = 60 * 10
+
+leaseExpiresAfter :: Time.UTCTime -> Int -> Lease -> Bool
+leaseExpiresAfter now intervalInSeconds lease =
+  Time.addUTCTime (10 ^ 12 * fromIntegral intervalInSeconds) now >= leaseExpiresAt lease
+
 watchStreams :: IRC.C.IRCState s -> IO ()
 watchStreams botState = do
   env <- liftIO makeClientEnv
@@ -186,11 +206,13 @@ watchStreams botState = do
               swsIRCChan = "#arch-fr-free"
             }
         ]
-  Async.runConcurrently $
-    (,,)
-      <$> Async.Concurrently (IRC.C.runIRCAction (processNotifications specs (ceNotifChan env)) botState)
-      <*> Async.Concurrently (traverse_ (startWatchChannel env) specs)
-      <*> Async.Concurrently (Hook.runWebhookServer env)
+
+  Async.runConc $
+    Async.conc (IRC.C.runIRCAction (processNotifications specs (ceNotifChan env)) botState)
+    <|> Async.conc (traverse_ (startWatchChannel env) specs)
+    <|> Async.conc (Hook.runWebhookServer env)
+    <|> Async.conc (watchLeases env)
+
   logStr "Not watching streams anymore"
 
 iso8601 :: Time.UTCTime -> String
@@ -245,6 +267,7 @@ test = do
           (processTest env)
       )
       (Hook.runWebhookServer env)
+
   -- getClientCredentials clientID clientSecret >>= print
   -- getTwitchStream clientAuthToken stream >>= print
   -- getTwitchUser clientAuthToken (UserLogin "gikiam") >>= print

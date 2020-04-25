@@ -82,6 +82,7 @@ library
     , wai-extra
     , warp
     , ring-buffer
+    , unliftio
 
 executable lambdacoucou
   hs-source-dirs:      bin
