@@ -184,7 +184,7 @@ watchLeases env = forever $ do
 
 leaseExpiresAfter :: Time.UTCTime -> Int -> Lease -> Bool
 leaseExpiresAfter now intervalInSeconds lease =
-  Time.addUTCTime (10 ^ 12 * fromIntegral intervalInSeconds) now >= leaseExpiresAt lease
+  Time.addUTCTime (fromIntegral intervalInSeconds) now >= leaseExpiresAt lease
 
 watchStreams :: IRC.C.IRCState s -> MVar.MVar (Maybe ClientEnv) -> IO ()
 watchStreams botState clientEnvMvar = do
