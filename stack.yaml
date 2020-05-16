@@ -9,6 +9,7 @@ extra-deps:
   - harg-0.4.0.0
   - higgledy-0.3.1.0 # harg dependency
   - ring-buffer-0.4
+  - with-utf8-1.0.1.0
 
 # ring-buffer has a tight upper bound on base
 allow-newer: true

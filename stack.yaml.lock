@@ -25,6 +25,13 @@ packages:
       sha256: 020baf442e8a717f885bac1f9320106eea2c90b50129464cf9ff1ccda6bde1e1
   original:
     hackage: ring-buffer-0.4
+- completed:
+    hackage: with-utf8-1.0.1.0@sha256:455bebb5e76004c98f674803bff26ec78421de5db35d36e5ea75e6bf12563e32,2798
+    pantry-tree:
+      size: 975
+      sha256: 4fea8d17c1f957bd3ba0058570c8a23342deff2b6f40ce47329533165358d8f5
+  original:
+    hackage: with-utf8-1.0.1.0
 snapshots:
 - completed:
     size: 524996

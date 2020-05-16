@@ -92,6 +92,7 @@ executable lambdacoucou
   ghc-options: -O2 -threaded -rtsopts -with-rtsopts=-N -Wall -Wno-unused-do-bind -Wno-orphans
   build-depends:       base >= 4.7 && < 5
                      , lambdacoucou
+                     , with-utf8
 
 executable lambdacoucou-test
   hs-source-dirs:      bin
