@@ -28,6 +28,7 @@ getClientCredentials clientID clientSecret = do
         "client_id" =: clientID
           <> "client_secret" =: clientSecret
           <> "grant_type" =: ("client_credentials" :: Text)
+  logStr "Getting twitch credentials"
   resp <-
     LC.HTTP.runFetchEx $
       Req.req
@@ -39,6 +40,7 @@ getClientCredentials clientID clientSecret = do
   now <- liftIO Time.getCurrentTime
   let ccr = Req.responseBody resp
   let expiresAt = Time.addUTCTime (fromIntegral $ ccrExpiresInSeconds ccr) now
+  logStr $ "Got twitch credentials. Expire at: " <> show expiresAt
   pure $
     ClientCredentials
       { ccClientAuthToken = ccrClientAuthToken ccr,
@@ -64,10 +66,11 @@ ensureClientToken env@ClientEnv {ceClientID, ceClientSecret, ceClientCredentials
 getSingleTwitchData ::
   (MonadIO m, MonadThrow m, JSON.FromJSON a) =>
   Text ->
+  ClientID ->
   ClientAuthToken ->
   Req.Option Req.Https ->
   m a
-getSingleTwitchData urlPath token options = do
+getSingleTwitchData urlPath clientId token options = do
   resp <-
     LC.HTTP.runFetchEx $
       Req.req
@@ -75,16 +78,19 @@ getSingleTwitchData urlPath token options = do
         (Req.https "api.twitch.tv" /: "helix" /: urlPath)
         Req.NoReqBody
         Req.jsonResponse
-        (Req.oAuth2Bearer (T.encodeUtf8 $ getClientAuthToken token) <> options)
+        ( Req.oAuth2Bearer (T.encodeUtf8 $ getClientAuthToken token)
+            <> Req.header "Client-ID" (T.encodeUtf8 $ getClientID clientId)
+            <> options
+        )
   pure $ getSingleTwitchResponse $ Req.responseBody resp
 
-getTwitchStream :: (MonadIO m, MonadThrow m) => ClientAuthToken -> UserLogin -> m StreamData
-getTwitchStream token (UserLogin userLogin) =
-  getSingleTwitchData "streams" token ("user_login" =: userLogin)
+getTwitchStream :: (MonadIO m, MonadThrow m) => ClientID -> ClientAuthToken -> UserLogin -> m StreamData
+getTwitchStream clientId token (UserLogin userLogin) =
+  getSingleTwitchData "streams" clientId token ("user_login" =: userLogin)
 
-getTwitchUser :: (MonadIO m, MonadThrow m) => ClientAuthToken -> UserLogin -> m User
-getTwitchUser token (UserLogin userLogin) =
-  getSingleTwitchData "users" token ("login" =: userLogin)
+getTwitchUser :: (MonadIO m, MonadThrow m) => ClientID -> ClientAuthToken -> UserLogin -> m User
+getTwitchUser clientId token (UserLogin userLogin) =
+  getSingleTwitchData "users" clientId token ("login" =: userLogin)
 
 subscribeToChannel :: ClientEnv -> UserID -> IO ()
 subscribeToChannel env (UserID userID) =
@@ -112,13 +118,15 @@ postWebhook hubMode env topic = do
       (Req.https "api.twitch.tv" /: "helix" /: "webhooks" /: "hub")
       (Req.ReqBodyJson payload)
       Req.bsResponse
-      (Req.oAuth2Bearer (T.encodeUtf8 $ getClientAuthToken token))
+      ( Req.oAuth2Bearer (T.encodeUtf8 $ getClientAuthToken token)
+          <> Req.header "Client-ID" (T.encodeUtf8 $ getClientID $ ceClientID env)
+      )
   logStr $ "subscription request sent: " <> show payload
 
 startWatchChannel :: ClientEnv -> StreamWatcherSpec -> IO ()
 startWatchChannel env spec = do
   token <- ensureClientToken env
-  twitchUser <- getTwitchUser token (swsTwitchUserLogin spec)
+  twitchUser <- getTwitchUser (ceClientID env) token (swsTwitchUserLogin spec)
   unsubscribeFromChannel env (usrID twitchUser)
   threadDelay (5 * 10 ^ 6)
   subscribeToChannel env (usrID twitchUser)
@@ -175,9 +183,7 @@ watchLeases env = forever $ do
   forM_ leasesSoonToExpire $ \l -> do
     logStr $ "Renewing lease: " <> show l
     postWebhook Subscribe env (leaseTopic l)
-
   when (null leasesSoonToExpire) $ logStr "no twitch lease to renew"
-
   where
     envLeases = ceNotificationLeases env
     intervalInSeconds = 60 * 10
@@ -207,13 +213,11 @@ watchStreams botState clientEnvMvar = do
               swsIRCChan = "#arch-fr-free"
             }
         ]
-
   Async.runConc $
     Async.conc (IRC.C.runIRCAction (processNotifications specs (ceNotifChan env)) botState)
-    <> Async.conc (traverse_ (startWatchChannel env) specs)
-    <> Async.conc (Hook.runWebhookServer env)
-    <> Async.conc (watchLeases env)
-
+      <> Async.conc (traverse_ (startWatchChannel env) specs)
+      <> Async.conc (Hook.runWebhookServer env)
+      <> Async.conc (watchLeases env)
   logStr "Not watching streams anymore"
 
 iso8601 :: Time.UTCTime -> String
@@ -235,6 +239,10 @@ processTest env = loop
 
 test :: IO ()
 test = do
+  clientID <- ClientID . T.pack <$> Env.getEnv "TWITCH_CLIENT_ID"
+  clientSecret <- ClientSecret . T.pack <$> Env.getEnv "TWITCH_CLIENT_SECRET"
+  getClientCredentials clientID clientSecret >>= logStr . show
+  -- error "coucou"
   env <- makeClientEnv
   -- let specs =
   --       [ StreamWatcherSpec
@@ -261,14 +269,10 @@ test = do
               swsIRCChan = "#gougoutest"
             }
         ]
-  void $
-    Async.concurrently
-      ( Async.concurrently
-          (traverse_ (startWatchChannel env) specs)
-          (processTest env)
-      )
-      (Hook.runWebhookServer env)
-
+  Async.runConc $
+    Async.conc (traverse_ (startWatchChannel env) specs)
+      <> Async.conc (processTest env)
+      <> Async.conc (Hook.runWebhookServer env)
   -- getClientCredentials clientID clientSecret >>= print
   -- getTwitchStream clientAuthToken stream >>= print
   -- getTwitchUser clientAuthToken (UserLogin "gikiam") >>= print

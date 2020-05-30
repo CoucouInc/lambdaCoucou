@@ -17,10 +17,12 @@ import qualified Data.Aeson as JSON
 import qualified LambdaCoucou.State as St
 import qualified LambdaCoucou.Url as U
 import qualified LambdaCoucou.Http as Http
+import qualified LambdaCoucou.Twitch as Twitch
 
 main :: IO ()
 main = do
   -- CM.test
+  Twitch.test
   now <- Time.getCurrentTime
   let d = Time.utctDay now
   putStrLn $ show $ Time.addGregorianMonthsClip (-2) d
