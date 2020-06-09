@@ -1,4 +1,5 @@
 {-# LANGUAGE StrictData #-}
+
 module LambdaCoucou.Url where
 
 import qualified Control.Monad.Except as Ex
@@ -35,7 +36,6 @@ fetchUrlCommandHandler chanName offset target = do
   mbLastUrl <- case Map.lookup chanName (LC.St.csChannels state) of
     Nothing -> pure Nothing
     Just channel -> liftIO $ RB.latest (LC.St.cstLastUrls channel) offset
-
   case mbLastUrl of
     Nothing -> pure $ Just $ "No URL found for offset " <> T.pack (show offset)
     Just url ->
@@ -77,10 +77,13 @@ urlParser =
     <|> (LC.P.spaces *> (M.try urlParser' <|> LC.P.utf8Word *> urlParser))
 
 urlParser' :: Parser Text
-urlParser' = do
-  proto <- C.string' "http://" <|> C.string' "https://"
-  rest <- LC.P.utf8Word'
-  pure $ proto <> rest
+urlParser' = M.between
+  (optional (M.oneOf ("([" :: String)))
+  (optional (M.oneOf ("])" :: String)))
+  $ do
+    proto <- C.string' "http://" <|> C.string' "https://"
+    rest <- LC.P.urlWord
+    pure $ proto <> rest
 
 fetchUrlData ::
   MonadIO m =>
@@ -90,7 +93,6 @@ fetchUrlData ::
 fetchUrlData ytApiKey rawUrl =
   if isYoutube rawUrl
     then runFetch $ fetchYtUrlData ytApiKey rawUrl
-    -- then LC.Http.req $ fetchYtUrlData ytApiKey rawUrl
     else runFetch $ fetchGeneralUrlData rawUrl
 
 data FetchError
@@ -148,8 +150,9 @@ fetchGeneralUrlData ::
   Text ->
   m Text
 fetchGeneralUrlData textUrl = do
-  -- drop any fragment in the url, until the issue is resolved upstream:
-  -- https://github.com/mrkkrp/req/issues/73
+  -- drop any fragment in the url since this shouldn't be transmitted to
+  -- the server. See https://github.com/mrkkrp/req/issues/73
+  -- which leads to https://github.com/snoyberg/http-client/issues/424
   parsedUrl <- case Req.parseUrl (T.encodeUtf8 $ T.takeWhile (/= '#') textUrl) of
     Nothing -> Ex.throwError UnparsableUrl
     Just x -> pure x
@@ -185,35 +188,37 @@ parseTitle body =
 isTitleTag :: HTML.Tag Text -> Bool
 isTitleTag tag = HTML.isTagOpenName "title" tag || HTML.isTagOpenName "TITLE" tag
 
-newtype YtResponseSnippets a = YtResponseSnippets { getYtResponseSnippets :: Vector a }
+newtype YtResponseSnippets a = YtResponseSnippets {getYtResponseSnippets :: Vector a}
   deriving (Show)
 
 instance (JSON.FromJSON a) => JSON.FromJSON (YtResponseSnippets a) where
   parseJSON = JSON.withObject "videoOverview" $ \o -> do
     YtResponseSnippets . fmap getSnippet <$> o .: "items"
 
-newtype Snippet a = Snippet { getSnippet :: a }
+newtype Snippet a = Snippet {getSnippet :: a}
 
 instance (JSON.FromJSON a) => JSON.FromJSON (Snippet a) where
   parseJSON = JSON.withObject "snippet" $ \o -> Snippet <$> o .: "snippet"
 
-newtype ChannelId = ChannelId { getChannelId :: Text }
+newtype ChannelId = ChannelId {getChannelId :: Text}
   deriving stock (Show)
   deriving newtype (JSON.FromJSON)
 
-data YtVideo = YtVideo
-  { yvTitle :: Text
-  , yvChannelId :: ChannelId
-  }
+data YtVideo
+  = YtVideo
+      { yvTitle :: Text,
+        yvChannelId :: ChannelId
+      }
   deriving (Show)
 
 instance JSON.FromJSON YtVideo where
   parseJSON = JSON.withObject "video" $ \v ->
     YtVideo <$> v .: "title" <*> v .: "channelId"
 
-newtype YtChannel = YtChannel
-  { ycTitle :: Text
-  }
+newtype YtChannel
+  = YtChannel
+      { ycTitle :: Text
+      }
   deriving stock (Show)
 
 instance JSON.FromJSON YtChannel where
@@ -245,13 +250,10 @@ fetchYtUrlData ytApiKey textUrl = do
                 <> "key" =: LC.St.getYoutubeAPIKey ytApiKey
             )
         )
-
   video <- case overview !? 0 of
     Nothing -> Ex.throwError TitleNotFound
     Just v -> pure v
-
   channel <- fetchYtChannel ytApiKey (yvChannelId video)
-
   pure $ yvTitle video <> " [" <> ycTitle channel <> "]"
 
 fetchYtChannel ::
@@ -268,16 +270,14 @@ fetchYtChannel ytApiKey (ChannelId channelId) = do
             (Req.https "www.googleapis.com" /: "youtube" /: "v3" /: "channels")
             Req.NoReqBody
             Req.jsonResponse
-            ("part" =: ("snippet" :: Text)
-              <> "id" =: channelId
-              <> "key" =: LC.St.getYoutubeAPIKey ytApiKey
+            ( "part" =: ("snippet" :: Text)
+                <> "id" =: channelId
+                <> "key" =: LC.St.getYoutubeAPIKey ytApiKey
             )
         )
-
   case resp !? 0 of
     Nothing -> throwString $ "Cannot find channel with id " <> T.unpack channelId
     Just chan -> pure chan
-
 
 parseYoutubeIdLong :: Text -> Maybe Text
 parseYoutubeIdLong textUrl =

@@ -146,3 +146,7 @@ tests = H.describe "Parser" $ do
       urlParser ("  coucou charlie " <> url) `T.M.shouldParse` url
     H.it "suceed regardless of what is after the url" $
       urlParser (url <> " whatever") `T.M.shouldParse` url
+    H.it "suceed with some querystring" $
+      urlParser (url <> "?query=1") `T.M.shouldParse` (url<> "?query=1")
+    H.it "succeed with parens around the url" $
+      urlParser (url <> ")") `T.M.shouldParse` url
