@@ -20,6 +20,7 @@ import qualified Network.IRC.Client as IRC.C
 import qualified Network.IRC.Client.Events as IRC.Ev
 import qualified Network.IRC.Client.Lens as IRC.L
 import RIO
+import qualified RIO.Text as T
 import qualified System.Environment as Env
 import System.IO (putStrLn)
 
@@ -35,7 +36,6 @@ runBot = do
           & IRC.L.channels .~ [LC.Cli.chan config]
           & IRC.L.version .~ "lambdacoucou-v2"
           & IRC.L.handlers .~ handlers
-
   initialBotState <- LC.St.initialState (LC.Cli.ytApiKey config) (LC.Cli.sqlitePath config)
   ircState <-
     IRC.C.newIRCState
@@ -43,15 +43,12 @@ runBot = do
       instanceConfig
       initialBotState
   IRC.C.runIRCAction (IRC.C.fork $ LC.C.monitorRates (LC.Cli.sqlitePath config)) ircState
-
   let noopTwitch val = do
         putStrLn $ "TWITCH_MODULE set to " <> show val <> " ≠ 1 -> not watching any streams"
         forever (threadDelay maxBound)
-
   (twitchProcess :: IO ()) <- Env.lookupEnv "TWITCH_MODULE" >>= \env -> case env of
     Just "1" -> pure $ LC.Twitch.watchStreams ircState (LC.St.csTwitch initialBotState)
     _ -> pure $ noopTwitch env
-
   void $
     Async.race
       twitchProcess
@@ -88,7 +85,7 @@ commandHandler =
         (IRC.Ev.Channel chanName nick, Right msg) -> unless (blacklisted nick) $ do
           instanceCfg <- asks (^. IRC.C.instanceConfig)
           ownNick <- (^. IRC.C.nick) <$> liftIO (TVar.readTVarIO instanceCfg)
-          if msg == "coucou " <> ownNick
+          if T.strip msg == "coucou " <> ownNick
             then replyTo source (Just $ "coucou " <> nick)
             else case LC.P.parseCommand msg of
               Left _err -> pure ()
