@@ -328,7 +328,7 @@ dayName = \case
   (Bru, 11) -> "du salsifis"
   (Bru, 12) -> "de la mâcre"
   (Bru, 13) -> "du topinambour"
-  (Bru, 14) -> "de l'andive"
+  (Bru, 14) -> "de l'endive"
   (Bru, 15) -> "du dindon"
   (Bru, 16) -> "du chervis"
   (Bru, 17) -> "du cresson"
