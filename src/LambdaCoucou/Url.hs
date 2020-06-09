@@ -176,10 +176,11 @@ parseTitle :: Text -> Maybe Text
 parseTitle body =
   let tags = HTML.parseTags body
       mbTitle = dropWhile (not . isTitleTag) tags
+      replaceNewLines c = if c == '\n' then ' ' else c
    in case mbTitle of
         [] -> Nothing
         [_] -> Nothing
-        (_ : title : _) -> Just (HTML.fromTagText title)
+        (_ : title : _) -> Just (T.map replaceNewLines $ HTML.fromTagText title)
 
 isTitleTag :: HTML.Tag Text -> Bool
 isTitleTag tag = HTML.isTagOpenName "title" tag || HTML.isTagOpenName "TITLE" tag
