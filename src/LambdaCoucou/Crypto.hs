@@ -1,3 +1,6 @@
+{-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE TypeApplications #-}
+
 module LambdaCoucou.Crypto where
 
 import qualified Control.Monad.Except as Ex
@@ -57,12 +60,11 @@ instance JSON.FromJSON CryptoPrice where
       (\price -> CryptoPrice <$> price .: "price")
       res
 
-data Rate
-  = Rate
-      { rDate :: Time.UTCTime,
-        rCryptoCoin :: CryptoCoin,
-        rCryptoRate :: SQLRate
-      }
+data Rate = Rate
+  { rDate :: Time.UTCTime,
+    rCryptoCoin :: CryptoCoin,
+    rCryptoRate :: SQLRate
+  }
   deriving (Show, Eq)
 
 newtype SQLRate = SQLRate {getSQLRate :: Scientific}
@@ -129,13 +131,14 @@ getRateWithHistory ::
   (MonadIO m, St.MonadState LC.St.CoucouState m) =>
   CryptoCoin ->
   m (Either CryptoError Text)
-getRateWithHistory coin = getRateInEuro coin >>= \case
-  Left err -> pure (Left err)
-  Right currentRate -> do
-    variations <- getVariations coin
-    let pretty = prettyVariations currentRate variations
-    let hist = if T.null pretty then "" else " (" <> pretty <> ")"
-    pure $ Right $ showRate coin currentRate <> hist
+getRateWithHistory coin =
+  getRateInEuro coin >>= \case
+    Left err -> pure (Left err)
+    Right currentRate -> do
+      variations <- getVariations coin
+      let pretty = prettyVariations currentRate variations
+      let hist = if T.null pretty then "" else " (" <> pretty <> ")"
+      pure $ Right $ showRate coin currentRate <> hist
 
 getRateInEuro ::
   (MonadIO m) =>
@@ -186,9 +189,8 @@ prettyVariations nowRate (mbDayAgo, mbWeekAgo, mbMonthAgo) =
       week = maybe "" (\(arrow, change) -> arrow <> fmt change <> "% 1W") (fmap withArrow mbWeekAgo)
       month = maybe "" (\(arrow, change) -> arrow <> fmt change <> "% 1M") (fmap withArrow mbMonthAgo)
    in case (mbDayAgo, mbWeekAgo, mbMonthAgo) of
-      (Nothing, Nothing, Nothing) -> ""
-      _ -> day <> " − " <> week <> " − " <> month
-
+        (Nothing, Nothing, Nothing) -> ""
+        _ -> day <> " − " <> week <> " − " <> month
 
 changeDays :: (Time.Day -> Time.Day) -> Time.UTCTime -> Time.UTCTime
 changeDays f time = time {Time.utctDay = f (Time.utctDay time)}
@@ -211,24 +213,31 @@ saveRate :: SQL.Connection -> Rate -> IO ()
 saveRate conn =
   SQL.execute conn "INSERT INTO crypto_rate (date, coin, rate) VALUES (?, ?, ?)"
 
+initTable :: MonadIO m => FilePath -> m ()
+initTable fp = liftIO $
+  SQL.withConnection fp $ \conn ->
+    SQL.execute_ conn "CREATE TABLE IF NOT EXISTS crypto_rate(date DATETIME, coin TEXT, rate TEXT)"
+
 getRateAndSave ::
   (MonadIO m) =>
   FilePath ->
   CryptoCoin ->
   m ()
-getRateAndSave fp coin = getRateInEuro coin >>= \case
-  Left err -> liftIO $ T.IO.putStrLn $ "Error while fetching rate: " <> showCryptoError err
-  Right rate -> void $ liftIO $ SQL.withConnection fp $ \conn -> do
-    SQL.execute_ conn "CREATE TABLE IF NOT EXISTS crypto_rate(date DATETIME, coin TEXT, rate TEXT)"
-    now <- Time.getCurrentTime
-    let rateRecord =
-          Rate
-            { rDate = now,
-              rCryptoCoin = coin,
-              rCryptoRate = SQLRate rate
-            }
-    saveRate conn rateRecord
-    T.IO.putStrLn $ "cryptocoin rate saved: " <> showPretty rateRecord
+getRateAndSave fp coin =
+  getRateInEuro coin >>= \case
+    Left err -> liftIO $ T.IO.putStrLn $ "Error while fetching rate: " <> showCryptoError err
+    Right rate -> void $
+      liftIO $
+        SQL.withConnection fp $ \conn -> do
+          now <- Time.getCurrentTime
+          let rateRecord =
+                Rate
+                  { rDate = now,
+                    rCryptoCoin = coin,
+                    rCryptoRate = SQLRate rate
+                  }
+          saveRate conn rateRecord
+          T.IO.putStrLn $ "cryptocoin rate saved: " <> showPretty rateRecord
 
 showPretty :: Rate -> Text
 showPretty r =
@@ -239,7 +248,7 @@ showPretty r =
     <> T.pack (show $ getSQLRate $ rCryptoRate r)
 
 monitorRates :: FilePath -> IRC.C.IRC s ()
-monitorRates fp = forever $ do
+monitorRates fp = initTable fp *> forever do
   res <- liftIO $ try (traverse_ (getRateAndSave fp) [Bitcoin, Ethereum])
   case res of
     Right _ -> pure ()
@@ -259,10 +268,11 @@ getHistoricRate ::
   Time.UTCTime ->
   IO (Maybe Rate)
 getHistoricRate fp coin time = SQL.withConnection fp $ \conn -> do
-  result <- SQL.queryNamed
-    conn
-    "SELECT date, coin, rate FROM crypto_rate WHERE date >= :date AND coin = :coin ORDER BY date ASC LIMIT 1"
-    [":date" := time, ":coin" := coin]
+  result <-
+    SQL.queryNamed
+      conn
+      "SELECT date, coin, rate FROM crypto_rate WHERE date >= :date AND coin = :coin ORDER BY date ASC LIMIT 1"
+      [":date" := time, ":coin" := coin]
   case result of
     [] -> pure Nothing
     (x : _) -> pure (Just x)

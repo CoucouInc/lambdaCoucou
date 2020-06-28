@@ -34,12 +34,13 @@ library
     , LambdaCoucou.Parser
     , LambdaCoucou.ParserUtils
     , LambdaCoucou.PR
+    , LambdaCoucou.Remind
     , LambdaCoucou.RepublicanCalendar
     , LambdaCoucou.State
-    , LambdaCoucou.Url
     , LambdaCoucou.Twitch
-    , LambdaCoucou.TwitchTypes
     , LambdaCoucou.TwitchHook
+    , LambdaCoucou.TwitchTypes
+    , LambdaCoucou.Url
 
   extensions:
       DataKinds
@@ -71,6 +72,7 @@ library
     , req
     , modern-uri
     , rio
+    , say
     , scientific
     , servant
     , servant-server
@@ -80,10 +82,10 @@ library
     , tagsoup
     , text
     , time
+    , unliftio
     , wai-extra
     , warp
     , ring-buffer
-    , unliftio
 
 executable lambdacoucou
   hs-source-dirs:      bin
@@ -103,6 +105,7 @@ executable lambdacoucou-test
                      , lambdacoucou
                      , rio
                      , aeson
+                     , unliftio
 
 test-suite test
   type:                exitcode-stdio-1.0

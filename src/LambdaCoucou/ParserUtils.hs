@@ -1,4 +1,12 @@
-module LambdaCoucou.ParserUtils where
+module LambdaCoucou.ParserUtils
+  ( word,
+    spaces,
+    urlWord,
+    utf8Word,
+    utf8Word',
+    int
+  )
+where
 
 import qualified Data.Char as Chr
 import RIO
@@ -36,3 +44,13 @@ utf8Word = T.pack <$> M.some (M.satisfy (not . Chr.isSpace))
 
 spaces :: Parser ()
 spaces = void (M.many C.spaceChar)
+
+digit :: Parser Int
+digit = do
+  d <- C.digitChar
+  pure $ Chr.ord d - 48
+
+int :: Parser Int
+int = do
+  ds <- M.some digit
+  pure $ foldl' (\acc d -> acc * 10 + d) 0 ds

@@ -1,6 +1,5 @@
 module LambdaCoucou.Bot where
 
-import qualified Control.Concurrent.Async as Async
 import qualified GHC.Conc as TVar
 import qualified LambdaCoucou.Cancer as LC.Cancer
 import qualified LambdaCoucou.Channel as LC.Chan
@@ -13,6 +12,7 @@ import qualified LambdaCoucou.Joke as LC.Joke
 import qualified LambdaCoucou.PR as LC.PR
 import qualified LambdaCoucou.Parser as LC.P
 import qualified LambdaCoucou.State as LC.St
+import qualified LambdaCoucou.Remind as LC.Remind
 import qualified LambdaCoucou.Twitch as LC.Twitch
 import qualified LambdaCoucou.Url as LC.Url
 import qualified Network.IRC.Client as IRC.C
@@ -22,6 +22,7 @@ import RIO
 import qualified RIO.Text as T
 import qualified System.Environment as Env
 import System.IO (putStrLn)
+import qualified UnliftIO.Async as Async
 
 runBot :: IO ()
 runBot = do
@@ -47,7 +48,7 @@ runBot = do
       connectionConfig
       instanceConfig
       initialBotState
-  IRC.C.runIRCAction (IRC.C.fork $ LC.C.monitorRates (LC.Cli.sqlitePath config)) ircState
+
   let noopTwitch val = do
         putStrLn $ "TWITCH_MODULE set to " <> show val <> " ≠ 1 -> not watching any streams"
         forever (threadDelay maxBound)
@@ -55,10 +56,16 @@ runBot = do
     Env.lookupEnv "TWITCH_MODULE" >>= \env -> case env of
       Just "1" -> pure $ LC.Twitch.watchStreams ircState (LC.St.csTwitch initialBotState)
       _ -> pure $ noopTwitch env
+
+  -- Run all actions in parallel, and if one of them returns, abort everything
+  -- It's primitive, but if something goes wrong, that should be somewhat visible
   void $
-    Async.race
-      twitchProcess
-      (IRC.C.runClientWith ircState)
+    Async.runConc
+      ( (Async.conc twitchProcess)
+          <|> (Async.conc (IRC.C.runClientWith ircState))
+          <|> (Async.conc (IRC.C.runIRCAction (LC.C.monitorRates (LC.Cli.sqlitePath config)) ircState))
+          <|> (Async.conc (IRC.C.runIRCAction LC.Remind.processReminders ircState))
+      )
   putStrLn "exiting"
 
 handlers :: [IRC.Ev.EventHandler LC.St.CoucouState]
@@ -130,6 +137,7 @@ execCommand chanName nick = \case
   LC.Cmd.PR target -> LC.PR.prCommandHandler target
   LC.Cmd.Help hlpCmd target -> LC.Hlp.helpCommandHandler hlpCmd target
   LC.Cmd.Joke target -> LC.Joke.jokeCommandHandler target
+  LC.Cmd.Remind spec text -> LC.Remind.remindCommandHandler chanName nick spec text
 
 addTarget :: Maybe Text -> Text -> Text
 addTarget mbTarget msg = case mbTarget of

@@ -50,7 +50,7 @@ getClientCredentials clientID clientSecret = do
 -- | returns a valid auth token. If the existing token is nearing expiration, it will be
 -- replaced and the updated token will be returned
 ensureClientToken :: ClientEnv -> IO ClientAuthToken
-ensureClientToken env@ClientEnv {ceClientID, ceClientSecret, ceClientCredentials} =
+ensureClientToken ClientEnv {ceClientID, ceClientSecret, ceClientCredentials} =
   MVar.modifyMVar ceClientCredentials $ \case
     Nothing -> renewCreds
     Just creds -> do
@@ -68,7 +68,7 @@ getSingleTwitchData ::
   Text ->
   ClientID ->
   ClientAuthToken ->
-  Req.Option Req.Https ->
+  Req.Option 'Req.Https ->
   m a
 getSingleTwitchData urlPath clientId token options = do
   resp <-

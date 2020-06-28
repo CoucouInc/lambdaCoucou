@@ -5,6 +5,8 @@ module LambdaCoucou.State where
 import RIO
 import qualified Data.RingBuffer as RB
 import qualified LambdaCoucou.TwitchTypes as Twitch
+import qualified Database.SQLite.Simple.ToField as SQL
+import qualified Database.SQLite.Simple.FromField as SQL
 
 newtype YoutubeAPIKey
   = YoutubeAPIKey {getYoutubeAPIKey :: Text}
@@ -16,6 +18,7 @@ instance Show YoutubeAPIKey where
 newtype ChannelName = ChannelName {getChannelName :: Text}
   deriving stock (Show, Eq)
   deriving newtype (Ord)
+  deriving (SQL.ToField, SQL.FromField) via Text
 
 data ChannelType
   = Secret

@@ -5,6 +5,7 @@ import qualified LambdaCoucou.Command as LC.Cmd
 import qualified LambdaCoucou.Crypto as LC.C
 import qualified LambdaCoucou.Help as LC.Hlp
 import qualified LambdaCoucou.Parser as LC.P
+import qualified LambdaCoucou.Remind as LC.R
 import qualified LambdaCoucou.Url as LC.Url
 import RIO
 import qualified Test.Hspec as H
@@ -23,12 +24,14 @@ tests = H.describe "Parser" $ do
       targetParser "  >  foo " `T.M.shouldParse` Just "foo"
     H.it "parses target with underscore" $
       targetParser "> foo_bar" `T.M.shouldParse` Just "foo_bar"
+
   H.describe "Command" $ do
     H.it "parses no op when no command" $
       LC.P.parseCommand "whatever" `T.M.shouldParse` LC.Cmd.Nop
     H.it "parses different prefixes" $ do
       LC.P.parseCommand "λurl" `T.M.shouldParse` LC.Cmd.Url 0 Nothing
       LC.P.parseCommand "Σurl" `T.M.shouldParse` LC.Cmd.Url 0 Nothing
+
     H.describe "url command" $ do
       H.it "parses url command" $
         LC.P.parseCommand "&url" `T.M.shouldParse` LC.Cmd.Url 0 Nothing
@@ -48,6 +51,7 @@ tests = H.describe "Parser" $ do
         LC.P.parseCommand "&url  2 >   foo" `T.M.shouldParse` LC.Cmd.Url 2 (Just "foo")
       H.it "doesn't parses a target when multi words after delimiter" $
         LC.P.parseCommand `T.M.shouldFailOn` "&url  >   foo bar"
+
     H.describe "crypto command" $ do
       H.it "parses bitcoin" $
         LC.P.parseCommand "&crypto  btc" `T.M.shouldParse` LC.Cmd.Crypto (Right LC.C.Bitcoin) Nothing
@@ -60,11 +64,13 @@ tests = H.describe "Parser" $ do
       H.it "parses a target" $
         LC.P.parseCommand "&crypto  eth  >  foo "
           `T.M.shouldParse` LC.Cmd.Crypto (Right LC.C.Ethereum) (Just "foo")
+
     H.describe "date command" $ do
       H.it "parses date command" $
         LC.P.parseCommand "&date " `T.M.shouldParse` LC.Cmd.Date Nothing
       H.it "parses date with target" $
         LC.P.parseCommand "&date  > foo" `T.M.shouldParse` LC.Cmd.Date (Just "foo")
+
     H.describe "cancer command" $ do
       H.it "parses random cancer" $
         LC.P.parseCommand "&cancer " `T.M.shouldParse` LC.Cmd.Cancer LC.Cancer.RandomCancer Nothing
@@ -80,11 +86,13 @@ tests = H.describe "Parser" $ do
       H.it "parses cancer with non alpha characters" $
         LC.P.parseCommand "&cancer foo.bar "
           `T.M.shouldParse` LC.Cmd.Cancer (LC.Cancer.SpecificCancer "foo.bar") Nothing
+
     H.describe "misc coucou command" $ do
       H.it "parses coucou command" $
         LC.P.parseCommand "&coucou  " `T.M.shouldParse` LC.Cmd.ShoutCoucou
       H.it "parses hey coucou command" $
         LC.P.parseCommand "&coucou foobared  " `T.M.shouldParse` LC.Cmd.HeyCoucou
+
     H.describe "help command" $ do
       H.it "parses general" $
         LC.P.parseCommand "&help" `T.M.shouldParse` LC.Cmd.Help LC.Hlp.General Nothing
@@ -108,16 +116,21 @@ tests = H.describe "Parser" $ do
       H.it "parses a command with a target" $
         LC.P.parseCommand "&help date > foo"
           `T.M.shouldParse` LC.Cmd.Help LC.Hlp.Date (Just "foo")
+      H.it "parses remind" $
+        LC.P.parseCommand "&help remind" `T.M.shouldParse` LC.Cmd.Help LC.Hlp.Remind Nothing
+
     H.describe "pr command" $ do
       H.it "parses bare command" $
         LC.P.parseCommand "&pr" `T.M.shouldParse` LC.Cmd.PR Nothing
       H.it "parses command with target" $
         LC.P.parseCommand "&pr  > foo" `T.M.shouldParse` LC.Cmd.PR (Just "foo")
+
     H.describe "dadJoke command" $ do
       H.it "parses bare command" $
         LC.P.parseCommand "&joke" `T.M.shouldParse` LC.Cmd.Joke Nothing
       H.it "parses with target" $
         LC.P.parseCommand "&joke > foo" `T.M.shouldParse` LC.Cmd.Joke (Just "foo")
+
   H.describe "Url" $ do
     let url = "https://foo.bar.com"
     let urlParser = M.parse LC.Url.urlParser ""
@@ -147,6 +160,73 @@ tests = H.describe "Parser" $ do
     H.it "suceed regardless of what is after the url" $
       urlParser (url <> " whatever") `T.M.shouldParse` url
     H.it "suceed with some querystring" $
-      urlParser (url <> "?query=1") `T.M.shouldParse` (url<> "?query=1")
+      urlParser (url <> "?query=1") `T.M.shouldParse` (url <> "?query=1")
     H.it "succeed with parens around the url" $
       urlParser (url <> ")") `T.M.shouldParse` url
+
+  H.describe "Remind" $ do
+    let ts =
+          LC.R.TimeSpec
+            { LC.R.dsYear = Just 2020,
+              LC.R.dsMonth = Just 6,
+              LC.R.dsDay = Just 15,
+              LC.R.dsHour = Just 12,
+              LC.R.dsMinute = Just 34
+            }
+    let tsNothing = LC.R.TimeSpec Nothing Nothing Nothing Nothing Nothing
+
+    H.describe "Duration" $ do
+      let parseTimeSpec = M.parse LC.P.timeSpecParser "timespecParser"
+      H.it "parses general case" $
+        parseTimeSpec "2020 y 6 months 15 day 12h 34min" `T.M.shouldParse` ts
+      H.it "parses missing elements" $
+        parseTimeSpec "6 months 15 day 12h 34min"
+          `T.M.shouldParse` ts
+            { LC.R.dsYear = Nothing
+            }
+      H.it "parses with only one element" $
+        parseTimeSpec "20h"
+          `T.M.shouldParse` tsNothing
+            { LC.R.dsHour = Just 20
+            }
+      H.it "fails when all fields are Nothing" $
+        parseTimeSpec `T.M.shouldFailOn` ""
+
+      H.it "handles minutes/months" $
+        parseTimeSpec "1min"
+          `T.M.shouldParse` tsNothing
+            { LC.R.dsMinute = Just 1
+            }
+
+      H.it "handles shorthand for hours and minutes" $ do
+        parseTimeSpec "17h01"
+          `T.M.shouldParse` tsNothing
+            { LC.R.dsHour = Just 17,
+              LC.R.dsMinute = Just 1
+            }
+        parseTimeSpec "17h01m"
+          `T.M.shouldParse` tsNothing
+            { LC.R.dsHour = Just 17,
+              LC.R.dsMinute = Just 1
+            }
+
+    H.describe "command" $ do
+      H.it "parse `at`" $
+        LC.P.parseCommand "&remind at 20h text"
+          `T.M.shouldParse` LC.Cmd.Remind
+            ( LC.R.RemindTime $
+                tsNothing
+                  { LC.R.dsHour = Just 20
+                  }
+            )
+            "text"
+      H.it "parse `in`" $
+        LC.P.parseCommand "&remind in 1 month 2d text"
+          `T.M.shouldParse` LC.Cmd.Remind
+            ( LC.R.RemindDuration $
+                tsNothing
+                  { LC.R.dsMonth = Just 1,
+                    LC.R.dsDay = Just 2
+                  }
+            )
+            "text"
