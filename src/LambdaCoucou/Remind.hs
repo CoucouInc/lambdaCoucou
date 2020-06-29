@@ -22,7 +22,7 @@ import Say (sayShow, sayString)
 data RemindSpec
   = RemindDuration TimeSpec
   | RemindTime TimeSpec
-  | RemindTonight
+  | RemindTomorrow (Maybe (Int, Int))
   | RemindWeekDay (Maybe (Int, Maybe Int))
   deriving (Show, Eq)
 
@@ -161,7 +161,7 @@ timeFromSpec :: Time.UTCTime -> RemindSpec -> Time.UTCTime
 timeFromSpec now = \case
   RemindDuration ts -> timeFromDuration ts
   RemindTime ts -> timeFromGivenTime ts
-  RemindTonight -> error "wip"
+  RemindTomorrow ts -> tomorrowTime ts
   RemindWeekDay _ -> error "wip"
   where
     day = Time.utctDay now
@@ -185,13 +185,30 @@ timeFromSpec now = \case
           nowSec = Time.diffTimeToPicoseconds (Time.utctDayTime now) `div` (10 ^ 12)
           (nh, rest) = nowSec `divMod` 3600
           nMin = rest `div` 60
-          dayTime = Time.secondsToDiffTime $
-            (Mb.maybe nh fromIntegral $ dsHour ts) * 3600
-              + (Mb.maybe nMin fromIntegral $ dsMinute ts) * 60
+          dayTime =
+            Time.secondsToDiffTime $
+              (Mb.maybe nh fromIntegral $ dsHour ts) * 3600
+                + (Mb.maybe nMin fromIntegral $ dsMinute ts) * 60
        in Time.UTCTime
             { Time.utctDay = day',
               Time.utctDayTime = dayTime
             }
+
+    tomorrowTime mbTs =
+      let (h, min) = case mbTs of
+            Nothing -> (Nothing, Nothing)
+            Just (a, b) -> (Just a, Just b)
+          ts =
+            TimeSpec
+              { dsYear = Nothing,
+                dsMonth = Nothing,
+                dsDay = Nothing,
+                dsHour = h,
+                dsMinute = min
+              }
+          withTime = timeFromGivenTime ts
+          d = Time.addDays 1 (Time.utctDay withTime)
+       in withTime {Time.utctDay = d}
 
 -- TODO: currently there's a bug. If a reminder should be sent to a channel
 -- but the bot hasn't joined that channel yet, it will be sent into the

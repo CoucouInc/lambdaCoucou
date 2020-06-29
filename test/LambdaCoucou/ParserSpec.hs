@@ -260,3 +260,17 @@ tests = H.describe "Parser" $ do
                   }
             )
             "text"
+
+      H.describe "tomorrow" $ do
+        H.it "parses tomorrow with a time" $
+          LC.P.parseCommand "&remind tomorrow at 12:34 text"
+            `T.M.shouldParse` LC.Cmd.Remind
+              ( LC.R.RemindTomorrow (Just (12, 34))
+              )
+              "text"
+
+        H.it "parses just tomorrow" $
+          LC.P.parseCommand "&remind tomorrow text"
+            `T.M.shouldParse` LC.Cmd.Remind
+              (LC.R.RemindTomorrow Nothing)
+              "text"

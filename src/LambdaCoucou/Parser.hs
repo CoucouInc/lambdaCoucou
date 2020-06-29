@@ -118,7 +118,7 @@ remindCommandParser :: Parser LC.Cmd.CoucouCmd
 remindCommandParser = do
   C.string "remind"
   C.space1
-  cmd <- timeAtParser <|> durationParser
+  cmd <- timeAtParser <|> durationParser <|> tomorrowParser
   txt <- M.takeWhile1P (Just "text to remind") (const True)
   pure $ LC.Cmd.Remind cmd txt
 
@@ -149,12 +149,13 @@ timeAtParser = do
       void (C.char 'T') <|> void (C.char ' ') <|> M.eof
       pure (y, m, d)
 
-    dateTimeP = do
-      h <- LC.P.int
-      C.char ':'
-      m <- LC.P.int
-      C.space1 <|> M.eof
-      pure (h, m)
+dateTimeP :: Parser (Int, Int)
+dateTimeP = do
+  h <- LC.P.int
+  C.char ':'
+  m <- LC.P.int
+  C.space1 <|> M.eof
+  pure (h, m)
 
 durationParser :: Parser LC.R.RemindSpec
 durationParser = do
@@ -204,6 +205,13 @@ durationParser = do
       pure (Just h, Just m)
     -- the eof shouldn't parse anything in a real message but is handy for testing
     end = M.eof <|> C.space1
+
+tomorrowParser :: Parser LC.R.RemindSpec
+tomorrowParser = do
+  C.string "tomorrow" <|> C.string "demain"
+  C.space1 <|> M.eof
+  time <- optional (C.string "at" *> C.space1 *> dateTimeP)
+  pure $ LC.R.RemindTomorrow time
 
 -------------------- Utils --------------------
 
