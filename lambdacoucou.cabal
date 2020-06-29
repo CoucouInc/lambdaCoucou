@@ -42,7 +42,7 @@ library
     , LambdaCoucou.TwitchTypes
     , LambdaCoucou.Url
 
-  extensions:
+  default-extensions:
       DataKinds
     , DeriveGeneric
     , DerivingVia
@@ -123,7 +123,7 @@ test-suite test
                      , text
                      , rio
 
-  extensions:
+  default-extensions:
       OverloadedStrings
     , NoImplicitPrelude
 

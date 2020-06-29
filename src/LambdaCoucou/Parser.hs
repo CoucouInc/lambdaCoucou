@@ -118,14 +118,48 @@ remindCommandParser :: Parser LC.Cmd.CoucouCmd
 remindCommandParser = do
   C.string "remind"
   C.space1
-  op <- (C.string "in" $> LC.R.RemindDuration) <|> (C.string "at" $> LC.R.RemindTime)
-  C.space1
-  cmd <- op <$> timeSpecParser
+  cmd <- timeAtParser <|> durationParser
   txt <- M.takeWhile1P (Just "text to remind") (const True)
   pure $ LC.Cmd.Remind cmd txt
 
-timeSpecParser :: Parser LC.R.TimeSpec
-timeSpecParser = do
+timeAtParser :: Parser LC.R.RemindSpec
+timeAtParser = do
+  C.string "at"
+  C.space1
+  mbDate <- optional (M.try dateP)
+  mbDateTime <- optional dateTimeP
+  if isNothing mbDate && isNothing mbDateTime
+    then fail "all fields are Nothing"
+    else
+      let (y, m, d) = case mbDate of
+            Nothing -> (Nothing, Nothing, Nothing)
+            Just (a, b, c) -> (Just a, Just b, Just c)
+          (h, min) = case mbDateTime of
+            Nothing -> (Nothing, Nothing)
+            Just (a, b) -> (Just a, Just b)
+          ts = LC.R.TimeSpec y m d h min
+       in pure $ LC.R.RemindTime ts
+  where
+    dateP = do
+      y <- LC.P.int
+      C.char '-'
+      m <- LC.P.int
+      C.char '-'
+      d <- LC.P.int
+      void (C.char 'T') <|> void (C.char ' ') <|> M.eof
+      pure (y, m, d)
+
+    dateTimeP = do
+      h <- LC.P.int
+      C.char ':'
+      m <- LC.P.int
+      C.space1 <|> M.eof
+      pure (h, m)
+
+durationParser :: Parser LC.R.RemindSpec
+durationParser = do
+  C.string "in"
+  C.space1
   y <- optional (M.try $ LC.P.int <* LC.P.spaces <* yearP)
   m <- optional (M.try $ LC.P.int <* LC.P.spaces <* monthP)
   d <- optional (M.try $ LC.P.int <* LC.P.spaces <* dayP)
@@ -138,28 +172,30 @@ timeSpecParser = do
   case (y <|> m <|> d <|> h <|> minutes) of
     Nothing -> fail "all fields are Nothing"
     Just _ ->
-      pure
-        LC.R.TimeSpec
-          { LC.R.dsYear = y,
-            LC.R.dsMonth = m,
-            LC.R.dsDay = d,
-            LC.R.dsHour = h,
-            LC.R.dsMinute = minutes
-          }
+      pure $
+        LC.R.RemindDuration $
+          LC.R.TimeSpec
+            { LC.R.dsYear = y,
+              LC.R.dsMonth = m,
+              LC.R.dsDay = d,
+              LC.R.dsHour = h,
+              LC.R.dsMinute = minutes
+            }
   where
     yearP =
       (void $ C.string "year" <* optional (C.char 's') <* end)
         <|> (M.try (void $ C.char 'y') <* end)
     monthP =
       (void $ C.string "month" <* optional (C.char 's') <* end)
-        <|> (M.try (void $ C.char 'm') <* end)
+        <|> (M.try (void $ C.char 'M') <* end)
     dayP =
       (void $ C.string "day" <* optional (C.char 's') <* end)
         <|> (M.try (void $ C.char 'd') <* end)
     hourP =
       (void $ C.string "hour" <* optional (C.char 's') <* end)
         <|> (M.try (void $ C.char 'h') <* end)
-    minP = void $ C.string "min" <* optional (C.char 's') <* end
+    minP = (void $ C.string "min" <* optional (C.char 's') <* end)
+        <|> (M.try (void $ C.char 'm') <* end)
     hourMinP = do
       h <- (LC.P.int <* (C.char 'h' <|> C.char 'H'))
       m <- LC.P.int

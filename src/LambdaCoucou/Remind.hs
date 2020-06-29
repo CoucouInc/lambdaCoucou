@@ -204,7 +204,6 @@ processReminders = do
   connPath <- St.gets LC.St.csSQLitePath
   liftIO $ SQL.withConnection connPath createTable
   forever $ do
-    sayString "process reminder there"
     now <- liftIO Time.getCurrentTime
     msgToSend <- liftIO $ processReminders' connPath intervalInSec now
     forM_ msgToSend $ \(chan, msg) ->
@@ -218,7 +217,6 @@ processReminders' connPath intervalSec now = do
     rs <- getRemindersBefore beforeTime conn
     -- not quite safe to delete the reminders before they are sent out but I'm not going
     -- to bother for this project
-    sayString $ "got " <> show (length rs) <> " reminders to process"
     mapM_ sayShow rs
     mapM_ (\(Entity i _) -> deleteReminder conn i) rs
     pure rs

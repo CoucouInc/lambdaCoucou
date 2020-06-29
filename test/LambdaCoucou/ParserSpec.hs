@@ -176,50 +176,80 @@ tests = H.describe "Parser" $ do
     let tsNothing = LC.R.TimeSpec Nothing Nothing Nothing Nothing Nothing
 
     H.describe "Duration" $ do
-      let parseTimeSpec = M.parse LC.P.timeSpecParser "timespecParser"
+      let parseTimeSpec = M.parse LC.P.durationParser "durationParser"
       H.it "parses general case" $
-        parseTimeSpec "2020 y 6 months 15 day 12h 34min" `T.M.shouldParse` ts
+        parseTimeSpec "in 2020 y 6 months 15 day 12h 34min" `T.M.shouldParse` LC.R.RemindDuration ts
       H.it "parses missing elements" $
-        parseTimeSpec "6 months 15 day 12h 34min"
-          `T.M.shouldParse` ts
-            { LC.R.dsYear = Nothing
-            }
+        parseTimeSpec "in 6 months 15 day 12h 34min"
+          `T.M.shouldParse` LC.R.RemindDuration
+            ts
+              { LC.R.dsYear = Nothing
+              }
       H.it "parses with only one element" $
-        parseTimeSpec "20h"
-          `T.M.shouldParse` tsNothing
-            { LC.R.dsHour = Just 20
-            }
+        parseTimeSpec "in 20h"
+          `T.M.shouldParse` LC.R.RemindDuration
+            tsNothing
+              { LC.R.dsHour = Just 20
+              }
       H.it "fails when all fields are Nothing" $
         parseTimeSpec `T.M.shouldFailOn` ""
 
-      H.it "handles minutes/months" $
-        parseTimeSpec "1min"
-          `T.M.shouldParse` tsNothing
-            { LC.R.dsMinute = Just 1
-            }
+      H.it "handles minutes/months" $ do
+        parseTimeSpec "in 1M"
+          `T.M.shouldParse` LC.R.RemindDuration
+            tsNothing
+              { LC.R.dsMonth = Just 1
+              }
+        parseTimeSpec "in 2m"
+          `T.M.shouldParse` LC.R.RemindDuration
+            tsNothing
+              { LC.R.dsMinute = Just 2
+              }
 
       H.it "handles shorthand for hours and minutes" $ do
-        parseTimeSpec "17h01"
-          `T.M.shouldParse` tsNothing
-            { LC.R.dsHour = Just 17,
-              LC.R.dsMinute = Just 1
-            }
-        parseTimeSpec "17h01m"
-          `T.M.shouldParse` tsNothing
-            { LC.R.dsHour = Just 17,
-              LC.R.dsMinute = Just 1
-            }
+        parseTimeSpec "in 17h01"
+          `T.M.shouldParse` LC.R.RemindDuration
+            tsNothing
+              { LC.R.dsHour = Just 17,
+                LC.R.dsMinute = Just 1
+              }
+        parseTimeSpec "in 17h01m"
+          `T.M.shouldParse` LC.R.RemindDuration
+            tsNothing
+              { LC.R.dsHour = Just 17,
+                LC.R.dsMinute = Just 1
+              }
 
     H.describe "command" $ do
-      H.it "parse `at`" $
-        LC.P.parseCommand "&remind at 20h text"
+      H.it "parse `at` with only date" $
+        LC.P.parseCommand "&remind at 2020-06-15 text"
           `T.M.shouldParse` LC.Cmd.Remind
             ( LC.R.RemindTime $
                 tsNothing
-                  { LC.R.dsHour = Just 20
+                  { LC.R.dsYear = Just 2020,
+                    LC.R.dsMonth = Just 6,
+                    LC.R.dsDay = Just 15
                   }
             )
             "text"
+
+      H.it "parse `at` with only hours and minutes" $
+        LC.P.parseCommand "&remind at 12:34 text"
+          `T.M.shouldParse` LC.Cmd.Remind
+            ( LC.R.RemindTime $
+                tsNothing
+                  { LC.R.dsHour = Just 12,
+                    LC.R.dsMinute = Just 34
+                  }
+            )
+            "text"
+
+      H.it "parse full `at`" $
+        LC.P.parseCommand "&remind at 2020-06-15 12:34 text"
+          `T.M.shouldParse` LC.Cmd.Remind
+            (LC.R.RemindTime ts)
+            "text"
+
       H.it "parse `in`" $
         LC.P.parseCommand "&remind in 1 month 2d text"
           `T.M.shouldParse` LC.Cmd.Remind
