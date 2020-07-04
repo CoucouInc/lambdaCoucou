@@ -25,6 +25,7 @@ import RIO.Vector ((!?))
 import qualified Text.HTML.TagSoup as HTML
 import qualified Text.Megaparsec as M
 import qualified Text.Megaparsec.Char as C
+import qualified Text.URI as URI
 
 fetchUrlCommandHandler ::
   LC.St.ChannelName ->
@@ -55,14 +56,15 @@ updateLastUrlHandler =
     )
 
 updateLastUrl :: (MonadIO m, St.MonadState LC.St.CoucouState m) => LC.St.ChannelName -> Text -> m ()
-updateLastUrl chanName msg = Map.lookup chanName <$> St.gets LC.St.csChannels >>= \case
-  Nothing -> pure ()
-  Just chanState -> case parseUrl msg of
+updateLastUrl chanName msg =
+  Map.lookup chanName <$> St.gets LC.St.csChannels >>= \case
     Nothing -> pure ()
-    Just url -> liftIO $ RB.append url (LC.St.cstLastUrls chanState)
+    Just chanState -> case parseUrlMessage msg of
+      Nothing -> pure ()
+      Just url -> liftIO $ RB.append url (LC.St.cstLastUrls chanState)
 
-parseUrl :: Text -> Maybe Text
-parseUrl = hush . M.parse urlParser ""
+parseUrlMessage :: Text -> Maybe Text
+parseUrlMessage = hush . M.parse urlParser ""
 
 hush :: Either e a -> Maybe a
 hush = \case
@@ -153,7 +155,7 @@ fetchGeneralUrlData textUrl = do
   -- drop any fragment in the url since this shouldn't be transmitted to
   -- the server. See https://github.com/mrkkrp/req/issues/73
   -- which leads to https://github.com/snoyberg/http-client/issues/424
-  parsedUrl <- case Req.parseUrl (T.encodeUtf8 $ T.takeWhile (/= '#') textUrl) of
+  parsedUrl <- case parseUrl (T.takeWhile (/= '#') textUrl) of
     Nothing -> Ex.throwError UnparsableUrl
     Just x -> pure x
   -- if invalid status code, an exception will be throw anyway
@@ -174,6 +176,13 @@ fetchGeneralUrlData textUrl = do
     Left err -> Ex.throwError (DecodingError err)
     Right x -> pure x
   maybe (Ex.throwError TitleNotFound) pure (parseTitle body)
+  where
+    parseUrl raw = do
+      uri <- M.parseMaybe parser raw
+      Req.useURI uri
+
+    parser :: M.Parsec Text Text URI.URI
+    parser = URI.parser
 
 parseTitle :: Text -> Maybe Text
 parseTitle body =
@@ -204,21 +213,19 @@ newtype ChannelId = ChannelId {getChannelId :: Text}
   deriving stock (Show)
   deriving newtype (JSON.FromJSON)
 
-data YtVideo
-  = YtVideo
-      { yvTitle :: Text,
-        yvChannelId :: ChannelId
-      }
+data YtVideo = YtVideo
+  { yvTitle :: Text,
+    yvChannelId :: ChannelId
+  }
   deriving (Show)
 
 instance JSON.FromJSON YtVideo where
   parseJSON = JSON.withObject "video" $ \v ->
     YtVideo <$> v .: "title" <*> v .: "channelId"
 
-newtype YtChannel
-  = YtChannel
-      { ycTitle :: Text
-      }
+newtype YtChannel = YtChannel
+  { ycTitle :: Text
+  }
   deriving stock (Show)
 
 instance JSON.FromJSON YtChannel where

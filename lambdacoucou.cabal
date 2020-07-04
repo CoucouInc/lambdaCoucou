@@ -59,8 +59,7 @@ library
     , aeson
     , async
     , generic-lens
-    , harg
-    , higgledy
+    , optparse-applicative
     , http-client
     , http-types
     , irc-client
@@ -70,6 +69,7 @@ library
     , mtl
     , random
     , req
+    , modern-uri
     , rio
     , scientific
     , servant

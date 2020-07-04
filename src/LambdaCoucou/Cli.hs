@@ -2,57 +2,45 @@
 
 module LambdaCoucou.Cli where
 
-import Control.Monad.Identity (runIdentity)
-import Data.Generic.HKD (HKD, build, construct)
-import qualified LambdaCoucou.State as LC.St
-import qualified Options.Harg as H
+import qualified Options.Applicative as O
 import RIO
 
-data Config
-  = Config
-      { chan :: Text,
-        nick :: Text,
-        ytApiKey :: LC.St.YoutubeAPIKey,
-        sqlitePath :: FilePath
-      }
+data Config = Config
+  { chan :: Text,
+    nick :: Text,
+    sqlitePath :: FilePath
+  }
   deriving (Generic)
 
-configOpt :: HKD Config H.Opt
-configOpt = build @Config chanOpt nickOpt ytKeyOpt sqlitePathOpts
-  where
-    chanOpt =
-      H.option
-        H.strParser
-        ( H.long "chan"
-            . H.short 'c'
-            . H.help "Channel to connect to"
-            . H.defaultVal "#gougoutest"
+configOptions :: O.Parser Config
+configOptions =
+  Config
+    <$> ( O.strOption
+            ( O.long "chan"
+                <> O.short 'c'
+                <> O.help "Channel to connect to"
+                <> O.value "#gougoutest"
+            )
         )
-    nickOpt =
-      H.option
-        H.strParser
-        ( H.long "nick"
-            . H.short 'n'
-            . H.help "Nickname of the bot"
-            . H.defaultVal "testLambdacoucou"
+    <*> ( O.strOption
+            ( O.long "nick"
+                <> O.short 'n'
+                <> O.help "Nickname of the bot"
+                <> O.value "testLambdacoucou"
+            )
         )
-    ytKeyOpt =
-      H.option
-        H.strParser
-        ( H.long "yt-key"
-            . H.short 'y'
-            . H.help "Youtube API key to query metadata about videos"
-            . H.envVar "YT_API_KEY"
-        )
-    sqlitePathOpts =
-      H.option
-        H.strParser
-        ( H.long "sqlite-path"
-            . H.help "Filepath to the sqlite db"
-            . H.envVar "SQLITE_FILEPATH"
+    <*> ( O.strOption
+            ( O.long "sqlite-filepath"
+                <> O.help "Filepath to the sqlite db"
+            )
         )
 
+opts = O.info
+  (configOptions O.<**> O.helper)
+  (O.fullDesc
+    <> O.progDesc "Industrial strength IRC bot for more coucou"
+    <> O.header "IRC bot"
+  )
+
 getConfig :: IO Config
-getConfig = do
-  result <- H.execOpt H.EnvSource configOpt
-  pure $ runIdentity (construct result)
+getConfig = O.execParser opts

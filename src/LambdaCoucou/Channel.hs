@@ -1,6 +1,6 @@
 module LambdaCoucou.Channel where
 
-import Control.Lens ((%~), (&), (<%=), _Just, at)
+import Control.Lens ((<%=), _Just, at)
 import qualified Control.Monad.State.Strict as St
 import Data.Generics.Product.Fields (field)
 import qualified LambdaCoucou.State as LC.St

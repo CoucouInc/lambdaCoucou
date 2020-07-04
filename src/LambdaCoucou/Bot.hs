@@ -1,7 +1,6 @@
 module LambdaCoucou.Bot where
 
 import qualified Control.Concurrent.Async as Async
-import Control.Lens ((&), (.~))
 import qualified GHC.Conc as TVar
 import qualified LambdaCoucou.Cancer as LC.Cancer
 import qualified LambdaCoucou.Channel as LC.Chan
@@ -36,7 +35,13 @@ runBot = do
           & IRC.L.channels .~ [LC.Cli.chan config]
           & IRC.L.version .~ "lambdacoucou-v2"
           & IRC.L.handlers .~ handlers
-  initialBotState <- LC.St.initialState (LC.Cli.ytApiKey config) (LC.Cli.sqlitePath config)
+
+  ytKey <-
+    Env.lookupEnv "YT_API_KEY" >>= \case
+      Just k -> pure $ LC.St.YoutubeAPIKey $ T.pack k
+      Nothing -> error "YT_API_KEY not found in environment aborting."
+
+  initialBotState <- LC.St.initialState ytKey (LC.Cli.sqlitePath config)
   ircState <-
     IRC.C.newIRCState
       connectionConfig
@@ -46,9 +51,10 @@ runBot = do
   let noopTwitch val = do
         putStrLn $ "TWITCH_MODULE set to " <> show val <> " ≠ 1 -> not watching any streams"
         forever (threadDelay maxBound)
-  (twitchProcess :: IO ()) <- Env.lookupEnv "TWITCH_MODULE" >>= \env -> case env of
-    Just "1" -> pure $ LC.Twitch.watchStreams ircState (LC.St.csTwitch initialBotState)
-    _ -> pure $ noopTwitch env
+  (twitchProcess :: IO ()) <-
+    Env.lookupEnv "TWITCH_MODULE" >>= \env -> case env of
+      Just "1" -> pure $ LC.Twitch.watchStreams ircState (LC.St.csTwitch initialBotState)
+      _ -> pure $ noopTwitch env
   void $
     Async.race
       twitchProcess

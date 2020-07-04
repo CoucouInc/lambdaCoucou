@@ -5,20 +5,6 @@
 
 packages:
 - completed:
-    hackage: harg-0.4.0.0@sha256:04dd9fab4df7dec99e839f1dd6f9d0f7e7c1a5e17990f608dfef7f2429241385,4048
-    pantry-tree:
-      size: 2025
-      sha256: f134e12c2be591e062e053e633e2371d3de8c674a52905574c313e06418db290
-  original:
-    hackage: harg-0.4.0.0
-- completed:
-    hackage: higgledy-0.3.1.0@sha256:fa3e3cb4e92e76b0fa6ce7212e12f8e479ceb1b276a6e8edf152b8c5b6834888,2031
-    pantry-tree:
-      size: 780
-      sha256: be1e99777f5d16f39fb584131ad8a49888d681eb3cc308bf6877d9f123dcbbe0
-  original:
-    hackage: higgledy-0.3.1.0
-- completed:
     hackage: ring-buffer-0.4@sha256:bd931d0cb457c1b33c22b54f2e59ac6008f7a382284c5a4ac9c7659458863e83,1521
     pantry-tree:
       size: 318
@@ -32,9 +18,23 @@ packages:
       sha256: 4fea8d17c1f957bd3ba0058570c8a23342deff2b6f40ce47329533165358d8f5
   original:
     hackage: with-utf8-1.0.1.0
+- completed:
+    hackage: sqlite-simple-0.4.18.0@sha256:3ceea56375c0a3590c814e411a4eb86943f8d31b93b110ca159c90689b6b39e5,3002
+    pantry-tree:
+      size: 1930
+      sha256: e58b9955e483d51ee0966f8ba4384305d871480e2a38b32ee0fcd4573d74cf95
+  original:
+    hackage: sqlite-simple-0.4.18.0
+- completed:
+    hackage: direct-sqlite-2.3.26@sha256:04e835402f1508abca383182023e4e2b9b86297b8533afbd4e57d1a5652e0c23,3718
+    pantry-tree:
+      size: 770
+      sha256: 11874ab21e10c5b54cd1e02a037b677dc1e2ee9986f38c599612c56654dc01c3
+  original:
+    hackage: direct-sqlite-2.3.26
 snapshots:
 - completed:
-    size: 524996
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/14/26.yaml
-    sha256: c544f5b0c4877de1f69353442ef511a361e1bdacf86304a8ad7657abdff3b28a
-  original: lts-14.26
+    size: 531696
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/16/3.yaml
+    sha256: 65e3a94c65ad07fa1913649e3f1e36c4af51bf528a5d9fd217bdc1b46d0477cc
+  original: lts-16.3
