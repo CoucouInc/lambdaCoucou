@@ -26,9 +26,13 @@ data ChannelType
   deriving (Show, Eq)
 
 data ChannelState = ChannelState
-  { cstUsers :: Set Text,
+  { -- | keep track of users currently connected to the chan
+    cstUsers :: Set Text,
     cstType :: ChannelType,
-    cstLastUrls :: RB.RingBuffer Vector Text
+    -- | keep track of a limited number of urls posted in the chan
+    cstLastUrls :: RB.RingBuffer Vector Text,
+    -- | count of consecutive message starting with "coucou" (or a variation)
+    cstCoucouCount :: Int
   }
   deriving (Generic)
 

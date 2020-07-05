@@ -1,3 +1,5 @@
+{-# LANGUAGE TypeApplications #-}
+
 module LambdaCoucou.Channel where
 
 import Control.Lens ((<%=), _Just, at)
@@ -56,7 +58,8 @@ onJoinChannelState =
                       LC.St.ChannelState
                         { LC.St.cstUsers = Set.fromList nicks,
                           LC.St.cstType = chanType,
-                          LC.St.cstLastUrls = lastUrls
+                          LC.St.cstLastUrls = lastUrls,
+                          LC.St.cstCoucouCount = 0
                         }
                 field @"csChannels" <%= Map.insert (LC.St.ChannelName chanName) chanSt
           _ -> throwM InvalidNameReply

@@ -24,6 +24,7 @@ library
     , LambdaCoucou.Channel
     , LambdaCoucou.Cli
     , LambdaCoucou.Command
+    , LambdaCoucou.CoucouTrain
     , LambdaCoucou.Crypto
     , LambdaCoucou.Date
     , LambdaCoucou.Debug
@@ -53,13 +54,13 @@ library
     , NoImplicitPrelude
     , OverloadedStrings
     , ScopedTypeVariables
-    , TypeApplications
 
   build-depends:
       base >= 4.7 && < 5
     , aeson
     , async
     , generic-lens
+    , microlens-ghc
     , optparse-applicative
     , http-client
     , http-types

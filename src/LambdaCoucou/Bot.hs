@@ -1,6 +1,5 @@
 module LambdaCoucou.Bot where
 
-import qualified GHC.Conc as TVar
 import qualified LambdaCoucou.Cancer as LC.Cancer
 import qualified LambdaCoucou.Channel as LC.Chan
 import qualified LambdaCoucou.Cli as LC.Cli
@@ -9,6 +8,7 @@ import qualified LambdaCoucou.Crypto as LC.C
 import qualified LambdaCoucou.Date as LC.Date
 import qualified LambdaCoucou.Help as LC.Hlp
 import qualified LambdaCoucou.Joke as LC.Joke
+import qualified LambdaCoucou.CoucouTrain as LC.C.Coucou
 import qualified LambdaCoucou.PR as LC.PR
 import qualified LambdaCoucou.Parser as LC.P
 import qualified LambdaCoucou.State as LC.St
@@ -96,15 +96,13 @@ commandHandler =
         -- only ignore bots for this handler. A url produced by another bot
         -- should still trigger updateLastUrlHandler
         (IRC.Ev.Channel chanName nick, Right msg) -> unless (blacklisted nick) $ do
-          instanceCfg <- asks (^. IRC.C.instanceConfig)
-          ownNick <- (^. IRC.C.nick) <$> liftIO (TVar.readTVarIO instanceCfg)
-          if T.strip msg == "coucou " <> ownNick
-            then replyTo source (Just $ "coucou " <> nick)
-            else case LC.P.parseCommand msg of
+          LC.C.Coucou.coucouTrainHandler source (LC.St.ChannelName chanName) nick msg
+          case LC.P.parseCommand msg of
               Left _err -> pure ()
               Right cmd -> do
                 liftIO $ putStrLn $ "handling command: " <> show cmd
                 execCommand (LC.St.ChannelName chanName) nick cmd >>= replyTo source
+
         _ -> pure ()
     )
 
