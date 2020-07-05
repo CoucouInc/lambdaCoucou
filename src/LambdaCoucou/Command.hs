@@ -3,7 +3,7 @@ module LambdaCoucou.Command where
 import LambdaCoucou.Cancer (CancerType)
 import LambdaCoucou.Crypto (CryptoCoin)
 import LambdaCoucou.Help (HelpCommand)
-import LambdaCoucou.Remind (RemindSpec)
+import LambdaCoucou.Remind (RemindCmd)
 import RIO
 
 type Target = Maybe Text
@@ -18,6 +18,6 @@ data CoucouCmd
   | Help HelpCommand Target
   | PR Target
   | Joke Target
-  | Remind RemindSpec Text
+  | Remind RemindCmd
   | Nop
   deriving (Show, Eq)

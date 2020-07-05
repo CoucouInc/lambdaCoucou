@@ -119,9 +119,20 @@ remindCommandParser :: Parser LC.Cmd.CoucouCmd
 remindCommandParser = do
   C.string "remind"
   C.space1
-  cmd <- timeAtParser <|> durationParser <|> tomorrowParser <|> weekdayParser
+  LC.Cmd.Remind <$> (reminder <|> remindList)
+
+-- cmd <- timeAtParser <|> durationParser <|> tomorrowParser <|> weekdayParser
+-- txt <- M.takeWhile1P (Just "text to remind") (const True)
+-- pure $ LC.Cmd.Remind cmd txt
+
+reminder :: Parser LC.R.RemindCmd
+reminder = do
+  remindSpec <- timeAtParser <|> durationParser <|> tomorrowParser <|> weekdayParser
   txt <- M.takeWhile1P (Just "text to remind") (const True)
-  pure $ LC.Cmd.Remind cmd txt
+  pure $ LC.R.Reminder remindSpec txt
+
+remindList :: Parser LC.R.RemindCmd
+remindList = C.string "list" $> LC.R.RemindList
 
 timeAtParser :: Parser LC.R.RemindSpec
 timeAtParser = do

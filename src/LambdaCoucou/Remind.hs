@@ -13,7 +13,12 @@ import RIO
 import qualified RIO.State as St
 import qualified RIO.Text as T
 import qualified RIO.Time as Time
-import Say (sayShow, sayString)
+import Say (say, sayShow, sayString)
+
+data RemindCmd
+  = Reminder RemindSpec Text
+  | RemindList
+  deriving (Show, Eq)
 
 data RemindSpec
   = RemindDuration TimeSpec
@@ -86,6 +91,13 @@ getRemindersBefore beforeTime conn =
     "SELECT * FROM reminders WHERE remind_at <= ?"
     (SQL.Only beforeTime)
 
+selectReminders :: LC.St.ChannelName -> Text -> SQL.Connection -> IO [Entity Int RemindRecord]
+selectReminders chanName nick conn =
+  SQL.query
+    conn
+    "SELECT * FROM reminders WHERE target_chan = ? AND nick = ? ORDER BY remind_at"
+    (chanName, nick)
+
 deleteReminder :: SQL.Connection -> Int -> IO ()
 deleteReminder conn reminderId =
   SQL.execute
@@ -111,33 +123,27 @@ test = SQL.withConnection "coucou.sqlite" $ \conn -> do
   createTable conn
   now <- Time.getCurrentTime
   sayString $ "now: " <> show now
-  -- let rr =
-  --       RemindRecord
-  --         { rrTargetChan = LC.St.ChannelName "#chan",
-  --           rrNick = "nick",
-  --           rrCreatedAt = now,
-  --           rrRemindAt = now,
-  --           rrContent = "content"
-  --         }
-  -- createReminder conn rr
   let beforeTs = Time.addUTCTime 10 now
   sayString $ "before: " <> show beforeTs
   rs <- getRemindersBefore beforeTs conn
   forM_ rs sayShow
 
--- SQL.execute conn "INSERT INTO reminders (name) VALUES (?)" (TestRow "coucou")
-
--- data ReminderRow = ReminderRow
---   {
---   }
-
 remindCommandHandler ::
+  LC.St.ChannelName ->
+  Text ->
+  RemindCmd ->
+  IRC.C.IRC LC.St.CoucouState (Maybe Text)
+remindCommandHandler chanName nick = \case
+  Reminder spec text -> handleSetReminder chanName nick spec text
+  RemindList -> handleListReminders chanName nick
+
+handleSetReminder ::
   LC.St.ChannelName ->
   Text ->
   RemindSpec ->
   Text ->
   IRC.C.IRC LC.St.CoucouState (Maybe Text)
-remindCommandHandler chanName nick spec text = do
+handleSetReminder chanName nick spec text = do
   now <- Time.getCurrentTime
   connPath <- St.gets LC.St.csSQLitePath
   sayString $ "remind spec: " <> show spec
@@ -262,6 +268,30 @@ formatReminder (Entity reminderId rr) =
 
 prettyTs :: Time.UTCTime -> Text
 prettyTs = T.pack . Time.formatTime Time.defaultTimeLocale "%Y-%m-%d %H:%M %Z"
+
+handleListReminders ::
+  LC.St.ChannelName ->
+  Text ->
+  IRC.C.IRC LC.St.CoucouState (Maybe Text)
+handleListReminders chanName nick = do
+  connPath <- St.gets LC.St.csSQLitePath
+  reminders <- liftIO $ SQL.withConnection connPath (selectReminders chanName nick)
+  forM_ reminders $ \r -> say (shortForm r)
+  let result
+        | null reminders = "No reminder set"
+        | length reminders <= 3 = T.intercalate " − " (map shortForm reminders)
+        | otherwise = "You have " <> tshow (length reminders) <> " reminders. "
+            <> T.intercalate " − " (map shortForm $ take 3 reminders)
+  pure $ Just result
+
+shortForm :: Entity Int RemindRecord -> Text
+shortForm (Entity rId rr) =
+  "(" <> tshow rId <> ") at "
+    <> prettyTs (rrRemindAt rr)
+    <> ": "
+    <> ellipsis (rrContent rr)
+  where
+    ellipsis txt = if T.length txt > 30 then T.take 29 txt <> "…" else txt
 
 {-
 

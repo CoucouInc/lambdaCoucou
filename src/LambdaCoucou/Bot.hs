@@ -137,7 +137,7 @@ execCommand chanName nick = \case
   LC.Cmd.PR target -> LC.PR.prCommandHandler target
   LC.Cmd.Help hlpCmd target -> LC.Hlp.helpCommandHandler hlpCmd target
   LC.Cmd.Joke target -> LC.Joke.jokeCommandHandler target
-  LC.Cmd.Remind spec text -> LC.Remind.remindCommandHandler chanName nick spec text
+  LC.Cmd.Remind remindCommand -> LC.Remind.remindCommandHandler chanName nick remindCommand
 
 addTarget :: Maybe Text -> Text -> Text
 addTarget mbTarget msg = case mbTarget of

@@ -225,92 +225,120 @@ tests = H.describe "Parser" $ do
       H.it "parse `at` with only date" $
         LC.P.parseCommand "&remind at 2020-06-15 text"
           `T.M.shouldParse` LC.Cmd.Remind
-            ( LC.R.RemindTime $
-                tsNothing
-                  { LC.R.dsYear = Just 2020,
-                    LC.R.dsMonth = Just 6,
-                    LC.R.dsDay = Just 15
-                  }
+            ( LC.R.Reminder
+                ( LC.R.RemindTime $
+                    tsNothing
+                      { LC.R.dsYear = Just 2020,
+                        LC.R.dsMonth = Just 6,
+                        LC.R.dsDay = Just 15
+                      }
+                )
+                "text"
             )
-            "text"
 
       H.it "parse `at` with only hours and minutes" $
         LC.P.parseCommand "&remind at 12:34 text"
           `T.M.shouldParse` LC.Cmd.Remind
-            ( LC.R.RemindTime $
-                tsNothing
-                  { LC.R.dsHour = Just 12,
-                    LC.R.dsMinute = Just 34
-                  }
+            ( LC.R.Reminder
+                ( LC.R.RemindTime $
+                    tsNothing
+                      { LC.R.dsHour = Just 12,
+                        LC.R.dsMinute = Just 34
+                      }
+                )
+                "text"
             )
-            "text"
 
       H.it "parse full `at`" $
         LC.P.parseCommand "&remind at 2020-06-15 12:34 text"
           `T.M.shouldParse` LC.Cmd.Remind
-            (LC.R.RemindTime ts)
-            "text"
+            ( LC.R.Reminder
+                (LC.R.RemindTime ts)
+                "text"
+            )
 
       H.it "parse `in`" $
         LC.P.parseCommand "&remind in 1 month 2d text"
           `T.M.shouldParse` LC.Cmd.Remind
-            ( LC.R.RemindDuration $
-                tsNothing
-                  { LC.R.dsMonth = Just 1,
-                    LC.R.dsDay = Just 2
-                  }
+            ( LC.R.Reminder
+                ( LC.R.RemindDuration $
+                    tsNothing
+                      { LC.R.dsMonth = Just 1,
+                        LC.R.dsDay = Just 2
+                      }
+                )
+                "text"
             )
-            "text"
 
       H.describe "tomorrow" $ do
         H.it "parses tomorrow with a time" $
           LC.P.parseCommand "&remind tomorrow at 12:34 text"
             `T.M.shouldParse` LC.Cmd.Remind
-              ( LC.R.RemindTomorrow (Just (12, 34))
+              ( LC.R.Reminder
+                  ( LC.R.RemindTomorrow (Just (12, 34))
+                  )
+                  "text"
               )
-              "text"
 
         H.it "parses tomorrow with only the hour" $
           LC.P.parseCommand "&remind tomorrow à 12 text"
             `T.M.shouldParse` LC.Cmd.Remind
-              ( LC.R.RemindTomorrow (Just (12, 0))
+              ( LC.R.Reminder
+                  ( LC.R.RemindTomorrow (Just (12, 0))
+                  )
+                  "text"
               )
-              "text"
 
         H.it "parses tomorrow with only the hour with a trailing h" $
           LC.P.parseCommand "&remind tomorrow à 12h text"
             `T.M.shouldParse` LC.Cmd.Remind
-              ( LC.R.RemindTomorrow (Just (12, 0))
+              ( LC.R.Reminder
+                  ( LC.R.RemindTomorrow (Just (12, 0))
+                  )
+                  "text"
               )
-              "text"
 
         H.it "parses just tomorrow" $
           LC.P.parseCommand "&remind tomorrow text"
             `T.M.shouldParse` LC.Cmd.Remind
-              (LC.R.RemindTomorrow Nothing)
-              "text"
+              ( LC.R.Reminder
+                  (LC.R.RemindTomorrow Nothing)
+                  "text"
+              )
 
         H.it "parses just tomorrow in french" $
           LC.P.parseCommand "&remind demain text"
             `T.M.shouldParse` LC.Cmd.Remind
-              (LC.R.RemindTomorrow Nothing)
-              "text"
+              ( LC.R.Reminder
+                  (LC.R.RemindTomorrow Nothing)
+                  "text"
+              )
 
       H.describe "weekdays" $ do
         H.it "parses reminder with just a weekday" $
           LC.P.parseCommand "&remind saturday text"
             `T.M.shouldParse` LC.Cmd.Remind
-              (LC.R.RemindWeekDay Time.Saturday Nothing)
-              "text"
+              ( LC.R.Reminder
+                  (LC.R.RemindWeekDay Time.Saturday Nothing)
+                  "text"
+              )
 
         H.it "parses reminder with just a weekday case insensitive and french" $
           LC.P.parseCommand "&remind MercRedi text"
             `T.M.shouldParse` LC.Cmd.Remind
-              (LC.R.RemindWeekDay Time.Wednesday Nothing)
-              "text"
+              ( LC.R.Reminder
+                  (LC.R.RemindWeekDay Time.Wednesday Nothing)
+                  "text"
+              )
 
         H.it "parses reminder with a weekday and a time" $
           LC.P.parseCommand "&remind tuesday at 13:45 text"
             `T.M.shouldParse` LC.Cmd.Remind
-              (LC.R.RemindWeekDay Time.Tuesday (Just (13, 45)))
-              "text"
+              ( LC.R.Reminder
+                  (LC.R.RemindWeekDay Time.Tuesday (Just (13, 45)))
+                  "text"
+              )
+
+        H.it "parses remind list" $
+          LC.P.parseCommand "&remind list  "
+            `T.M.shouldParse` LC.Cmd.Remind LC.R.RemindList

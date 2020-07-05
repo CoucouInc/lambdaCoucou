@@ -2,14 +2,13 @@
 
 module LambdaCoucou.State where
 
-import RIO
 import qualified Data.RingBuffer as RB
-import qualified LambdaCoucou.TwitchTypes as Twitch
-import qualified Database.SQLite.Simple.ToField as SQL
 import qualified Database.SQLite.Simple.FromField as SQL
+import qualified Database.SQLite.Simple.ToField as SQL
+import qualified LambdaCoucou.TwitchTypes as Twitch
+import RIO
 
-newtype YoutubeAPIKey
-  = YoutubeAPIKey {getYoutubeAPIKey :: Text}
+newtype YoutubeAPIKey = YoutubeAPIKey {getYoutubeAPIKey :: Text}
   deriving (IsString) via Text
 
 instance Show YoutubeAPIKey where
@@ -26,31 +25,30 @@ data ChannelType
   | Public
   deriving (Show, Eq)
 
-data ChannelState
-  = ChannelState
-      { cstUsers :: Set Text,
-        cstType :: ChannelType,
-        cstLastUrls :: RB.RingBuffer Vector Text
-      }
+data ChannelState = ChannelState
+  { cstUsers :: Set Text,
+    cstType :: ChannelType,
+    cstLastUrls :: RB.RingBuffer Vector Text
+  }
   deriving (Generic)
 
-data CoucouState
-  = CoucouState
-      { csCounter :: Int,
-        csYtAPIKey :: YoutubeAPIKey,
-        csChannels :: Map ChannelName ChannelState,
-        csSQLitePath :: FilePath,
-        csTwitch :: MVar (Maybe Twitch.ClientEnv)
-      }
+data CoucouState = CoucouState
+  { csCounter :: Int,
+    csYtAPIKey :: YoutubeAPIKey,
+    csChannels :: Map ChannelName ChannelState,
+    csSQLitePath :: FilePath,
+    csTwitch :: MVar (Maybe Twitch.ClientEnv)
+  }
   deriving (Generic)
 
 initialState :: YoutubeAPIKey -> FilePath -> IO CoucouState
 initialState key fp = do
   emptyTwitchState <- newMVar Nothing
-  pure $ CoucouState
-    { csCounter = 0,
-      csChannels = mempty,
-      csYtAPIKey = key,
-      csSQLitePath = fp,
-      csTwitch = emptyTwitchState
-    }
+  pure $
+    CoucouState
+      { csCounter = 0,
+        csChannels = mempty,
+        csYtAPIKey = key,
+        csSQLitePath = fp,
+        csTwitch = emptyTwitchState
+      }
