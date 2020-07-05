@@ -39,7 +39,7 @@ helpCommandHandler hlpCmd target = do
         Joke ->
           "Gives a random (bad) joke."
         Remind ->
-          "Reminder. &remind (in <duration>|at <time>|tomorrow (at <time>)). ex: &remind at 2020-06-28 12:34 coucou. &remind à 19:00 text. &remind in 1y 10M 1d 2h10m another coucou. &remind lundi coucou. &remind tuesday at 12 manger. All times are in UTC."
+          "Reminder. &remind (in <duration>|at <time>|tomorrow (at <time>)). ex: &remind at 2020-06-28 12:34 coucou. &remind à 19:00 text. &remind in 1y 10M 1d 2h10m another coucou. &remind lundi coucou. &remind tuesday at 12 manger. All times are in UTC. &remind list. &remind del <ID>"
         Unknown cmd ->
           "Unknown command: " <> cmd <> ". " <> generalMsg
   pure $ Just $ LC.Hdl.addTarget target msg

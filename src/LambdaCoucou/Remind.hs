@@ -18,6 +18,7 @@ import Say (say, sayShow, sayString)
 data RemindCmd
   = Reminder RemindSpec Text
   | RemindList
+  | RemindDelete Int
   deriving (Show, Eq)
 
 data RemindSpec
@@ -136,6 +137,7 @@ remindCommandHandler ::
 remindCommandHandler chanName nick = \case
   Reminder spec text -> handleSetReminder chanName nick spec text
   RemindList -> handleListReminders chanName nick
+  RemindDelete rId -> handleDeleteReminder chanName nick rId
 
 handleSetReminder ::
   LC.St.ChannelName ->
@@ -280,7 +282,8 @@ handleListReminders chanName nick = do
   let result
         | null reminders = "No reminder set"
         | length reminders <= 3 = T.intercalate " − " (map shortForm reminders)
-        | otherwise = "You have " <> tshow (length reminders) <> " reminders. "
+        | otherwise =
+          "You have " <> tshow (length reminders) <> " reminders. "
             <> T.intercalate " − " (map shortForm $ take 3 reminders)
   pure $ Just result
 
@@ -292,6 +295,33 @@ shortForm (Entity rId rr) =
     <> ellipsis (rrContent rr)
   where
     ellipsis txt = if T.length txt > 30 then T.take 29 txt <> "…" else txt
+
+handleDeleteReminder ::
+  LC.St.ChannelName ->
+  Text ->
+  Int ->
+  IRC.C.IRC LC.St.CoucouState (Maybe Text)
+handleDeleteReminder chanName nick rId = do
+  connPath <- St.gets LC.St.csSQLitePath
+  hasBeenDeleted <- liftIO $
+    SQL.withConnection connPath $ \conn -> do
+      reminders <- selectReminders chanName nick conn
+      if rId `elem` (map (\(Entity i _) -> i) reminders)
+        then do
+          deleteReminder conn rId
+          pure True
+        else pure False
+  pure $
+    Just $
+      if hasBeenDeleted
+        then "Reminder deleted"
+        else
+          "No reminder with ID "
+            <> tshow rId
+            <> " for user "
+            <> nick
+            <> " in chan "
+            <> (LC.St.getChannelName chanName)
 
 {-
 

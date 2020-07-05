@@ -342,3 +342,7 @@ tests = H.describe "Parser" $ do
         H.it "parses remind list" $
           LC.P.parseCommand "&remind list  "
             `T.M.shouldParse` LC.Cmd.Remind LC.R.RemindList
+
+        H.it "parses remind delete" $
+          LC.P.parseCommand "&remind del 3 "
+            `T.M.shouldParse` LC.Cmd.Remind (LC.R.RemindDelete 3)
