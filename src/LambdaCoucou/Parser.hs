@@ -8,6 +8,7 @@ import qualified LambdaCoucou.ParserUtils as LC.P
 import qualified LambdaCoucou.Remind as LC.R
 import RIO
 import qualified RIO.Partial as RIO'
+import qualified RIO.Time as Time
 import qualified Text.Megaparsec as M
 import qualified Text.Megaparsec.Char as C
 
@@ -118,7 +119,7 @@ remindCommandParser :: Parser LC.Cmd.CoucouCmd
 remindCommandParser = do
   C.string "remind"
   C.space1
-  cmd <- timeAtParser <|> durationParser <|> tomorrowParser
+  cmd <- timeAtParser <|> durationParser <|> tomorrowParser <|> weekdayParser
   txt <- M.takeWhile1P (Just "text to remind") (const True)
   pure $ LC.Cmd.Remind cmd txt
 
@@ -127,7 +128,7 @@ timeAtParser = do
   C.string "at"
   C.space1
   mbDate <- optional (M.try dateP)
-  mbDateTime <- optional dateTimeP
+  mbDateTime <- optional (dateTimeP <* C.space1)
   if isNothing mbDate && isNothing mbDateTime
     then fail "all fields are Nothing"
     else
@@ -151,10 +152,8 @@ timeAtParser = do
 
 dateTimeP :: Parser (Int, Int)
 dateTimeP = do
-  h <- LC.P.int
-  C.char ':'
-  m <- LC.P.int
-  C.space1 <|> M.eof
+  h <- LC.P.int <* optional (C.char 'h')
+  m <- fromMaybe 0 <$> optional (C.char ':' *> LC.P.int)
   pure (h, m)
 
 durationParser :: Parser LC.R.RemindSpec
@@ -195,7 +194,8 @@ durationParser = do
     hourP =
       (void $ C.string "hour" <* optional (C.char 's') <* end)
         <|> (M.try (void $ C.char 'h') <* end)
-    minP = (void $ C.string "min" <* optional (C.char 's') <* end)
+    minP =
+      (void $ C.string "min" <* optional (C.char 's') <* end)
         <|> (M.try (void $ C.char 'm') <* end)
     hourMinP = do
       h <- (LC.P.int <* (C.char 'h' <|> C.char 'H'))
@@ -210,8 +210,29 @@ tomorrowParser :: Parser LC.R.RemindSpec
 tomorrowParser = do
   C.string "tomorrow" <|> C.string "demain"
   C.space1 <|> M.eof
-  time <- optional (C.string "at" *> C.space1 *> dateTimeP)
+  time <- optional (atTime *> C.space1 *> dateTimeP <* C.space1)
   pure $ LC.R.RemindTomorrow time
+
+weekdayParser :: Parser LC.R.RemindSpec
+weekdayParser = do
+  d <- weekdayP
+  C.space1
+  time <- optional (atTime *> C.space1 *> dateTimeP <* C.space1)
+  pure $ LC.R.RemindWeekDay d time
+  where
+    weekdayP =
+      M.choice
+        [ (C.string' "monday" <|> C.string' "lundi") $> Time.Monday,
+          (C.string' "tuesday" <|> C.string' "mardi") $> Time.Tuesday,
+          (C.string' "wednesday" <|> C.string' "mercredi") $> Time.Wednesday,
+          (C.string' "thursday" <|> C.string' "jeudi") $> Time.Thursday,
+          (C.string' "friday" <|> C.string' "vendredi") $> Time.Friday,
+          (C.string' "saturday" <|> C.string' "samedi") $> Time.Saturday,
+          (C.string' "sunday" <|> C.string' "dimanche") $> Time.Sunday
+        ]
+
+atTime :: Parser Text
+atTime = C.string "at" <|> C.string "à"
 
 -------------------- Utils --------------------
 

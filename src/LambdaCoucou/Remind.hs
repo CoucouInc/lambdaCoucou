@@ -2,10 +2,6 @@
 
 module LambdaCoucou.Remind where
 
--- import Database.SQLite.Simple (NamedParam (..))
-
--- import qualified Database.SQLite.Simple.Ok as SQL
-
 import qualified Data.Maybe as Mb
 import qualified Database.SQLite.Simple as SQL
 import qualified Database.SQLite.Simple.FromField as SQL
@@ -23,7 +19,7 @@ data RemindSpec
   = RemindDuration TimeSpec
   | RemindTime TimeSpec
   | RemindTomorrow (Maybe (Int, Int))
-  | RemindWeekDay (Maybe (Int, Maybe Int))
+  | RemindWeekDay Time.DayOfWeek (Maybe (Int, Int))
   deriving (Show, Eq)
 
 data TimeSpec = TimeSpec
@@ -162,7 +158,7 @@ timeFromSpec now = \case
   RemindDuration ts -> timeFromDuration ts
   RemindTime ts -> timeFromGivenTime ts
   RemindTomorrow ts -> tomorrowTime ts
-  RemindWeekDay _ -> error "wip"
+  RemindWeekDay weekday ts -> weekdayTime weekday ts
   where
     day = Time.utctDay now
     timeFromDuration ts =
@@ -182,13 +178,7 @@ timeFromSpec now = \case
               (Mb.maybe ny fromIntegral $ dsYear ts)
               (fromMaybe nm $ dsMonth ts)
               (fromMaybe nd $ dsDay ts)
-          nowSec = Time.diffTimeToPicoseconds (Time.utctDayTime now) `div` (10 ^ 12)
-          (nh, rest) = nowSec `divMod` 3600
-          nMin = rest `div` 60
-          dayTime =
-            Time.secondsToDiffTime $
-              (Mb.maybe nh fromIntegral $ dsHour ts) * 3600
-                + (Mb.maybe nMin fromIntegral $ dsMinute ts) * 60
+          dayTime = mkDayTime (Time.utctDayTime now) (dsHour ts) (dsMinute ts)
        in Time.UTCTime
             { Time.utctDay = day',
               Time.utctDayTime = dayTime
@@ -209,6 +199,32 @@ timeFromSpec now = \case
           withTime = timeFromGivenTime ts
           d = Time.addDays 1 (Time.utctDay withTime)
        in withTime {Time.utctDay = d}
+
+    weekdayTime wd ts =
+      let dayOfWeek = Time.dayOfWeek day
+          deltaDay = fromEnum wd - fromEnum dayOfWeek
+          targetDay = Time.addDays (fromIntegral deltaDay) day
+          (mbHour, mbMin) = case ts of
+            Nothing -> (Nothing, Nothing)
+            Just (a, b) -> (Just a, Just b)
+          dayTime = mkDayTime (Time.utctDayTime now) mbHour mbMin
+          newTime = Time.UTCTime {Time.utctDay = targetDay, Time.utctDayTime = dayTime}
+          newTime' =
+            if newTime <= now
+              then newTime {Time.utctDay = Time.addDays 7 targetDay}
+              else newTime
+       in newTime'
+
+    mkDayTime :: Time.DiffTime -> Maybe Int -> Maybe Int -> Time.DiffTime
+    mkDayTime dt mbHour mbMin =
+      let nowSec = Time.diffTimeToPicoseconds dt `div` (10 ^ 12)
+          (nowH, rest) = nowSec `divMod` 3600
+          nowMin = rest `div` 60
+          dayTime =
+            Time.secondsToDiffTime $
+              (Mb.maybe nowH fromIntegral mbHour) * 3600
+                + (Mb.maybe nowMin fromIntegral mbMin) * 60
+       in dayTime
 
 -- TODO: currently there's a bug. If a reminder should be sent to a channel
 -- but the bot hasn't joined that channel yet, it will be sent into the

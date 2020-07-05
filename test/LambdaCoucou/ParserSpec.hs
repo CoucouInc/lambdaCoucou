@@ -8,6 +8,7 @@ import qualified LambdaCoucou.Parser as LC.P
 import qualified LambdaCoucou.Remind as LC.R
 import qualified LambdaCoucou.Url as LC.Url
 import RIO
+import qualified RIO.Time as Time
 import qualified Test.Hspec as H
 import qualified Test.Hspec.Megaparsec as T.M
 import qualified Text.Megaparsec as M
@@ -269,8 +270,47 @@ tests = H.describe "Parser" $ do
               )
               "text"
 
+        H.it "parses tomorrow with only the hour" $
+          LC.P.parseCommand "&remind tomorrow à 12 text"
+            `T.M.shouldParse` LC.Cmd.Remind
+              ( LC.R.RemindTomorrow (Just (12, 0))
+              )
+              "text"
+
+        H.it "parses tomorrow with only the hour with a trailing h" $
+          LC.P.parseCommand "&remind tomorrow à 12h text"
+            `T.M.shouldParse` LC.Cmd.Remind
+              ( LC.R.RemindTomorrow (Just (12, 0))
+              )
+              "text"
+
         H.it "parses just tomorrow" $
           LC.P.parseCommand "&remind tomorrow text"
             `T.M.shouldParse` LC.Cmd.Remind
               (LC.R.RemindTomorrow Nothing)
+              "text"
+
+        H.it "parses just tomorrow in french" $
+          LC.P.parseCommand "&remind demain text"
+            `T.M.shouldParse` LC.Cmd.Remind
+              (LC.R.RemindTomorrow Nothing)
+              "text"
+
+      H.describe "weekdays" $ do
+        H.it "parses reminder with just a weekday" $
+          LC.P.parseCommand "&remind saturday text"
+            `T.M.shouldParse` LC.Cmd.Remind
+              (LC.R.RemindWeekDay Time.Saturday Nothing)
+              "text"
+
+        H.it "parses reminder with just a weekday case insensitive and french" $
+          LC.P.parseCommand "&remind MercRedi text"
+            `T.M.shouldParse` LC.Cmd.Remind
+              (LC.R.RemindWeekDay Time.Wednesday Nothing)
+              "text"
+
+        H.it "parses reminder with a weekday and a time" $
+          LC.P.parseCommand "&remind tuesday at 13:45 text"
+            `T.M.shouldParse` LC.Cmd.Remind
+              (LC.R.RemindWeekDay Time.Tuesday (Just (13, 45)))
               "text"
