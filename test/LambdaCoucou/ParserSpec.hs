@@ -7,6 +7,7 @@ import qualified LambdaCoucou.Help as LC.Hlp
 import qualified LambdaCoucou.Parser as LC.P
 import qualified LambdaCoucou.Remind as LC.R
 import qualified LambdaCoucou.Url as LC.Url
+import qualified LambdaCoucou.UserSettings as LC.Settings
 import RIO
 import qualified RIO.Time as Time
 import qualified Test.Hspec as H
@@ -346,3 +347,14 @@ tests = H.describe "Parser" $ do
         H.it "parses remind delete" $
           LC.P.parseCommand "&remind del 3 "
             `T.M.shouldParse` LC.Cmd.Remind (LC.R.RemindDelete 3)
+
+  H.describe "User settings" $ do
+    H.describe "timezone" $ do
+      H.it "parses unset" $ do
+        LC.P.parseCommand "&usr unset tz" `T.M.shouldParse` LC.Cmd.Settings (LC.Settings.UserTZ Nothing)
+        LC.P.parseCommand "&user unset tz" `T.M.shouldParse` LC.Cmd.Settings (LC.Settings.UserTZ Nothing)
+        LC.P.parseCommand "&user unset timezone" `T.M.shouldParse` LC.Cmd.Settings (LC.Settings.UserTZ Nothing)
+
+      H.it "parses set timezone" $ do
+        LC.P.parseCommand "&usr set tz whatever "
+          `T.M.shouldParse` LC.Cmd.Settings (LC.Settings.UserTZ $ Just "whatever")

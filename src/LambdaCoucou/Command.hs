@@ -4,6 +4,7 @@ import LambdaCoucou.Cancer (CancerType)
 import LambdaCoucou.Crypto (CryptoCoin)
 import LambdaCoucou.Help (HelpCommand)
 import LambdaCoucou.Remind (RemindCmd)
+import LambdaCoucou.UserSettings (SettingsCmd)
 import RIO
 
 type Target = Maybe Text
@@ -19,5 +20,6 @@ data CoucouCmd
   | PR Target
   | Joke Target
   | Remind RemindCmd
+  | Settings SettingsCmd
   | Nop
   deriving (Show, Eq)

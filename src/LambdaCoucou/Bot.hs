@@ -4,17 +4,18 @@ import qualified LambdaCoucou.Cancer as LC.Cancer
 import qualified LambdaCoucou.Channel as LC.Chan
 import qualified LambdaCoucou.Cli as LC.Cli
 import qualified LambdaCoucou.Command as LC.Cmd
+import qualified LambdaCoucou.CoucouTrain as LC.C.Coucou
 import qualified LambdaCoucou.Crypto as LC.C
 import qualified LambdaCoucou.Date as LC.Date
 import qualified LambdaCoucou.Help as LC.Hlp
 import qualified LambdaCoucou.Joke as LC.Joke
-import qualified LambdaCoucou.CoucouTrain as LC.C.Coucou
 import qualified LambdaCoucou.PR as LC.PR
 import qualified LambdaCoucou.Parser as LC.P
-import qualified LambdaCoucou.State as LC.St
 import qualified LambdaCoucou.Remind as LC.Remind
+import qualified LambdaCoucou.State as LC.St
 import qualified LambdaCoucou.Twitch as LC.Twitch
 import qualified LambdaCoucou.Url as LC.Url
+import qualified LambdaCoucou.UserSettings as LC.Settings
 import qualified Network.IRC.Client as IRC.C
 import qualified Network.IRC.Client.Events as IRC.Ev
 import qualified Network.IRC.Client.Lens as IRC.L
@@ -98,11 +99,10 @@ commandHandler =
         (IRC.Ev.Channel chanName nick, Right msg) -> unless (blacklisted nick) $ do
           LC.C.Coucou.coucouTrainHandler source (LC.St.ChannelName chanName) nick msg
           case LC.P.parseCommand msg of
-              Left _err -> pure ()
-              Right cmd -> do
-                liftIO $ putStrLn $ "handling command: " <> show cmd
-                execCommand (LC.St.ChannelName chanName) nick cmd >>= replyTo source
-
+            Left _err -> pure ()
+            Right cmd -> do
+              liftIO $ putStrLn $ "handling command: " <> show cmd
+              execCommand (LC.St.ChannelName chanName) nick cmd >>= replyTo source
         _ -> pure ()
     )
 
@@ -136,6 +136,7 @@ execCommand chanName nick = \case
   LC.Cmd.Help hlpCmd target -> LC.Hlp.helpCommandHandler hlpCmd target
   LC.Cmd.Joke target -> LC.Joke.jokeCommandHandler target
   LC.Cmd.Remind remindCommand -> LC.Remind.remindCommandHandler chanName nick remindCommand
+  LC.Cmd.Settings cmd -> LC.Settings.settingsCommandHandler nick cmd
 
 addTarget :: Maybe Text -> Text -> Text
 addTarget mbTarget msg = case mbTarget of

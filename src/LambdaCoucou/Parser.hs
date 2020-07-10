@@ -6,6 +6,7 @@ import qualified LambdaCoucou.Crypto as LC.C
 import qualified LambdaCoucou.Help as LC.Hlp
 import qualified LambdaCoucou.ParserUtils as LC.P
 import qualified LambdaCoucou.Remind as LC.R
+import qualified LambdaCoucou.UserSettings as LC.Settings
 import RIO
 import qualified RIO.Partial as RIO'
 import qualified RIO.Time as Time
@@ -29,7 +30,8 @@ commandParser =
         M.try helpCommandParser,
         M.try prCommandParser,
         M.try jokeCommandParser,
-        M.try remindCommandParser
+        M.try remindCommandParser,
+        M.try settingsCommandParser
       ]
     <|> pure LC.Cmd.Nop
 
@@ -247,6 +249,23 @@ weekdayParser = do
 
 atTime :: Parser Text
 atTime = C.string "at" <|> C.string "à"
+
+-------------------- User Settings --------------------
+settingsCommandParser :: Parser LC.Cmd.CoucouCmd
+settingsCommandParser = do
+  C.string "usr" <|> C.string "user"
+  C.space1
+  isSet <- (C.string "set" $> True <|> C.string "unset" $> False)
+  C.space1
+  cmd <- tzCmd isSet
+  pure $ LC.Cmd.Settings cmd
+
+  where
+    tzCmd isSet = do
+      (C.string "tz" <|> C.string "timezone")
+      LC.Settings.UserTZ <$> if isSet
+        then Just <$> (C.space1 *> LC.P.utf8Word')
+        else pure Nothing
 
 -------------------- Utils --------------------
 

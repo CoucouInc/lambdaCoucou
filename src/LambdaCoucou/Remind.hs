@@ -106,22 +106,23 @@ deleteReminder conn reminderId =
     "DELETE FROM reminders WHERE id=?"
     (SQL.Only reminderId)
 
-createTable :: SQL.Connection -> IO ()
-createTable conn =
-  SQL.execute_
-    conn
-    "CREATE TABLE IF NOT EXISTS reminders(\
-    \id INTEGER PRIMARY KEY AUTOINCREMENT,\
-    \target_chan TEXT NOT NULL,\
-    \nick TEXT NOT NULL,\
-    \created_at TEXT NOT NULL,\
-    \remind_at TEXT NOT NULL,\
-    \content TEXT NOT NULL\
-    \)"
+createTable :: MonadIO m => FilePath -> m ()
+createTable fp = liftIO $
+  SQL.withConnection fp $ \conn ->
+    SQL.execute_
+      conn
+      "CREATE TABLE IF NOT EXISTS reminders(\
+      \id INTEGER PRIMARY KEY AUTOINCREMENT,\
+      \target_chan TEXT NOT NULL,\
+      \nick TEXT NOT NULL,\
+      \created_at TEXT NOT NULL,\
+      \remind_at TEXT NOT NULL,\
+      \content TEXT NOT NULL\
+      \)"
 
 test :: IO ()
 test = SQL.withConnection "coucou.sqlite" $ \conn -> do
-  createTable conn
+  createTable "coucou.sqlite"
   now <- Time.getCurrentTime
   sayString $ "now: " <> show now
   let beforeTs = Time.addUTCTime 10 now
@@ -243,7 +244,7 @@ processReminders :: IRC.C.IRC LC.St.CoucouState ()
 processReminders = do
   let intervalInSec = (10 :: Integer)
   connPath <- St.gets LC.St.csSQLitePath
-  liftIO $ SQL.withConnection connPath createTable
+  createTable connPath
   forever $ do
     now <- liftIO Time.getCurrentTime
     msgToSend <- liftIO $ processReminders' connPath intervalInSec now

@@ -213,8 +213,8 @@ saveRate :: SQL.Connection -> Rate -> IO ()
 saveRate conn =
   SQL.execute conn "INSERT INTO crypto_rate (date, coin, rate) VALUES (?, ?, ?)"
 
-initTable :: MonadIO m => FilePath -> m ()
-initTable fp = liftIO $
+createTable :: MonadIO m => FilePath -> m ()
+createTable fp = liftIO $
   SQL.withConnection fp $ \conn ->
     SQL.execute_ conn "CREATE TABLE IF NOT EXISTS crypto_rate(date DATETIME, coin TEXT, rate TEXT)"
 
@@ -248,7 +248,7 @@ showPretty r =
     <> T.pack (show $ getSQLRate $ rCryptoRate r)
 
 monitorRates :: FilePath -> IRC.C.IRC s ()
-monitorRates fp = initTable fp *> forever do
+monitorRates fp = createTable fp *> forever do
   res <- liftIO $ try (traverse_ (getRateAndSave fp) [Bitcoin, Ethereum])
   case res of
     Right _ -> pure ()

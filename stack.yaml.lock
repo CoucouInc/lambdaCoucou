@@ -32,6 +32,13 @@ packages:
       sha256: 11874ab21e10c5b54cd1e02a037b677dc1e2ee9986f38c599612c56654dc01c3
   original:
     hackage: direct-sqlite-2.3.26
+- completed:
+    hackage: tz-0.1.3.3@sha256:b9de0c1b10825460ff14a237209a8bf7747f47979601d35621276556bf63d2ca,5086
+    pantry-tree:
+      size: 1180
+      sha256: ae6af45f3dba5a478ea9cc77c718f955fcc5c96f2dc0f4ede34c4a15a3e85ac1
+  original:
+    hackage: tz-0.1.3.3
 snapshots:
 - completed:
     size: 531696
