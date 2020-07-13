@@ -98,6 +98,7 @@ helpCommandParser = do
       M.try (f "coucou" LC.Hlp.ShoutCoucou),
       M.try (f "joke" LC.Hlp.Joke),
       M.try (f "remind" LC.Hlp.Remind),
+      M.try (f "settings" LC.Hlp.Settings),
       M.try (LC.P.spaces *> (LC.Cmd.Help LC.Hlp.General <$> targetParser) <* M.eof),
       LC.P.spaces *> (LC.Cmd.Help . LC.Hlp.Unknown <$> LC.P.utf8Word <*> targetParser)
     ]
@@ -255,13 +256,14 @@ settingsCommandParser :: Parser LC.Cmd.CoucouCmd
 settingsCommandParser = do
   C.string "usr" <|> C.string "user"
   C.space1
-  isSet <- (C.string "set" $> True <|> C.string "unset" $> False)
-  C.space1
-  cmd <- tzCmd isSet
+  cmd <- displayP <|> tzP
   pure $ LC.Cmd.Settings cmd
 
   where
-    tzCmd isSet = do
+    displayP = C.string "show" $> LC.Settings.Display
+    tzP = do
+      isSet <- (C.string "set" $> True <|> C.string "unset" $> False)
+      C.space1
       (C.string "tz" <|> C.string "timezone")
       LC.Settings.UserTZ <$> if isSet
         then Just <$> (C.space1 *> LC.P.utf8Word')

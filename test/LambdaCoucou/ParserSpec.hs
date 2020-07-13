@@ -120,6 +120,8 @@ tests = H.describe "Parser" $ do
           `T.M.shouldParse` LC.Cmd.Help LC.Hlp.Date (Just "foo")
       H.it "parses remind" $
         LC.P.parseCommand "&help remind" `T.M.shouldParse` LC.Cmd.Help LC.Hlp.Remind Nothing
+      H.it "parses settings" $
+        LC.P.parseCommand "&help settings" `T.M.shouldParse` LC.Cmd.Help LC.Hlp.Settings Nothing
 
     H.describe "pr command" $ do
       H.it "parses bare command" $
@@ -358,3 +360,7 @@ tests = H.describe "Parser" $ do
       H.it "parses set timezone" $ do
         LC.P.parseCommand "&usr set tz whatever "
           `T.M.shouldParse` LC.Cmd.Settings (LC.Settings.UserTZ $ Just "whatever")
+
+    H.describe "display" $ do
+      H.it "can display settings" $
+        LC.P.parseCommand "&usr show" `T.M.shouldParse` LC.Cmd.Settings LC.Settings.Display

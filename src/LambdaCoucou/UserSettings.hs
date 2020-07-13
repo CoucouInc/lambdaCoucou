@@ -19,6 +19,7 @@ import Say
 
 data SettingsCmd
   = UserTZ (Maybe Text)
+  | Display
   deriving (Show, Eq)
 
 data UserSettings = UserSettings
@@ -88,7 +89,7 @@ settingsCommandHandler nick cmd = do
             conn
             "UPDATE user_settings SET timezone=NULL WHERE nick = ?"
             (SQL.Only nick)
-      pure Nothing
+      pure $ Just $ "Timezone preference removed."
     UserTZ (Just rawTZ) -> case TZ.fromTZName (encodeUtf8 rawTZ) of
       Nothing -> pure $ Just $ "Invalid timezone: " <> rawTZ
       Just tzLabel -> do
@@ -105,7 +106,26 @@ settingsCommandHandler nick cmd = do
               \ON CONFLICT(nick) DO UPDATE SET timezone=excluded.timezone"
               setting
         say $ "Setting tz with " <> rawTZ
-        pure Nothing
+        pure $ Just $ "Timezone set to " <> rawTZ <> "."
+    Display -> do
+      settings <- liftIO $
+        SQL.withConnection fp $ \conn ->
+          SQL.query
+            conn
+            "SELECT * FROM user_settings WHERE nick = ?"
+            (SQL.Only nick)
+      case settings of
+        [] -> pure $ Just $ "No settings saved for " <> nick
+        [x] -> pure $ Just $ prettySetting x
+        _ -> pure $ Just $ "Primary key violation for " <> nick
+
+prettySetting :: UserSettings -> Text
+prettySetting UserSettings {usNick, usTimezone} =
+  "Settings for " <> usNick <> " : "
+    <> maybe
+      "no timezone preference"
+      (\tz -> "timezone: " <> decodeUtf8Lenient (TZ.toTZName tz))
+      usTimezone
 
 {-
 

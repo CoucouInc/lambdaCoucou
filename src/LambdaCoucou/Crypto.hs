@@ -248,7 +248,7 @@ showPretty r =
     <> T.pack (show $ getSQLRate $ rCryptoRate r)
 
 monitorRates :: FilePath -> IRC.C.IRC s ()
-monitorRates fp = createTable fp *> forever do
+monitorRates fp = forever do
   res <- liftIO $ try (traverse_ (getRateAndSave fp) [Bitcoin, Ethereum])
   case res of
     Right _ -> pure ()

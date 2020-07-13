@@ -244,7 +244,6 @@ processReminders :: IRC.C.IRC LC.St.CoucouState ()
 processReminders = do
   let intervalInSec = (10 :: Integer)
   connPath <- St.gets LC.St.csSQLitePath
-  createTable connPath
   forever $ do
     now <- liftIO Time.getCurrentTime
     msgToSend <- liftIO $ processReminders' connPath intervalInSec now

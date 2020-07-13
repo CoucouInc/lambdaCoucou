@@ -58,6 +58,10 @@ runBot = do
       Just "1" -> pure $ LC.Twitch.watchStreams ircState (LC.St.csTwitch initialBotState)
       _ -> pure $ noopTwitch env
 
+  traverse_
+    (\f -> f (LC.Cli.sqlitePath config))
+    [LC.C.createTable, LC.Remind.createTable, LC.Settings.createTable]
+
   -- Run all actions in parallel, and if one of them returns, abort everything
   -- It's primitive, but if something goes wrong, that should be somewhat visible
   void $

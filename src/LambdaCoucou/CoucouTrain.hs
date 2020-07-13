@@ -12,7 +12,6 @@ import RIO
 import qualified RIO.Lens as Lens
 import qualified RIO.State as St
 import qualified RIO.Text as T
-import Say
 
 coucouTrainHandler ::
   IRC.C.Source Text ->
@@ -34,7 +33,6 @@ coucouTrainHandler source chan sourceNick msg = do
         fromMaybe 0
           <$> St.gets (^? field @"csChannels" . Lens.at chan . Lens._Just . field @"cstCoucouCount")
 
-      say $ "Current count is: " <> tshow count
       if (any (`T.isPrefixOf` lowStripped) ["coucou", "cc"])
         then do
           if (count >= 3)
