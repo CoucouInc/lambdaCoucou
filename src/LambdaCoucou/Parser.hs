@@ -254,7 +254,7 @@ atTime = C.string "at" <|> C.string "à"
 -------------------- User Settings --------------------
 settingsCommandParser :: Parser LC.Cmd.CoucouCmd
 settingsCommandParser = do
-  C.string "usr" <|> C.string "user"
+  C.string "settings"
   C.space1
   cmd <- displayP <|> tzP
   pure $ LC.Cmd.Settings cmd

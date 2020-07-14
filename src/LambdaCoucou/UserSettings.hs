@@ -4,6 +4,8 @@ module LambdaCoucou.UserSettings
   ( SettingsCmd (..),
     createTable,
     settingsCommandHandler,
+    UserSettings(..),
+    getUserSettings
   )
 where
 

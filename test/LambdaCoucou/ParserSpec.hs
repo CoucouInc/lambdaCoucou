@@ -353,14 +353,14 @@ tests = H.describe "Parser" $ do
   H.describe "User settings" $ do
     H.describe "timezone" $ do
       H.it "parses unset" $ do
-        LC.P.parseCommand "&usr unset tz" `T.M.shouldParse` LC.Cmd.Settings (LC.Settings.UserTZ Nothing)
-        LC.P.parseCommand "&user unset tz" `T.M.shouldParse` LC.Cmd.Settings (LC.Settings.UserTZ Nothing)
-        LC.P.parseCommand "&user unset timezone" `T.M.shouldParse` LC.Cmd.Settings (LC.Settings.UserTZ Nothing)
+        LC.P.parseCommand "&settings unset tz" `T.M.shouldParse` LC.Cmd.Settings (LC.Settings.UserTZ Nothing)
+        LC.P.parseCommand "&settings unset tz" `T.M.shouldParse` LC.Cmd.Settings (LC.Settings.UserTZ Nothing)
+        LC.P.parseCommand "&settings unset timezone" `T.M.shouldParse` LC.Cmd.Settings (LC.Settings.UserTZ Nothing)
 
       H.it "parses set timezone" $ do
-        LC.P.parseCommand "&usr set tz whatever "
+        LC.P.parseCommand "&settings set tz whatever "
           `T.M.shouldParse` LC.Cmd.Settings (LC.Settings.UserTZ $ Just "whatever")
 
     H.describe "display" $ do
       H.it "can display settings" $
-        LC.P.parseCommand "&usr show" `T.M.shouldParse` LC.Cmd.Settings LC.Settings.Display
+        LC.P.parseCommand "&settings show" `T.M.shouldParse` LC.Cmd.Settings LC.Settings.Display

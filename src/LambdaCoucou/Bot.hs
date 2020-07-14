@@ -127,13 +127,7 @@ execCommand chanName nick = \case
   LC.Cmd.Url offset mbTarget -> LC.Url.fetchUrlCommandHandler chanName offset mbTarget
   LC.Cmd.Crypto coin target -> LC.C.cryptoCommandHandler coin target
   LC.Cmd.Date target -> LC.Date.dateCommandHandler target
-  LC.Cmd.Cancer cancer target -> do
-    reply <- LC.Cancer.cancerCommandHandler chanName cancer target
-    -- a cancer command will produce a url
-    case reply of
-      Nothing -> pure ()
-      Just x -> LC.Url.updateLastUrl chanName x
-    pure reply
+  LC.Cmd.Cancer cancer target -> LC.Cancer.cancerCommandHandler chanName cancer target
   LC.Cmd.ShoutCoucou -> LC.Chan.shoutCoucouCommandHandler chanName
   LC.Cmd.HeyCoucou -> pure $ Just $ "écoucou " <> nick
   LC.Cmd.PR target -> LC.PR.prCommandHandler target

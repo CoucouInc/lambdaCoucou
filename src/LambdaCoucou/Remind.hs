@@ -1,19 +1,24 @@
+{-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE TupleSections #-}
 {-# OPTIONS_GHC -Wno-unused-matches #-}
 
 module LambdaCoucou.Remind where
 
 import qualified Data.Maybe as Mb
+import qualified Data.Time.Zones as TZ
+import qualified Data.Time.Zones.All as TZ
 import qualified Database.SQLite.Simple as SQL
 import qualified Database.SQLite.Simple.FromField as SQL
 import qualified Database.SQLite.Simple.ToField as SQL
 import qualified LambdaCoucou.State as LC.St
+import qualified LambdaCoucou.UserSettings as LC.Settings
 import qualified Network.IRC.Client as IRC.C
 import qualified Network.IRC.Client.Events as IRC.Ev
 import RIO
 import qualified RIO.State as St
 import qualified RIO.Text as T
 import qualified RIO.Time as Time
-import Say (say, sayShow, sayString)
+import Say (sayShow, sayString)
 
 data RemindCmd
   = Reminder RemindSpec Text
@@ -147,23 +152,24 @@ handleSetReminder ::
   Text ->
   IRC.C.IRC LC.St.CoucouState (Maybe Text)
 handleSetReminder chanName nick spec text = do
-  now <- Time.getCurrentTime
+  nowUtc <- Time.getCurrentTime
   connPath <- St.gets LC.St.csSQLitePath
-  sayString $ "remind spec: " <> show spec
-  let remindAt = timeFromSpec now spec
+  tz <- getUserTZ nick
+  now <- Time.getCurrentTime
+  let remindAt = timeFromSpec now tz spec
   let reminder =
         RemindRecord
           { rrTargetChan = chanName,
             rrNick = nick,
-            rrCreatedAt = now,
+            rrCreatedAt = nowUtc,
             rrRemindAt = remindAt,
             rrContent = text
           }
   liftIO $ SQL.withConnection connPath $ \conn -> createReminder conn reminder
-  pure $ Just $ "Saved! Will remind at " <> prettyTs remindAt
+  pure $ Just $ "Saved! Will remind at " <> prettyTs tz remindAt
 
-timeFromSpec :: Time.UTCTime -> RemindSpec -> Time.UTCTime
-timeFromSpec now = \case
+timeFromSpec :: Time.UTCTime -> TZ.TZ -> RemindSpec -> Time.UTCTime
+timeFromSpec now tz = \case
   RemindDuration ts -> timeFromDuration ts
   RemindTime ts -> timeFromGivenTime ts
   RemindTomorrow ts -> tomorrowTime ts
@@ -229,10 +235,12 @@ timeFromSpec now = \case
       let nowSec = Time.diffTimeToPicoseconds dt `div` (10 ^ 12)
           (nowH, rest) = nowSec `divMod` 3600
           nowMin = rest `div` 60
+          tzDelta = Time.timeZoneMinutes $ TZ.timeZoneForUTCTime tz now
           dayTime =
             Time.secondsToDiffTime $
               (Mb.maybe nowH fromIntegral mbHour) * 3600
                 + (Mb.maybe nowMin fromIntegral mbMin) * 60
+                - fromIntegral tzDelta * 60
        in dayTime
 
 -- TODO: currently there's a bug. If a reminder should be sent to a channel
@@ -246,30 +254,59 @@ processReminders = do
   connPath <- St.gets LC.St.csSQLitePath
   forever $ do
     now <- liftIO Time.getCurrentTime
-    msgToSend <- liftIO $ processReminders' connPath intervalInSec now
+    msgToSend <- processReminders' connPath intervalInSec now
     forM_ msgToSend $ \(chan, msg) ->
       IRC.C.send $ IRC.Ev.Privmsg (LC.St.getChannelName chan) (Right msg)
     threadDelay (fromInteger intervalInSec * 10 ^ 6)
 
-processReminders' :: FilePath -> Integer -> Time.UTCTime -> IO [(LC.St.ChannelName, Text)]
+processReminders' ::
+  (St.MonadState LC.St.CoucouState m, MonadIO m) =>
+  FilePath ->
+  Integer ->
+  Time.UTCTime ->
+  m [(LC.St.ChannelName, Text)]
 processReminders' connPath intervalSec now = do
   let beforeTime = Time.addUTCTime (fromInteger $ intervalSec) now
-  reminders <- SQL.withConnection connPath $ \conn -> do
-    rs <- getRemindersBefore beforeTime conn
-    -- not quite safe to delete the reminders before they are sent out but I'm not going
-    -- to bother for this project
-    mapM_ sayShow rs
-    mapM_ (\(Entity i _) -> deleteReminder conn i) rs
-    pure rs
-  pure $ fmap formatReminder reminders
+  reminders <- liftIO $
+    SQL.withConnection connPath $ \conn -> do
+      rs <- getRemindersBefore beforeTime conn
+      -- not quite safe to delete the reminders before they are sent out but I'm not going
+      -- to bother for this project
+      mapM_ (\(Entity i _) -> deleteReminder conn i) rs
+      pure rs
 
-formatReminder :: Entity Int RemindRecord -> (LC.St.ChannelName, Text)
-formatReminder (Entity reminderId rr) =
-  let txt = rrNick rr <> ": " <> rrContent rr <> " (reminder created at " <> prettyTs (rrCreatedAt rr) <> ")"
+  -- there shouldn't be many reminders at any point in time, so doing naive queries
+  -- for each reminders to get the TZ is fine
+  withTz <- mapM (\e@(Entity _ rr) -> (e,) <$> getUserTZ (rrNick rr)) reminders
+  pure $ fmap formatReminder withTz
+
+formatReminder :: (Entity Int RemindRecord, TZ.TZ) -> (LC.St.ChannelName, Text)
+formatReminder ((Entity reminderId rr), tz) =
+  let txt =
+        rrNick rr
+          <> ": "
+          <> rrContent rr
+          <> " (reminder created at "
+          <> prettyTs tz (rrCreatedAt rr)
+          <> ")"
    in (rrTargetChan rr, txt)
 
-prettyTs :: Time.UTCTime -> Text
-prettyTs = T.pack . Time.formatTime Time.defaultTimeLocale "%Y-%m-%d %H:%M %Z"
+prettyTs :: TZ.TZ -> Time.UTCTime -> Text
+prettyTs tz utcTime =
+  T.pack $
+    Time.formatTime
+      Time.defaultTimeLocale
+      "%Y-%m-%d %H:%M %Z (%z)"
+      (Time.utcToZonedTime (TZ.timeZoneForUTCTime tz utcTime) utcTime)
+
+getUserTZ :: (St.MonadState LC.St.CoucouState m, MonadIO m) => Text -> m TZ.TZ
+getUserTZ nick = do
+  usrSettings <- LC.Settings.getUserSettings nick
+  let tz = fromMaybe TZ.utcTZ do
+        settings <- usrSettings
+        usrTzLabel <- LC.Settings.usTimezone settings
+        pure $ TZ.tzByLabel usrTzLabel
+  pure tz
 
 handleListReminders ::
   LC.St.ChannelName ->
@@ -278,19 +315,19 @@ handleListReminders ::
 handleListReminders chanName nick = do
   connPath <- St.gets LC.St.csSQLitePath
   reminders <- liftIO $ SQL.withConnection connPath (selectReminders chanName nick)
-  forM_ reminders $ \r -> say (shortForm r)
+  tz <- getUserTZ nick
   let result
         | null reminders = "No reminder set"
-        | length reminders <= 3 = T.intercalate " − " (map shortForm reminders)
+        | length reminders <= 3 = T.intercalate " − " (map (shortForm tz) reminders)
         | otherwise =
           "You have " <> tshow (length reminders) <> " reminders. "
-            <> T.intercalate " − " (map shortForm $ take 3 reminders)
+            <> T.intercalate " − " (map (shortForm tz) $ take 3 reminders)
   pure $ Just result
 
-shortForm :: Entity Int RemindRecord -> Text
-shortForm (Entity rId rr) =
+shortForm :: TZ.TZ -> Entity Int RemindRecord -> Text
+shortForm tz (Entity rId rr) =
   "(" <> tshow rId <> ") at "
-    <> prettyTs (rrRemindAt rr)
+    <> prettyTs tz (rrRemindAt rr)
     <> ": "
     <> ellipsis (rrContent rr)
   where
