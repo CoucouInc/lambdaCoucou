@@ -193,7 +193,7 @@ timeFromSpec now tz = \case
               (Mb.maybe ny fromIntegral $ dsYear ts)
               (fromMaybe nm $ dsMonth ts)
               (fromMaybe nd $ dsDay ts)
-          dayTime = mkDayTime (Time.utctDayTime now) (dsHour ts) (dsMinute ts)
+          dayTime = mkDayTime (dsHour ts) (dsMinute ts)
        in Time.UTCTime
             { Time.utctDay = day',
               Time.utctDayTime = dayTime
@@ -222,7 +222,7 @@ timeFromSpec now tz = \case
           (mbHour, mbMin) = case ts of
             Nothing -> (Nothing, Nothing)
             Just (a, b) -> (Just a, Just b)
-          dayTime = mkDayTime (Time.utctDayTime now) mbHour mbMin
+          dayTime = mkDayTime mbHour mbMin
           newTime = Time.UTCTime {Time.utctDay = targetDay, Time.utctDayTime = dayTime}
           newTime' =
             if newTime <= now
@@ -230,17 +230,19 @@ timeFromSpec now tz = \case
               else newTime
        in newTime'
 
-    mkDayTime :: Time.DiffTime -> Maybe Int -> Maybe Int -> Time.DiffTime
-    mkDayTime dt mbHour mbMin =
-      let nowSec = Time.diffTimeToPicoseconds dt `div` (10 ^ 12)
-          (nowH, rest) = nowSec `divMod` 3600
-          nowMin = rest `div` 60
+    mkDayTime :: Maybe Int -> Maybe Int -> Time.DiffTime
+    mkDayTime mbHour mbMin =
+      let localNow = Time.utcToZonedTime (TZ.timeZoneForUTCTime tz now) now
+          localTod = Time.localTimeOfDay $ Time.zonedTimeToLocalTime localNow
+          nowH = Time.todHour localTod
+          nowMin = Time.todMin localTod
           tzDelta = Time.timeZoneMinutes $ TZ.timeZoneForUTCTime tz now
           dayTime =
             Time.secondsToDiffTime $
-              (Mb.maybe nowH fromIntegral mbHour) * 3600
-                + (Mb.maybe nowMin fromIntegral mbMin) * 60
-                - fromIntegral tzDelta * 60
+              fromIntegral $
+                (Mb.fromMaybe nowH mbHour) * 3600
+                  + (Mb.fromMaybe nowMin mbMin) * 60
+                  - tzDelta * 60
        in dayTime
 
 -- TODO: currently there's a bug. If a reminder should be sent to a channel
