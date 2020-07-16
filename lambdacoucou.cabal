@@ -67,6 +67,7 @@ library
     , http-types
     , irc-client
     , irc-ctcp
+    , irc-conduit
     , lens
     , megaparsec
     , mtl

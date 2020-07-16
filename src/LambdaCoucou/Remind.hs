@@ -14,6 +14,7 @@ import qualified LambdaCoucou.State as LC.St
 import qualified LambdaCoucou.UserSettings as LC.Settings
 import qualified Network.IRC.Client as IRC.C
 import qualified Network.IRC.Client.Events as IRC.Ev
+import qualified Network.IRC.Conduit.Internal as IRC.C
 import RIO
 import qualified RIO.State as St
 import qualified RIO.Text as T
@@ -49,7 +50,7 @@ instance (SQL.ToRow a, SQL.ToField i) => SQL.ToRow (Entity i a) where
   toRow (Entity i x) = SQL.toField i : SQL.toRow x
 
 data RemindRecord = RemindRecord
-  { rrTargetChan :: LC.St.ChannelName,
+  { rrTargetChan :: Maybe LC.St.ChannelName,
     rrNick :: Text,
     rrCreatedAt :: Time.UTCTime,
     rrRemindAt :: Time.UTCTime,
@@ -97,12 +98,12 @@ getRemindersBefore beforeTime conn =
     "SELECT * FROM reminders WHERE remind_at <= ?"
     (SQL.Only beforeTime)
 
-selectReminders :: LC.St.ChannelName -> Text -> SQL.Connection -> IO [Entity Int RemindRecord]
-selectReminders chanName nick conn =
+selectReminders :: Maybe LC.St.ChannelName -> Text -> SQL.Connection -> IO [Entity Int RemindRecord]
+selectReminders mbChanName nick conn =
   SQL.query
     conn
     "SELECT * FROM reminders WHERE target_chan = ? AND nick = ? ORDER BY remind_at"
-    (chanName, nick)
+    (mbChanName, nick)
 
 deleteReminder :: SQL.Connection -> Int -> IO ()
 deleteReminder conn reminderId =
@@ -118,7 +119,7 @@ createTable fp = liftIO $
       conn
       "CREATE TABLE IF NOT EXISTS reminders(\
       \id INTEGER PRIMARY KEY AUTOINCREMENT,\
-      \target_chan TEXT NOT NULL,\
+      \target_chan TEXT,\
       \nick TEXT NOT NULL,\
       \created_at TEXT NOT NULL,\
       \remind_at TEXT NOT NULL,\
@@ -136,22 +137,22 @@ test = SQL.withConnection "coucou.sqlite" $ \conn -> do
   forM_ rs sayShow
 
 remindCommandHandler ::
-  LC.St.ChannelName ->
+  Maybe LC.St.ChannelName ->
   Text ->
   RemindCmd ->
   IRC.C.IRC LC.St.CoucouState (Maybe Text)
-remindCommandHandler chanName nick = \case
-  Reminder spec text -> handleSetReminder chanName nick spec text
-  RemindList -> handleListReminders chanName nick
-  RemindDelete rId -> handleDeleteReminder chanName nick rId
+remindCommandHandler mbChanName nick = \case
+  Reminder spec text -> handleSetReminder mbChanName nick spec text
+  RemindList -> handleListReminders mbChanName nick
+  RemindDelete rId -> handleDeleteReminder mbChanName nick rId
 
 handleSetReminder ::
-  LC.St.ChannelName ->
+  Maybe LC.St.ChannelName ->
   Text ->
   RemindSpec ->
   Text ->
   IRC.C.IRC LC.St.CoucouState (Maybe Text)
-handleSetReminder chanName nick spec text = do
+handleSetReminder mbChanName nick spec text = do
   nowUtc <- Time.getCurrentTime
   connPath <- St.gets LC.St.csSQLitePath
   tz <- getUserTZ nick
@@ -159,7 +160,7 @@ handleSetReminder chanName nick spec text = do
   let remindAt = timeFromSpec now tz spec
   let reminder =
         RemindRecord
-          { rrTargetChan = chanName,
+          { rrTargetChan = mbChanName,
             rrNick = nick,
             rrCreatedAt = nowUtc,
             rrRemindAt = remindAt,
@@ -200,7 +201,7 @@ timeFromSpec now tz = \case
             }
 
     tomorrowTime mbTs =
-      let (h, min) = case mbTs of
+      let (h, minutes) = case mbTs of
             Nothing -> (Nothing, Nothing)
             Just (a, b) -> (Just a, Just b)
           ts =
@@ -209,7 +210,7 @@ timeFromSpec now tz = \case
                 dsMonth = Nothing,
                 dsDay = Nothing,
                 dsHour = h,
-                dsMinute = min
+                dsMinute = minutes
               }
           withTime = timeFromGivenTime ts
           d = Time.addDays 1 (Time.utctDay withTime)
@@ -257,8 +258,8 @@ processReminders = do
   forever $ do
     now <- liftIO Time.getCurrentTime
     msgToSend <- processReminders' connPath intervalInSec now
-    forM_ msgToSend $ \(chan, msg) ->
-      IRC.C.send $ IRC.Ev.Privmsg (LC.St.getChannelName chan) (Right msg)
+    forM_ msgToSend $ \(target, msg) -> do
+      IRC.C.send $ IRC.Ev.Privmsg target (Right msg)
     threadDelay (fromInteger intervalInSec * 10 ^ 6)
 
 processReminders' ::
@@ -266,7 +267,7 @@ processReminders' ::
   FilePath ->
   Integer ->
   Time.UTCTime ->
-  m [(LC.St.ChannelName, Text)]
+  m [(IRC.C.Target Text, Text)]
 processReminders' connPath intervalSec now = do
   let beforeTime = Time.addUTCTime (fromInteger $ intervalSec) now
   reminders <- liftIO $
@@ -282,7 +283,7 @@ processReminders' connPath intervalSec now = do
   withTz <- mapM (\e@(Entity _ rr) -> (e,) <$> getUserTZ (rrNick rr)) reminders
   pure $ fmap formatReminder withTz
 
-formatReminder :: (Entity Int RemindRecord, TZ.TZ) -> (LC.St.ChannelName, Text)
+formatReminder :: (Entity Int RemindRecord, TZ.TZ) -> (IRC.C.Target Text, Text)
 formatReminder ((Entity reminderId rr), tz) =
   let txt =
         rrNick rr
@@ -291,7 +292,8 @@ formatReminder ((Entity reminderId rr), tz) =
           <> " (reminder created at "
           <> prettyTs tz (rrCreatedAt rr)
           <> ")"
-   in (rrTargetChan rr, txt)
+      target = maybe (rrNick rr) LC.St.getChannelName (rrTargetChan rr)
+   in (target, txt)
 
 prettyTs :: TZ.TZ -> Time.UTCTime -> Text
 prettyTs tz utcTime =
@@ -311,12 +313,12 @@ getUserTZ nick = do
   pure tz
 
 handleListReminders ::
-  LC.St.ChannelName ->
+  Maybe LC.St.ChannelName ->
   Text ->
   IRC.C.IRC LC.St.CoucouState (Maybe Text)
-handleListReminders chanName nick = do
+handleListReminders mbChanName nick = do
   connPath <- St.gets LC.St.csSQLitePath
-  reminders <- liftIO $ SQL.withConnection connPath (selectReminders chanName nick)
+  reminders <- liftIO $ SQL.withConnection connPath (selectReminders mbChanName nick)
   tz <- getUserTZ nick
   let result
         | null reminders = "No reminder set"
@@ -336,15 +338,15 @@ shortForm tz (Entity rId rr) =
     ellipsis txt = if T.length txt > 30 then T.take 29 txt <> "…" else txt
 
 handleDeleteReminder ::
-  LC.St.ChannelName ->
+  Maybe LC.St.ChannelName ->
   Text ->
   Int ->
   IRC.C.IRC LC.St.CoucouState (Maybe Text)
-handleDeleteReminder chanName nick rId = do
+handleDeleteReminder mbChanName nick rId = do
   connPath <- St.gets LC.St.csSQLitePath
   hasBeenDeleted <- liftIO $
     SQL.withConnection connPath $ \conn -> do
-      reminders <- selectReminders chanName nick conn
+      reminders <- selectReminders mbChanName nick conn
       if rId `elem` (map (\(Entity i _) -> i) reminders)
         then do
           deleteReminder conn rId
@@ -354,13 +356,15 @@ handleDeleteReminder chanName nick rId = do
     Just $
       if hasBeenDeleted
         then "Reminder deleted"
-        else
-          "No reminder with ID "
-            <> tshow rId
-            <> " for user "
-            <> nick
-            <> " in chan "
-            <> (LC.St.getChannelName chanName)
+        else case mbChanName of
+          Nothing -> "No reminder with ID " <> tshow rId
+          Just chanName ->
+            "No reminder with ID "
+              <> tshow rId
+              <> " for user "
+              <> nick
+              <> " in chan "
+              <> (LC.St.getChannelName chanName)
 
 {-
 

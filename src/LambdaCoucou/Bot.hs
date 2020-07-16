@@ -21,8 +21,8 @@ import qualified Network.IRC.Client.Events as IRC.Ev
 import qualified Network.IRC.Client.Lens as IRC.L
 import RIO
 import qualified RIO.Text as T
+import Say
 import qualified System.Environment as Env
-import System.IO (putStrLn)
 import qualified UnliftIO.Async as Async
 
 runBot :: IO ()
@@ -51,7 +51,7 @@ runBot = do
       initialBotState
 
   let noopTwitch val = do
-        putStrLn $ "TWITCH_MODULE set to " <> show val <> " ≠ 1 -> not watching any streams"
+        sayString $ "TWITCH_MODULE set to " <> show val <> " ≠ 1 -> not watching any streams"
         forever (threadDelay maxBound)
   (twitchProcess :: IO ()) <-
     Env.lookupEnv "TWITCH_MODULE" >>= \env -> case env of
@@ -71,7 +71,7 @@ runBot = do
           <|> (Async.conc (IRC.C.runIRCAction (LC.C.monitorRates (LC.Cli.sqlitePath config)) ircState))
           <|> (Async.conc (IRC.C.runIRCAction LC.Remind.processReminders ircState))
       )
-  putStrLn "exiting"
+  say "exiting"
 
 handlers :: [IRC.Ev.EventHandler LC.St.CoucouState]
 handlers =
@@ -102,13 +102,18 @@ commandHandler =
         -- should still trigger updateLastUrlHandler
         (IRC.Ev.Channel chanName nick, Right msg) -> unless (blacklisted nick) $ do
           LC.C.Coucou.coucouTrainHandler source (LC.St.ChannelName chanName) nick msg
-          case LC.P.parseCommand msg of
-            Left _err -> pure ()
-            Right cmd -> do
-              liftIO $ putStrLn $ "handling command: " <> show cmd
-              execCommand (LC.St.ChannelName chanName) nick cmd >>= replyTo source
+          handle source (Just $ LC.St.ChannelName chanName) nick msg
+
+        (IRC.Ev.User nick, Right msg) -> unless (blacklisted nick) (handle source Nothing nick msg)
         _ -> pure ()
     )
+  where
+    handle source mbChan nick msg =
+      case LC.P.parseCommand msg of
+        Left _err -> pure ()
+        Right cmd -> do
+          say $ "handling command: " <> tshow cmd
+          execCommand mbChan nick cmd >>= replyTo source
 
 replyTo :: IRC.Ev.Source Text -> Maybe Text -> IRC.C.IRC s ()
 replyTo source = maybe (pure ()) (IRC.C.replyTo source)
@@ -118,22 +123,26 @@ blacklisted :: Text -> Bool
 blacklisted nick = nick `elem` ["coucoubot", "zoe_bot", "M`arch`ov", "coucoucou"]
 
 execCommand ::
-  LC.St.ChannelName ->
+  Maybe LC.St.ChannelName ->
   Text ->
   LC.Cmd.CoucouCmd ->
   IRC.C.IRC LC.St.CoucouState (Maybe Text)
-execCommand chanName nick = \case
+execCommand mbChanName nick = \case
   LC.Cmd.Nop -> pure Nothing
-  LC.Cmd.Url offset mbTarget -> LC.Url.fetchUrlCommandHandler chanName offset mbTarget
+  LC.Cmd.Url offset mbTarget -> case mbChanName of
+    Nothing -> pure $ Just "Command not supported in private message"
+    Just chanName -> LC.Url.fetchUrlCommandHandler chanName offset mbTarget
   LC.Cmd.Crypto coin target -> LC.C.cryptoCommandHandler coin target
   LC.Cmd.Date target -> LC.Date.dateCommandHandler target
-  LC.Cmd.Cancer cancer target -> LC.Cancer.cancerCommandHandler chanName cancer target
-  LC.Cmd.ShoutCoucou -> LC.Chan.shoutCoucouCommandHandler chanName
+  LC.Cmd.Cancer cancer target -> LC.Cancer.cancerCommandHandler mbChanName cancer target
+  LC.Cmd.ShoutCoucou -> case mbChanName of
+    Nothing -> pure $ Just "Command not supported in private message"
+    Just chanName -> LC.Chan.shoutCoucouCommandHandler chanName
   LC.Cmd.HeyCoucou -> pure $ Just $ "écoucou " <> nick
   LC.Cmd.PR target -> LC.PR.prCommandHandler target
   LC.Cmd.Help hlpCmd target -> LC.Hlp.helpCommandHandler hlpCmd target
   LC.Cmd.Joke target -> LC.Joke.jokeCommandHandler target
-  LC.Cmd.Remind remindCommand -> LC.Remind.remindCommandHandler chanName nick remindCommand
+  LC.Cmd.Remind remindCommand -> LC.Remind.remindCommandHandler mbChanName nick remindCommand
   LC.Cmd.Settings cmd -> LC.Settings.settingsCommandHandler nick cmd
 
 addTarget :: Maybe Text -> Text -> Text
