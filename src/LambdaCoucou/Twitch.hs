@@ -211,6 +211,11 @@ watchStreams botState clientEnvMvar = do
             { swsTwitchUserLogin = UserLogin "geekingfrog",
               swsIRCNick = "Geekingfrog",
               swsIRCChan = "#arch-fr-free"
+            },
+          StreamWatcherSpec
+            { swsTwitchUserLogin = UserLogin "shampooingonthemove",
+              swsIRCNick = "Shampooing",
+              swsIRCChan = "#arch-fr-free"
             }
         ]
   Async.runConc $
