@@ -15,6 +15,7 @@ data HelpCommand
   | Joke
   | Remind
   | Settings
+  | YTSearch
   | Unknown Text
   deriving (Show, Eq)
 
@@ -23,7 +24,7 @@ helpCommandHandler ::
   Maybe Text ->
   IRC.C.IRC LC.St.CoucouState (Maybe Text)
 helpCommandHandler hlpCmd target = do
-  let generalMsg = "`&help cmd` with cmd one of [url, crypto, date, cancer, coucou, joke, remind, settings]"
+  let generalMsg = "`&help cmd` with cmd one of [url, crypto, date, cancer, coucou, joke, remind, settings, ytSearch|yt_search]"
   let msg = case hlpCmd of
         Url ->
           "[λurl | λurl n] Grab the title of the last url seen in the chan. If n given > 0, gives the previous n url. λurl 1 is the second to last url."
@@ -43,6 +44,8 @@ helpCommandHandler hlpCmd target = do
           "Reminder. &remind (in <duration>|at <time>|tomorrow (at <time>)). ex: &remind at 2020-06-28 12:34 coucou. &remind à 19:00 text. &remind in 1y 10M 1d 2h10m another coucou. &remind lundi coucou. &remind tuesday at 12 manger. The timezone depends on the user settings, defaults to UTC. See λhelp settings. &remind list. &remind del <ID>"
         Settings ->
           "Save some user prefference. &settings set/unset <setting>. Setting can be: tz: a timezone, for example Europe/Paris. `&settings show` to display current preferences"
+        YTSearch ->
+          "Returns the first youtube video result for the query. Ex: &ytSearch je suis charlie"
         Unknown cmd ->
           "Unknown command: " <> cmd <> ". " <> generalMsg
   pure $ Just $ LC.Hdl.addTarget target msg

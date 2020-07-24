@@ -3,6 +3,7 @@ module LambdaCoucou.Bot where
 import qualified LambdaCoucou.Cancer as LC.Cancer
 import qualified LambdaCoucou.Channel as LC.Chan
 import qualified LambdaCoucou.Cli as LC.Cli
+import qualified LambdaCoucou.YTSearch as LC.YTSearch
 import qualified LambdaCoucou.Command as LC.Cmd
 import qualified LambdaCoucou.CoucouTrain as LC.C.Coucou
 import qualified LambdaCoucou.Crypto as LC.C
@@ -144,6 +145,7 @@ execCommand mbChanName nick = \case
   LC.Cmd.Joke target -> LC.Joke.jokeCommandHandler target
   LC.Cmd.Remind remindCommand -> LC.Remind.remindCommandHandler mbChanName nick remindCommand
   LC.Cmd.Settings cmd -> LC.Settings.settingsCommandHandler nick cmd
+  LC.Cmd.YTSearch query target -> LC.YTSearch.ytSearchCommandHandler query target
 
 addTarget :: Maybe Text -> Text -> Text
 addTarget mbTarget msg = case mbTarget of

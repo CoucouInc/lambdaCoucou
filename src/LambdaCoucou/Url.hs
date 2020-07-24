@@ -264,7 +264,10 @@ fetchYtUrlData ytApiKey textUrl = do
   pure $ yvTitle video <> " [" <> ycTitle channel <> "]"
 
 fetchYtChannel ::
-  (MonadIO m, Req.MonadHttp m, Ex.MonadError FetchError m) =>
+  ( MonadIO m,
+    Req.MonadHttp m,
+    Ex.MonadError FetchError m
+  ) =>
   LC.St.YoutubeAPIKey ->
   ChannelId ->
   m YtChannel

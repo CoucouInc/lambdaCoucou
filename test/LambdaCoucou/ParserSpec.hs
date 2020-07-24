@@ -20,8 +20,6 @@ tests = H.describe "Parser" $ do
     let targetParser = M.parse LC.P.targetParser ""
     H.it "parses a target" $
       targetParser "> foo" `T.M.shouldParse` Just "foo"
-    H.it "doesn't parse a non-target" $
-      targetParser "foo bar" `T.M.shouldParse` Nothing
     H.it "parses a target with spaces around" $
       targetParser "  >  foo " `T.M.shouldParse` Just "foo"
     H.it "parses target with underscore" $
@@ -122,6 +120,10 @@ tests = H.describe "Parser" $ do
         LC.P.parseCommand "&help remind" `T.M.shouldParse` LC.Cmd.Help LC.Hlp.Remind Nothing
       H.it "parses settings" $
         LC.P.parseCommand "&help settings" `T.M.shouldParse` LC.Cmd.Help LC.Hlp.Settings Nothing
+      H.it "parses ytSearch" $ do
+        LC.P.parseCommand "&help yt_search" `T.M.shouldParse` LC.Cmd.Help LC.Hlp.YTSearch Nothing
+        LC.P.parseCommand "&help ytSearch" `T.M.shouldParse` LC.Cmd.Help LC.Hlp.YTSearch Nothing
+        LC.P.parseCommand "&help ytsearch" `T.M.shouldParse` LC.Cmd.Help LC.Hlp.YTSearch Nothing
 
     H.describe "pr command" $ do
       H.it "parses bare command" $
@@ -364,3 +366,18 @@ tests = H.describe "Parser" $ do
     H.describe "display" $ do
       H.it "can display settings" $
         LC.P.parseCommand "&settings show" `T.M.shouldParse` LC.Cmd.Settings LC.Settings.Display
+
+  H.describe "Youtube search" $ do
+    H.it "parses simple query" $
+      LC.P.parseCommand "&yt_search query word"
+        `T.M.shouldParse` LC.Cmd.YTSearch ["query", "word"] Nothing
+
+    H.it
+      "parses query with a target"
+      $ LC.P.parseCommand "&yt_search query word > nick"
+        `T.M.shouldParse` LC.Cmd.YTSearch ["query", "word"] (Just "nick")
+
+    H.it
+      "parses query with > and target"
+      $ LC.P.parseCommand "&yt_search query > foo > nick"
+        `T.M.shouldParse` LC.Cmd.YTSearch ["query", ">", "foo"] (Just "nick")

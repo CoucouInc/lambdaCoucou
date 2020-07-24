@@ -21,5 +21,6 @@ data CoucouCmd
   | Joke Target
   | Remind RemindCmd
   | Settings SettingsCmd
+  | YTSearch [Text] Target
   | Nop
   deriving (Show, Eq)

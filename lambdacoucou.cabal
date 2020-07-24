@@ -43,6 +43,7 @@ library
     , LambdaCoucou.TwitchTypes
     , LambdaCoucou.Url
     , LambdaCoucou.UserSettings
+    , LambdaCoucou.YTSearch
 
   default-extensions:
       DataKinds
@@ -70,6 +71,7 @@ library
     , irc-conduit
     , lens
     , megaparsec
+    , parser-combinators
     , mtl
     , random
     , req

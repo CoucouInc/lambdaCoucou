@@ -12,6 +12,7 @@ import qualified RIO.Partial as RIO'
 import qualified RIO.Time as Time
 import qualified Text.Megaparsec as M
 import qualified Text.Megaparsec.Char as C
+import Control.Applicative.Combinators (manyTill_)
 
 type Parser = M.Parsec Void Text
 
@@ -31,7 +32,8 @@ commandParser =
         M.try prCommandParser,
         M.try jokeCommandParser,
         M.try remindCommandParser,
-        M.try settingsCommandParser
+        M.try settingsCommandParser,
+        M.try ytSearchCommandParser
       ]
     <|> pure LC.Cmd.Nop
 
@@ -99,11 +101,13 @@ helpCommandParser = do
       M.try (f "joke" LC.Hlp.Joke),
       M.try (f "remind" LC.Hlp.Remind),
       M.try (f "settings" LC.Hlp.Settings),
+      M.try (f "ytSearch" LC.Hlp.YTSearch),
+      M.try (f "yt_search" LC.Hlp.YTSearch),
       M.try (LC.P.spaces *> (LC.Cmd.Help LC.Hlp.General <$> targetParser) <* M.eof),
       LC.P.spaces *> (LC.Cmd.Help . LC.Hlp.Unknown <$> LC.P.utf8Word <*> targetParser)
     ]
   where
-    f str cmd = LC.Cmd.Help <$> (M.some C.spaceChar *> (C.string str $> cmd)) <*> targetParser
+    f str cmd = LC.Cmd.Help <$> (M.some C.spaceChar *> (C.string' str $> cmd)) <*> targetParser
 
 -------------------- PR --------------------
 prCommandParser :: Parser LC.Cmd.CoucouCmd
@@ -269,16 +273,24 @@ settingsCommandParser = do
         then Just <$> (C.space1 *> LC.P.utf8Word')
         else pure Nothing
 
+-------------------- Youtube Search --------------------
+ytSearchCommandParser :: Parser LC.Cmd.CoucouCmd
+ytSearchCommandParser = do
+  C.string "yt_search" <|> C.string' "ytSearch"
+  C.space1
+  (queryWords, target) <- (LC.P.utf8Word <* C.space) `manyTill_` targetParser
+  pure $ LC.Cmd.YTSearch queryWords target
+
+
 -------------------- Utils --------------------
 
 targetParser :: Parser (Maybe Text)
-targetParser =
-  M.many C.spaceChar
-    *> ( ( C.char '>'
-             *> M.some C.spaceChar
-             *> fmap Just LC.P.utf8Word'
-             <* LC.P.spaces
-             <* M.eof
-         )
-           <|> pure Nothing
-       )
+targetParser = C.space *> (M.try t <|> (M.eof $> Nothing))
+  where
+    t = do
+      C.char '>'
+      C.space1
+      target <- LC.P.utf8Word'
+      C.space
+      M.eof
+      pure (Just target)
