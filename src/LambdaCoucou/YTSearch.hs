@@ -1,7 +1,11 @@
+{-# LANGUAGE StrictData #-}
+
 module LambdaCoucou.YTSearch where
 
 -- https://developers.google.com/youtube/v3/docs/search
 
+import Data.Aeson ((.:))
+import qualified Data.Aeson as JSON
 import qualified LambdaCoucou.HandlerUtils as LC.Hdl
 import qualified LambdaCoucou.State as LC.St
 import qualified LambdaCoucou.Url as Url
@@ -29,13 +33,41 @@ ytSearchCommandHandler queryWords mbTarget = do
           id
           result
 
+newtype SearchResults = SearchResults {getSearchResults :: Vector SearchResult}
+  deriving stock (Show)
+
+instance JSON.FromJSON SearchResults where
+  parseJSON = JSON.withObject "searchResults" $ \o -> SearchResults <$> o .: "items"
+
+data SearchResult = SearchResult
+  { srVideoId :: Text,
+    srTitle :: Text,
+    srChannelId :: Url.ChannelId
+  }
+  deriving stock (Show)
+
+instance JSON.FromJSON SearchResult where
+  parseJSON = JSON.withObject "SearchResult" $ \o -> do
+    i <- o .: "id" >>= JSON.withObject "videoId" (.: "videoId")
+    (title, chanId) <-
+      o .: "snippet"
+        >>= JSON.withObject
+          "id"
+          (\os -> (,) <$> os .: "title" <*> os .: "channelId")
+    pure $
+      SearchResult
+        { srVideoId = i,
+          srTitle = title,
+          srChannelId = chanId
+        }
+
 searchYt ::
   (MonadIO m) =>
   LC.St.YoutubeAPIKey ->
   [Text] ->
   m (Either Url.FetchError Text)
 searchYt ytApiKey queryWords = Url.runFetch $ do
-  (videos :: Url.YtResponseSnippets Url.YtVideo) <-
+  (SearchResults videos) <-
     Req.responseBody
       <$> ( Req.req
               Req.GET
@@ -47,13 +79,14 @@ searchYt ytApiKey queryWords = Url.runFetch $ do
                   <> "part" =: ("snippet" :: Text)
               )
           )
-  case (Url.getYtResponseSnippets videos) !? 0 of
+  case videos !? 0 of
     Nothing -> pure "No video found 😱"
-    Just vid -> do
-      channel <- Url.fetchYtChannel ytApiKey (Url.yvChannelId vid)
-      pure $ unescape $ Url.yvTitle vid <> " [" <> Url.ycTitle channel <> "]"
-
+    Just SearchResult {srVideoId, srTitle, srChannelId} -> do
+      channel <- Url.fetchYtChannel ytApiKey srChannelId
+      pure $ unescape $ srTitle <> " [" <> Url.ycTitle channel <> "] " <> mkUrl srVideoId
+  where
+    mkUrl vidId = "https://www.youtube.com/watch?v=" <> vidId
 
 -- poor's man solution to remove html escape chars. &quot; -> "
 unescape :: Text -> Text
-unescape = replace "&quot;" "\""
+unescape = replace "&amp;" "&" . replace "&quot;" "\""
