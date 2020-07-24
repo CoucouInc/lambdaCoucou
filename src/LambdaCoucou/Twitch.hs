@@ -112,15 +112,16 @@ postWebhook hubMode env topic = do
             spLease = lease
           }
   token <- ensureClientToken env
-  void $ LC.HTTP.runFetchEx $
-    Req.req
-      Req.POST
-      (Req.https "api.twitch.tv" /: "helix" /: "webhooks" /: "hub")
-      (Req.ReqBodyJson payload)
-      Req.bsResponse
-      ( Req.oAuth2Bearer (T.encodeUtf8 $ getClientAuthToken token)
-          <> Req.header "Client-ID" (T.encodeUtf8 $ getClientID $ ceClientID env)
-      )
+  void $
+    LC.HTTP.runFetchEx $
+      Req.req
+        Req.POST
+        (Req.https "api.twitch.tv" /: "helix" /: "webhooks" /: "hub")
+        (Req.ReqBodyJson payload)
+        Req.bsResponse
+        ( Req.oAuth2Bearer (T.encodeUtf8 $ getClientAuthToken token)
+            <> Req.header "Client-ID" (T.encodeUtf8 $ getClientID $ ceClientID env)
+        )
   logStr $ "subscription request sent: " <> show payload
 
 startWatchChannel :: ClientEnv -> StreamWatcherSpec -> IO ()
@@ -151,28 +152,35 @@ makeClientEnv = do
         ceNotifChan = chan
       }
   where
-    getEnv e = Env.lookupEnv e >>= \case
-      Nothing -> throwString $ "Missing " <> e
-      Just s -> pure s
+    getEnv e =
+      Env.lookupEnv e >>= \case
+        Nothing -> throwString $ "Missing " <> e
+        Just s -> pure s
 
 processNotifications :: [StreamWatcherSpec] -> Chan.TBMChan StreamNotification -> IRC.C.IRC s ()
 processNotifications specs chan = loop
   where
-    loop = liftIO (STM.atomically (Chan.readTBMChan chan)) >>= \case
-      Nothing -> logStr "notification channel closed"
-      Just notif -> do
-        logStr $ "got a notification: " <> show notif
-        case notif of
-          StreamOffline -> loop
-          StreamOnline streamData ->
-            case filter (\s -> swsTwitchUserLogin s == sdUserName streamData) specs of
-              [] -> loop
-              (x : _) -> do
-                let streamUrl = "https://www.twitch.tv/" <> getUserLogin (sdUserName streamData)
-                let str = "Le stream de " <> swsIRCNick x <> " est maintenant live ! " <> streamUrl
-                let msg = IRC.Ev.Privmsg (swsIRCChan x) (Right str)
-                IRC.C.send msg
-                loop
+    loop =
+      liftIO (STM.atomically (Chan.readTBMChan chan)) >>= \case
+        Nothing -> logStr "notification channel closed"
+        Just notif -> do
+          logStr $ "got a notification: " <> show notif
+          case notif of
+            StreamOffline -> loop
+            StreamOnline streamData ->
+              case filter
+                ( \s ->
+                    CaseInsensitive (swsTwitchUserLogin s)
+                      == CaseInsensitive (sdUserName streamData)
+                )
+                specs of
+                [] -> loop
+                (x : _) -> do
+                  let streamUrl = "https://www.twitch.tv/" <> getUserLogin (sdUserName streamData)
+                  let str = "Le stream de " <> swsIRCNick x <> " est maintenant live ! " <> streamUrl
+                  let msg = IRC.Ev.Privmsg (swsIRCChan x) (Right str)
+                  IRC.C.send msg
+                  loop
 
 -- | every 10 minutes, check if leases are expiring soon, if yes, renew them
 watchLeases :: ClientEnv -> IO ()
@@ -236,11 +244,12 @@ logStr msg = liftIO $ do
 processTest :: ClientEnv -> IO ()
 processTest env = loop
   where
-    loop = STM.atomically (Chan.readTBMChan $ ceNotifChan env) >>= \case
-      Nothing -> logStr "channel closed"
-      Just n -> do
-        logStr $ "got notification:" <> show n
-        loop
+    loop =
+      STM.atomically (Chan.readTBMChan $ ceNotifChan env) >>= \case
+        Nothing -> logStr "channel closed"
+        Just n -> do
+          logStr $ "got notification:" <> show n
+          loop
 
 test :: IO ()
 test = do
