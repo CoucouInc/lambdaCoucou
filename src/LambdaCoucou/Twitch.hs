@@ -5,8 +5,10 @@ import qualified Control.Concurrent.STM.TBMChan as Chan
 import qualified Control.Monad.STM as STM
 import qualified Data.Aeson as JSON
 import qualified LambdaCoucou.Http as LC.HTTP
+import qualified LambdaCoucou.State as LC.St
 import qualified LambdaCoucou.TwitchHook as Hook
 import LambdaCoucou.TwitchTypes
+import qualified LambdaCoucou.Url as LC.Url
 import Network.HTTP.Req ((/:), (=:))
 import qualified Network.HTTP.Req as Req
 import qualified Network.IRC.Client as IRC.C
@@ -157,7 +159,10 @@ makeClientEnv = do
         Nothing -> throwString $ "Missing " <> e
         Just s -> pure s
 
-processNotifications :: [StreamWatcherSpec] -> Chan.TBMChan StreamNotification -> IRC.C.IRC s ()
+processNotifications ::
+  [StreamWatcherSpec] ->
+  Chan.TBMChan StreamNotification ->
+  IRC.C.IRC LC.St.CoucouState ()
 processNotifications specs chan = loop
   where
     loop =
@@ -178,8 +183,10 @@ processNotifications specs chan = loop
                 (x : _) -> do
                   let streamUrl = "https://www.twitch.tv/" <> getUserLogin (sdUserName streamData)
                   let str = "Le stream de " <> swsIRCNick x <> " est maintenant live ! " <> streamUrl
-                  let msg = IRC.Ev.Privmsg (swsIRCChan x) (Right str)
+                  let chan = swsIRCChan x
+                  let msg = IRC.Ev.Privmsg chan (Right str)
                   IRC.C.send msg
+                  LC.Url.updateLastUrl (LC.St.ChannelName chan) streamUrl
                   loop
 
 -- | every 10 minutes, check if leases are expiring soon, if yes, renew them
@@ -200,7 +207,10 @@ leaseExpiresAfter :: Time.UTCTime -> Int -> Lease -> Bool
 leaseExpiresAfter now intervalInSeconds lease =
   Time.addUTCTime (fromIntegral intervalInSeconds) now >= leaseExpiresAt lease
 
-watchStreams :: IRC.C.IRCState s -> MVar.MVar (Maybe ClientEnv) -> IO ()
+watchStreams ::
+  IRC.C.IRCState LC.St.CoucouState ->
+  MVar.MVar (Maybe ClientEnv) ->
+  IO ()
 watchStreams botState clientEnvMvar = do
   env <- liftIO makeClientEnv
   MVar.swapMVar clientEnvMvar (Just env)
