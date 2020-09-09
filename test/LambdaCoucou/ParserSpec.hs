@@ -59,8 +59,6 @@ tests = H.describe "Parser" $ do
         LC.P.parseCommand "&crypto  xbt" `T.M.shouldParse` LC.Cmd.Crypto (Right LC.C.Bitcoin) Nothing
       H.it "parses ethereum" $
         LC.P.parseCommand "&crypto  eth" `T.M.shouldParse` LC.Cmd.Crypto (Right LC.C.Ethereum) Nothing
-      H.it "xet is the same as eth" $
-        LC.P.parseCommand "&crypto  xet" `T.M.shouldParse` LC.Cmd.Crypto (Right LC.C.Bitcoin) Nothing
       H.it "requires an argument" $
         LC.P.parseCommand `T.M.shouldFailOn` "&crypto  "
       H.it "only parses known coin" $
