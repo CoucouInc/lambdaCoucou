@@ -60,8 +60,8 @@ cryptoCommandParser = do
 
 cryptoCoin :: Parser (Either Text LC.C.CryptoCoin)
 cryptoCoin =
-  M.try (C.string' "btc" $> Right LC.C.Bitcoin)
-    <|> M.try (C.string' "eth" $> Right LC.C.Ethereum)
+  M.try ((C.string' "btc" <|> C.string' "xbt") $> Right LC.C.Bitcoin)
+    <|> M.try ((C.string' "eth" <|> C.string' "xet") $> Right LC.C.Ethereum)
     <|> (Left <$> LC.P.word)
 
 -------------------- Date --------------------
