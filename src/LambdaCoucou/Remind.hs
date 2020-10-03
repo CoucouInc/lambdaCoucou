@@ -11,6 +11,7 @@ import qualified Database.SQLite.Simple as SQL
 import qualified Database.SQLite.Simple.FromField as SQL
 import qualified Database.SQLite.Simple.ToField as SQL
 import qualified LambdaCoucou.State as LC.St
+import qualified LambdaCoucou.Url as LC.Url
 import qualified LambdaCoucou.UserSettings as LC.Settings
 import qualified Network.IRC.Client as IRC.C
 import qualified Network.IRC.Client.Events as IRC.Ev
@@ -259,6 +260,7 @@ processReminders = do
     now <- liftIO Time.getCurrentTime
     msgToSend <- processReminders' connPath intervalInSec now
     forM_ msgToSend $ \(target, msg) -> do
+      LC.Url.updateLastUrl (LC.St.ChannelName target) msg
       IRC.C.send $ IRC.Ev.Privmsg target (Right msg)
     threadDelay (fromInteger intervalInSec * 10 ^ 6)
 
