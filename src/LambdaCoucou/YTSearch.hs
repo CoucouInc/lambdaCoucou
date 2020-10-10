@@ -15,8 +15,9 @@ import qualified Network.IRC.Client as IRC.C
 import RIO
 import qualified RIO.State as St
 import qualified RIO.Text as T
-import RIO.Text.Partial (replace)
 import RIO.Vector ((!?))
+import qualified HTMLEntities.Decoder as HTML
+import Data.Either as Either
 
 ytSearchCommandHandler ::
   [Text] ->
@@ -87,6 +88,5 @@ searchYt ytApiKey queryWords = Url.runFetch $ do
   where
     mkUrl vidId = "https://www.youtube.com/watch?v=" <> vidId
 
--- poor's man solution to remove html escape chars. &quot; -> "
 unescape :: Text -> Text
-unescape = replace "&amp;" "&" . replace "&quot;" "\""
+unescape t = Either.fromRight t $ HTML.htmlEntityBody t

@@ -62,20 +62,22 @@ library
     , aeson
     , async
     , generic-lens
-    , microlens-ghc
-    , optparse-applicative
+    , html-entities
     , http-client
     , http-types
     , irc-client
-    , irc-ctcp
     , irc-conduit
+    , irc-ctcp
     , lens
     , megaparsec
-    , parser-combinators
+    , microlens-ghc
+    , modern-uri
     , mtl
+    , optparse-applicative
+    , parser-combinators
     , random
     , req
-    , modern-uri
+    , ring-buffer
     , rio
     , say
     , scientific
@@ -87,11 +89,10 @@ library
     , tagsoup
     , text
     , time
+    , tz
     , unliftio
     , wai-extra
     , warp
-    , ring-buffer
-    , tz
 
 executable lambdacoucou
   hs-source-dirs:      bin
