@@ -2,9 +2,10 @@
 
 module LambdaCoucou.Channel where
 
-import Control.Lens ((<%=), _Just, at)
+import Control.Lens (at, (<%=), _Just)
 import qualified Control.Monad.State.Strict as St
 import Data.Generics.Product.Fields (field)
+import qualified Data.RingBuffer as RB
 import qualified LambdaCoucou.State as LC.St
 import qualified Network.IRC.Client as IRC.C
 import qualified Network.IRC.Client.Events as IRC.Ev
@@ -16,7 +17,6 @@ import qualified RIO.Text as T
 import qualified RIO.Text.Partial as T'
 import System.IO (putStrLn)
 import qualified System.Random as Rng
-import qualified Data.RingBuffer as RB
 
 channelStateHandlers :: [IRC.Ev.EventHandler LC.St.CoucouState]
 channelStateHandlers =
@@ -50,16 +50,18 @@ onJoinChannelState =
               Nothing -> throwM InvalidChannelType
               Just chanType -> do
                 lastUrls <- liftIO $ RB.new 10
+                lastMessages <- liftIO $ RB.new 10
                 let nicks =
-                      fmap parseNick
-                        $ filter (/= nick)
-                        $ T.words nickList
+                      fmap parseNick $
+                        filter (/= nick) $
+                          T.words nickList
                 let chanSt =
                       LC.St.ChannelState
                         { LC.St.cstUsers = Set.fromList nicks,
                           LC.St.cstType = chanType,
                           LC.St.cstLastUrls = lastUrls,
-                          LC.St.cstCoucouCount = 0
+                          LC.St.cstCoucouCount = 0,
+                          LC.St.cstLastMessages = lastMessages
                         }
                 field @"csChannels" <%= Map.insert (LC.St.ChannelName chanName) chanSt
           _ -> throwM InvalidNameReply
@@ -88,7 +90,7 @@ onJoinHandler =
     ( \source _args -> case source of
         (IRC.Ev.Channel chanName nick) -> addNickToChan chanName nick
         _ -> pure ()
-      -- this should never happen for a JOIN message though
+        -- this should never happen for a JOIN message though
     )
 
 onPartHandler :: IRC.Ev.EventHandler LC.St.CoucouState
@@ -110,13 +112,14 @@ onChangeHandler =
     ( \source newNick -> case source of
         (IRC.Ev.User oldNick) -> do
           nick <- getOwnNick
-          when (nick /= newNick) $ void $
-            field @"csChannels"
-              <%= fmap
-                ( \chanState ->
-                    chanState
-                      & field @"cstUsers" %~ (Set.insert newNick . Set.delete oldNick)
-                )
+          when (nick /= newNick) $
+            void $
+              field @"csChannels"
+                <%= fmap
+                  ( \chanState ->
+                      chanState
+                        & field @"cstUsers" %~ (Set.insert newNick . Set.delete oldNick)
+                  )
         x -> liftIO $ putStrLn $ "WARN! Malformed Nick message, got: " <> show x
     )
 
@@ -156,7 +159,7 @@ getOwnNick = do
 
 shoutCoucouCommandHandler :: LC.St.ChannelName -> IRC.C.IRC LC.St.CoucouState (Maybe Text)
 shoutCoucouCommandHandler chanName = do
-  usrList <- St.gets (^. field  @"csChannels" . at chanName . _Just . field @"cstUsers")
+  usrList <- St.gets (^. field @"csChannels" . at chanName . _Just . field @"cstUsers")
   let s = Set.size usrList
   if s < 1
     then pure Nothing

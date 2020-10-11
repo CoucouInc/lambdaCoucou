@@ -383,3 +383,9 @@ tests = H.describe "Parser" $ do
       "parses query with > and target"
       $ LC.P.parseCommand "&yt_search query > foo > nick"
         `T.M.shouldParse` LC.Cmd.YTSearch ["query", ">", "foo"] (Just "nick")
+
+  H.describe "Sed" $ do
+    H.it "can parse simple sed" $
+      LC.P.parseCommand "s/foo/bar/" `T.M.shouldParse` LC.Cmd.Sed "foo" "bar"
+    H.it "can parse sed without final slash" $
+      LC.P.parseCommand "s/foo/bar" `T.M.shouldParse` LC.Cmd.Sed "foo" "bar"

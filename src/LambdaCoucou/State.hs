@@ -32,7 +32,9 @@ data ChannelState = ChannelState
     -- | keep track of a limited number of urls posted in the chan
     cstLastUrls :: RB.RingBuffer Vector Text,
     -- | count of consecutive message starting with "coucou" (or a variation)
-    cstCoucouCount :: Int
+    cstCoucouCount :: Int,
+    -- | keep track of the last 10 messages (used for sed replacements)
+    cstLastMessages :: RB.RingBuffer Vector Text
   }
   deriving (Generic)
 

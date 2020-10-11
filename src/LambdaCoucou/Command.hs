@@ -22,5 +22,7 @@ data CoucouCmd
   | Remind RemindCmd
   | Settings SettingsCmd
   | YTSearch [Text] Target
+  | Sed Text Text
+  -- | (raw regex) (replacement text)
   | Nop
   deriving (Show, Eq)

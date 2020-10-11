@@ -15,6 +15,7 @@ import qualified LambdaCoucou.Parser as LC.P
 import qualified LambdaCoucou.Remind as LC.Remind
 import qualified LambdaCoucou.State as LC.St
 import qualified LambdaCoucou.Twitch as LC.Twitch
+import qualified LambdaCoucou.Sed as LC.Sed
 import qualified LambdaCoucou.Url as LC.Url
 import qualified LambdaCoucou.UserSettings as LC.Settings
 import qualified Network.IRC.Client as IRC.C
@@ -102,7 +103,9 @@ commandHandler =
         -- only ignore bots for this handler. A url produced by another bot
         -- should still trigger updateLastUrlHandler
         (IRC.Ev.Channel chanName nick, Right msg) -> unless (blacklisted nick) $ do
-          LC.C.Coucou.coucouTrainHandler source (LC.St.ChannelName chanName) nick msg
+          let chan = LC.St.ChannelName chanName
+          LC.C.Coucou.coucouTrainHandler source chan nick msg
+          LC.Sed.saveMessage chan msg
           handle source (Just $ LC.St.ChannelName chanName) nick msg
 
         (IRC.Ev.User nick, Right msg) -> unless (blacklisted nick) (handle source Nothing nick msg)
@@ -146,6 +149,9 @@ execCommand mbChanName nick = \case
   LC.Cmd.Remind remindCommand -> LC.Remind.remindCommandHandler mbChanName nick remindCommand
   LC.Cmd.Settings cmd -> LC.Settings.settingsCommandHandler nick cmd
   LC.Cmd.YTSearch query target -> LC.YTSearch.ytSearchCommandHandler query target
+  LC.Cmd.Sed rawRegex replacement -> case mbChanName of
+    Nothing -> pure $ Just "Command not supported in private message"
+    Just chanName -> LC.Sed.sedCommandHandler chanName rawRegex replacement
 
 addTarget :: Maybe Text -> Text -> Text
 addTarget mbTarget msg = case mbTarget of

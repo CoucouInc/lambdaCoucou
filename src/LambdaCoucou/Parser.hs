@@ -8,11 +8,12 @@ import qualified LambdaCoucou.ParserUtils as LC.P
 import qualified LambdaCoucou.Remind as LC.R
 import qualified LambdaCoucou.UserSettings as LC.Settings
 import RIO
+import qualified RIO.Text as T
 import qualified RIO.Partial as RIO'
 import qualified RIO.Time as Time
 import qualified Text.Megaparsec as M
 import qualified Text.Megaparsec.Char as C
-import Control.Applicative.Combinators (manyTill_)
+import Control.Applicative.Combinators (manyTill_, someTill)
 
 type Parser = M.Parsec Void Text
 
@@ -21,7 +22,8 @@ parseCommand = M.parse commandParser "cmdParser"
 
 commandParser :: Parser LC.Cmd.CoucouCmd
 commandParser =
-  prefix
+  M.try sedCommandParser
+  <|> prefix
     *> M.choice
       [ M.try urlCommandParser,
         M.try cryptoCommandParser,
@@ -281,6 +283,16 @@ ytSearchCommandParser = do
   (queryWords, target) <- (LC.P.utf8Word <* C.space) `manyTill_` targetParser
   pure $ LC.Cmd.YTSearch queryWords target
 
+
+-------------------- Sed --------------------
+-- note that this parser only handle s/foo/bar(/?)
+-- and ignores escaping
+sedCommandParser :: Parser LC.Cmd.CoucouCmd
+sedCommandParser = do
+  C.string "s/"
+  rawRegex <- T.pack <$> M.anySingle `someTill` C.char '/'
+  replacement <- T.pack <$> M.anySingle `someTill` ((C.char '/' *> M.eof) <|> M.eof)
+  pure $ LC.Cmd.Sed rawRegex replacement
 
 -------------------- Utils --------------------
 

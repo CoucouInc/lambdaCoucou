@@ -1,6 +1,5 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE TupleSections #-}
-{-# OPTIONS_GHC -Wno-unused-matches #-}
 
 module LambdaCoucou.Remind where
 
