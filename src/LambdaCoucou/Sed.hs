@@ -32,7 +32,11 @@ sedCommandHandler chanName rawRegex replacementText = case Re.compileM (encodeUt
         -- with a timeout and an allocation limit to avoid denial of service through pathological regex
         -- (and fool around the ghc memory module)
         let result = foldl (\prev msg -> prev <|> replace regex replacementText msg) Nothing lastMessages
-        pure result
+        traverse (saveMessage chanName) result
+        pure $ fmap ellipsis result
+
+ellipsis :: Text -> Text
+ellipsis txt = if T.length txt > 410 then T.take 409 txt <> "…" else txt
 
 sedCommandLike :: Text -> Bool
 sedCommandLike t = "s/" `T.isPrefixOf` t
