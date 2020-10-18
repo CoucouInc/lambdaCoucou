@@ -1,4 +1,5 @@
 {-# LANGUAGE StrictData #-}
+{-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -Wwarn #-}
 
 module LambdaCoucou.Url where
@@ -6,6 +7,7 @@ module LambdaCoucou.Url where
 import qualified Control.Monad.Except as Ex
 import Data.Aeson ((.:))
 import qualified Data.Aeson as JSON
+import qualified Data.Generics.Product.Fields as Fields
 import qualified Data.RingBuffer as RB
 import qualified LambdaCoucou.HandlerUtils as LC.Hdl
 import qualified LambdaCoucou.Http as LC.Http
@@ -23,12 +25,12 @@ import qualified RIO.State as St
 import qualified RIO.Text as T
 import qualified RIO.Text.Partial as T'
 import RIO.Vector ((!?))
+import Say
+import System.Environment (getEnv)
 import qualified Text.HTML.TagSoup as HTML
 import qualified Text.Megaparsec as M
 import qualified Text.Megaparsec.Char as C
 import qualified Text.URI as URI
-import Say
-import System.Environment (getEnv)
 
 fetchUrlCommandHandler ::
   LC.St.ChannelName ->
@@ -54,20 +56,59 @@ updateLastUrlHandler =
   IRC.Ev.EventHandler
     (IRC.Ev.matchType IRC.Ev._Privmsg)
     ( \source (_target, raw) -> case (source, raw) of
-        (IRC.Ev.Channel chanName _, Right msg) -> updateLastUrl (LC.St.ChannelName chanName) msg
+        (IRC.Ev.Channel chanName _, Right msg) -> do
+          mbMessage <- updateLastUrl (LC.St.ChannelName chanName) msg
+          traverse_ (IRC.C.send . IRC.Ev.Privmsg chanName . Right) mbMessage
         _ -> pure ()
     )
 
-updateLastUrl :: (MonadIO m, St.MonadState LC.St.CoucouState m) => LC.St.ChannelName -> Text -> m ()
+-- | if there is a URL in the given message, update the list of latest seen urls
+-- also strip this URL from any tracking query param. If the URL has some
+-- tracker, will return a message with the updated url
+updateLastUrl :: (MonadIO m, St.MonadState LC.St.CoucouState m) => LC.St.ChannelName -> Text -> m (Maybe Text)
 updateLastUrl chanName msg =
   Map.lookup chanName <$> St.gets LC.St.csChannels >>= \case
-    Nothing -> pure ()
+    Nothing -> pure Nothing
     Just chanState -> case parseUrlMessage msg of
-      Nothing -> pure ()
-      Just url -> liftIO $ RB.append url (LC.St.cstLastUrls chanState)
+      Nothing -> pure Nothing
+      Just url -> do
+        let url' = withoutTracker url
+        liftIO $ RB.append (fromMaybe url url') (LC.St.cstLastUrls chanState)
+        case url' of
+          Nothing -> pure Nothing
+          Just updatedUrl ->
+            let response = updatedUrl <> " <- cette URL n'a pas de trackers de merde, utilisez ça plutôt (https://en.wikipedia.org/wiki/UTM_parameters)"
+             in pure $ Just response
 
+-- | return a (Just url) if the given raw Url had any tracking shit in the query.
+-- The returned url is stripped off the tracking markers
+-- https://en.wikipedia.org/wiki/UTM_parameters
 parseUrlMessage :: Text -> Maybe Text
 parseUrlMessage = hush . M.parse urlParser ""
+
+-- | return an updated URL if some tracker were removed
+withoutTracker :: Text -> Maybe Text
+withoutTracker rawUrl = case M.parseMaybe parser rawUrl of
+  Nothing -> Just rawUrl
+  Just uri ->
+    let newUri = uri & Fields.field @"uriQuery" %~ (filter (not . isTrackerParam))
+     in if newUri /= uri
+          then Just (URI.render newUri)
+          else Nothing
+  where
+    parser :: M.Parsec Text Text URI.URI
+    parser = URI.parser
+
+    isTrackerParam :: URI.QueryParam -> Bool
+    isTrackerParam = \case
+      URI.QueryFlag k ->
+        let t = URI.unRText k
+         in any (== t) trackers
+      URI.QueryParam k _ ->
+        let t = URI.unRText k
+         in any (== t) trackers
+
+    trackers = ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content"]
 
 hush :: Either e a -> Maybe a
 hush = \case
@@ -313,22 +354,21 @@ parseYoutubeIdShort textUrl =
         then if T.null path then Nothing else Just path
         else Nothing
 
-
 -- useful test to quickly check the response from an api request
 test :: IO ()
 test = do
   ytApiKey <- T.pack <$> getEnv "YT_API_KEY"
   stuff <- runFetch $ do
     ( Req.req
-            Req.GET
-            (Req.https "www.googleapis.com" /: "youtube" /: "v3" /: "videos")
-            Req.NoReqBody
-            Req.bsResponse
-            ( "part" =: ("snippet" :: Text)
-                <> "id" =: ("J0JhMt4MtLw" :: Text)
-                <> "key" =: ytApiKey
-            )
+        Req.GET
+        (Req.https "www.googleapis.com" /: "youtube" /: "v3" /: "videos")
+        Req.NoReqBody
+        Req.bsResponse
+        ( "part" =: ("snippet" :: Text)
+            <> "id" =: ("J0JhMt4MtLw" :: Text)
+            <> "key" =: ytApiKey
         )
+      )
   case stuff of
     Left err -> sayShow err
     Right resp -> say $ decodeUtf8Lenient $ Req.responseBody resp

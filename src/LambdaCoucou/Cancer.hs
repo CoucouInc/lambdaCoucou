@@ -24,7 +24,7 @@ cancerCommandHandler mbChanName cancer target = Ex.runExceptT (getCancer cancer)
   Right msg -> do
     case mbChanName of
       Nothing -> pure ()
-      Just chanName -> LC.Url.updateLastUrl chanName msg
+      Just chanName -> void $ LC.Url.updateLastUrl chanName msg
     pure $ Just $ LC.Hdl.addTarget target msg
 
 data CancerError

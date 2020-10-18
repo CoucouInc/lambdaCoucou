@@ -36,8 +36,19 @@ tests = H.describe "Url" $ do
       let ytId = "foo"
       Url.parseYoutubeIdShort ("https://www.youtu.be/" <> ytId)
         `HE.shouldBe` Just ytId
-  H.describe "parseTitle"
-    $ H.it "parses capitalized tags"
-    $ do
-      raw <- Tx.IO.readFile "./test/resources/capitalised-tags.html"
-      Url.parseTitle raw `HE.shouldBe` Just " target title "
+  H.describe "parseTitle" $
+    H.it "parses capitalized tags" $
+      do
+        raw <- Tx.IO.readFile "./test/resources/capitalised-tags.html"
+        Url.parseTitle raw `HE.shouldBe` Just " target title "
+
+  H.describe "withoutTracker" $ do
+    H.it "remove any utm_* tracking shit" $
+      Url.withoutTracker "http://foo.bar.com/?utm_source=source&utm_campaign=campaign&utm_medium=medium&utm_term=term&foo&bar=qux&utm_content=content" `HE.shouldBe` Just "http://foo.bar.com/?foo&bar=qux"
+
+    H.it "doesn't do anything for invalid urls" $
+      Url.withoutTracker "lolwat" `HE.shouldBe` Nothing
+
+    H.it "handle encoding properly" $
+      let u = "https://foo.bar.com/?crid=blahblah&uppercase=foo%2Bbar%2Bbaz&comma=foo%2Cmoo"
+      in Url.withoutTracker u `HE.shouldBe` Nothing
