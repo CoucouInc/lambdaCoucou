@@ -27,4 +27,5 @@ main = do
   -- CM.test
   -- Twitch.test
   -- Remind.test
+  U.test
   putStrLn "all done"

@@ -1,4 +1,5 @@
 {-# LANGUAGE StrictData #-}
+{-# OPTIONS_GHC -Wwarn #-}
 
 module LambdaCoucou.Url where
 
@@ -26,6 +27,8 @@ import qualified Text.HTML.TagSoup as HTML
 import qualified Text.Megaparsec as M
 import qualified Text.Megaparsec.Char as C
 import qualified Text.URI as URI
+import Say
+import System.Environment (getEnv)
 
 fetchUrlCommandHandler ::
   LC.St.ChannelName ->
@@ -104,6 +107,7 @@ data FetchError
   | DecodingError UnicodeException
   | TitleNotFound
   | YoutubeIdNotFound
+  | NoVideoFound Text
   deriving (Show)
 
 showFetchError :: Text -> FetchError -> Text
@@ -122,6 +126,8 @@ showFetchError textUrl = \case
     "Could not find <title> tag for url: " <> textUrl
   YoutubeIdNotFound ->
     "Could not find the youtube video's id for url: " <> textUrl
+  NoVideoFound ytId ->
+    "No video found for id: " <> ytId <> " (video removed most likely)"
 
 -- TODO: rework that to simply throw exceptions
 newtype ReqMonad m a = ReqMonad {runReqMonad :: Ex.ExceptT FetchError m a}
@@ -258,7 +264,7 @@ fetchYtUrlData ytApiKey textUrl = do
             )
         )
   video <- case overview !? 0 of
-    Nothing -> Ex.throwError TitleNotFound
+    Nothing -> Ex.throwError (NoVideoFound ytId)
     Just v -> pure v
   channel <- fetchYtChannel ytApiKey (yvChannelId video)
   pure $ yvTitle video <> " [" <> ycTitle channel <> "]"
@@ -306,3 +312,23 @@ parseYoutubeIdShort textUrl =
    in if "youtu.be" `T.isInfixOf` textUrl
         then if T.null path then Nothing else Just path
         else Nothing
+
+
+-- useful test to quickly check the response from an api request
+test :: IO ()
+test = do
+  ytApiKey <- T.pack <$> getEnv "YT_API_KEY"
+  stuff <- runFetch $ do
+    ( Req.req
+            Req.GET
+            (Req.https "www.googleapis.com" /: "youtube" /: "v3" /: "videos")
+            Req.NoReqBody
+            Req.bsResponse
+            ( "part" =: ("snippet" :: Text)
+                <> "id" =: ("J0JhMt4MtLw" :: Text)
+                <> "key" =: ytApiKey
+            )
+        )
+  case stuff of
+    Left err -> sayShow err
+    Right resp -> say $ decodeUtf8Lenient $ Req.responseBody resp
