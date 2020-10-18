@@ -26,5 +26,5 @@ main :: IO ()
 main = do
   -- CM.test
   -- Twitch.test
-  Remind.test
+  -- Remind.test
   putStrLn "all done"
