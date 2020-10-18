@@ -6,6 +6,8 @@ module LambdaCoucou.YTSearch where
 
 import Data.Aeson ((.:))
 import qualified Data.Aeson as JSON
+import Data.Either as Either
+import qualified HTMLEntities.Decoder as HTML
 import qualified LambdaCoucou.HandlerUtils as LC.Hdl
 import qualified LambdaCoucou.State as LC.St
 import qualified LambdaCoucou.Url as Url
@@ -16,8 +18,6 @@ import RIO
 import qualified RIO.State as St
 import qualified RIO.Text as T
 import RIO.Vector ((!?))
-import qualified HTMLEntities.Decoder as HTML
-import Data.Either as Either
 
 ytSearchCommandHandler ::
   [Text] ->
@@ -40,26 +40,59 @@ newtype SearchResults = SearchResults {getSearchResults :: Vector SearchResult}
 instance JSON.FromJSON SearchResults where
   parseJSON = JSON.withObject "searchResults" $ \o -> SearchResults <$> o .: "items"
 
-data SearchResult = SearchResult
-  { srVideoId :: Text,
-    srTitle :: Text,
-    srChannelId :: Url.ChannelId
-  }
+data SearchResult
+  = Video VideoSearchResult
+  | Channel ChannelSearchResult
   deriving stock (Show)
 
 instance JSON.FromJSON SearchResult where
   parseJSON = JSON.withObject "SearchResult" $ \o -> do
-    i <- o .: "id" >>= JSON.withObject "videoId" (.: "videoId")
-    (title, chanId) <-
+    idKind <- o .: "id" >>= JSON.withObject "id" (.: "kind")
+    case idKind of
+      JSON.String "youtube#video" -> Video <$> JSON.parseJSON (JSON.Object o)
+      JSON.String "youtube#channel" -> Channel <$> JSON.parseJSON (JSON.Object o)
+      _ -> fail $ "Unknown id kind for search result: " <> show idKind
+
+data VideoSearchResult = VideoSearchResult
+  { vsrVideoId :: Text,
+    vsrTitle :: Text,
+    vsrChannelTitle :: Text
+  }
+  deriving stock (Show)
+
+instance JSON.FromJSON VideoSearchResult where
+  parseJSON = JSON.withObject "VideoSearchResult" $ \o -> do
+    i <- o .: "id" >>= JSON.withObject "id" (.: "videoId")
+    (title, chanTitle) <-
       o .: "snippet"
         >>= JSON.withObject
-          "id"
-          (\os -> (,) <$> os .: "title" <*> os .: "channelId")
+          "snippet"
+          (\os -> (,) <$> os .: "title" <*> os .: "channelTitle")
     pure $
-      SearchResult
-        { srVideoId = i,
-          srTitle = title,
-          srChannelId = chanId
+      VideoSearchResult
+        { vsrVideoId = i,
+          vsrTitle = title,
+          vsrChannelTitle = chanTitle
+        }
+
+data ChannelSearchResult = ChannelSearchResult
+  { csrChannelId :: Text,
+    csrChannelTitle :: Text
+  }
+  deriving stock (Show)
+
+instance JSON.FromJSON ChannelSearchResult where
+  parseJSON = JSON.withObject "ChannelSearchResult" $ \o -> do
+    i <- o .: "id" >>= JSON.withObject "id" (.: "channelId")
+    channelId <-
+      o .: "snippet"
+        >>= JSON.withObject
+          "snippet"
+          (.: "title")
+    pure $
+      ChannelSearchResult
+        { csrChannelId = i,
+          csrChannelTitle = channelId
         }
 
 searchYt ::
@@ -80,13 +113,16 @@ searchYt ytApiKey queryWords = Url.runFetch $ do
                   <> "part" =: ("snippet" :: Text)
               )
           )
+
   case videos !? 0 of
-    Nothing -> pure "No video found 😱"
-    Just SearchResult {srVideoId, srTitle, srChannelId} -> do
-      channel <- Url.fetchYtChannel ytApiKey srChannelId
-      pure $ unescape $ srTitle <> " [" <> Url.ycTitle channel <> "] " <> mkUrl srVideoId
+    Nothing -> pure $ "😱 Nothing found for query " <> T.unwords queryWords
+    Just (Video (VideoSearchResult {vsrVideoId, vsrTitle, vsrChannelTitle})) ->
+      pure $ unescape $ vsrTitle <> " [" <> vsrChannelTitle <> "] " <> mkUrl vsrVideoId
+    Just (Channel (ChannelSearchResult {csrChannelId, csrChannelTitle})) ->
+      pure $ unescape $ csrChannelTitle <> mkChanUrl csrChannelId
   where
     mkUrl vidId = "https://www.youtube.com/watch?v=" <> vidId
+    mkChanUrl chanId = "https://www.youtube.com/channel/" <> chanId
 
 unescape :: Text -> Text
 unescape t = Either.fromRight t $ HTML.htmlEntityBody t
