@@ -322,7 +322,7 @@ liveStreamsCommandHandler (LC.St.ChannelName chanName) mbTarget = do
               else "Stream(s) live: " <> (T.intercalate ", " $ V.toList $ V.map format chanLiveStreams)
   where
     format :: StreamData -> Text
-    format sd = getUserLogin (sdUserName sd) <> " commencé à " <> sdStartedAt sd
+    format sd = "https://www.twitch.tv/" <> getUserLogin (sdUserName sd) <> " commencé à " <> sdStartedAt sd
 
 test :: IO ()
 test = do

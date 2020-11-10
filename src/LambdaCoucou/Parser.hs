@@ -13,7 +13,7 @@ import qualified RIO.Partial as RIO'
 import qualified RIO.Time as Time
 import qualified Text.Megaparsec as M
 import qualified Text.Megaparsec.Char as C
-import Control.Applicative.Combinators (manyTill_, someTill)
+import Control.Applicative.Combinators (manyTill_, manyTill, someTill)
 
 type Parser = M.Parsec Void Text
 
@@ -293,7 +293,7 @@ sedCommandParser :: Parser LC.Cmd.CoucouCmd
 sedCommandParser = do
   C.string "s/"
   rawRegex <- T.pack <$> M.anySingle `someTill` C.char '/'
-  replacement <- T.pack <$> M.anySingle `someTill` ((C.char '/' *> M.eof) <|> M.eof)
+  replacement <- T.pack <$> M.anySingle `manyTill` (C.char '/' *> LC.P.spaces *> M.eof)
   pure $ LC.Cmd.Sed rawRegex replacement
 
 -------------------- Sed --------------------

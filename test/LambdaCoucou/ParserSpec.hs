@@ -389,8 +389,12 @@ tests = H.describe "Parser" $ do
   H.describe "Sed" $ do
     H.it "can parse simple sed" $
       LC.P.parseCommand "s/foo/bar/" `T.M.shouldParse` LC.Cmd.Sed "foo" "bar"
-    H.it "can parse sed without final slash" $
-      LC.P.parseCommand "s/foo/bar" `T.M.shouldParse` LC.Cmd.Sed "foo" "bar"
+    H.it "parses empty sed" $
+      LC.P.parseCommand "s/foo//" `T.M.shouldParse` LC.Cmd.Sed "foo" ""
+    H.it "must end with a slash" $
+      LC.P.parseCommand "s/foo/bar" `T.M.shouldParse` LC.Cmd.Nop
+    H.it "must have a search string" $
+      LC.P.parseCommand "s//bar" `T.M.shouldParse` LC.Cmd.Nop
 
   H.describe "liveStreams" $ do
     H.it "can parse simple liveStreams command" $
