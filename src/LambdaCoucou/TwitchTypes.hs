@@ -1,3 +1,6 @@
+{-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE StrictData #-}
@@ -14,9 +17,18 @@ import qualified RIO.Time as Time
 import qualified RIO.Vector as V
 import qualified RIO.Vector.Partial as V'
 import qualified Servant.API as SAPI
+import qualified Data.Aeson.Deriving as AD
+import Data.Aeson.Deriving ((:=))
+
+type JSONEncoding = AD.GenericEncoded
+  '[AD.FieldLabelModifier := [AD.SnakeCase, AD.DropLowercasePrefix]]
 
 newtype UserLogin = UserLogin {getUserLogin :: Text}
-  deriving (Show, Eq)
+  deriving (Show, Eq, Ord)
+  deriving newtype (JSON.FromJSON)
+
+newtype UserId = UserId {getUserId :: Text}
+  deriving (Show, Eq, Ord)
   deriving newtype (JSON.FromJSON)
 
 newtype CaseInsensitive a = CaseInsensitive {getCaseInsensitive :: a}
@@ -36,31 +48,20 @@ newtype ClientAuthToken = ClientAuthToken {getClientAuthToken :: Text}
   deriving stock (Show, Eq)
   deriving newtype (SAPI.ToHttpApiData, JSON.FromJSON)
 
-newtype UserID = UserID {getUserID :: Text}
-  deriving (Show, Eq)
-  deriving newtype (JSON.FromJSON)
-
 data StreamData = StreamData
   { sdTitle :: Text,
     sdStartedAt :: Text,
-    sdUserID :: UserID,
+    sdUserId :: UserId,
     sdUserName :: UserLogin
   }
-  deriving (Show, Eq)
-
-instance JSON.FromJSON StreamData where
-  parseJSON = JSON.withObject "StreamData" $ \o -> do
-    sdTitle <- o .: "title"
-    sdStartedAt <- o .: "started_at"
-    sdUserID <- o .: "user_id"
-    sdUserName <- o .: "user_name"
-    pure StreamData {..}
+  deriving (Show, Eq, Ord, Generic)
+  deriving (JSON.FromJSON) via (JSONEncoding StreamData)
 
 data User = User
   { usrChannelDescription :: Text,
     usrDisplayName :: Text,
     usrLoginName :: UserLogin,
-    usrID :: UserID,
+    usrID :: UserId,
     usrViewCount :: Int
   }
   deriving (Show, Eq)
@@ -86,25 +87,6 @@ instance (JSON.FromJSON a) => JSON.FromJSON (SingleTwitchResponse a) where
         0 -> fail $ "No data received: " <> show arr
         1 -> SingleTwitchResponse <$> JSON.parseJSON (V'.head arr)
         _ -> fail $ "Expected one datum but got: " <> show arr
-
-data StreamState = StreamState
-  { twitchClientID :: Text,
-    twitchClientSecret :: Text,
-    twitchClientAuthToken :: ClientAuthToken,
-    twitchStreams :: Vector TwitchStream
-  }
-  deriving (Show, Eq)
-
-data TwitchStream = TwitchStream
-  { twitchUserLogin :: UserLogin,
-    -- | irc nick for the corresponding streamer
-    ircNick :: Text,
-    -- | channels to notify when the stream goes online
-    ircChannels :: Vector Text,
-    -- | used as a flag to see if a stream just went live. The date isn't parsed and is treated as an opaque string
-    lastStartDate :: Maybe Text
-  }
-  deriving (Show, Eq)
 
 data ClientCredentialsResponse = ClientCredentialsResponse
   { ccrClientAuthToken :: ClientAuthToken,
@@ -201,8 +183,22 @@ data Lease = Lease
 data StreamWatcherSpec = StreamWatcherSpec
   { swsTwitchUserLogin :: UserLogin,
     swsIRCNick :: Text,
-    swsIRCChan :: Text
+    swsIRCChan :: Text,
+    swsUserId :: UserId
   }
+
+data Stream = Stream
+  { sUserId :: UserId,
+    sUserName :: Text
+  }
+  deriving (Show, Eq, Ord, Generic)
+  deriving (JSON.FromJSON) via (JSONEncoding Stream)
+
+data GetStreamsResponse a = GetStreamsResponse
+  { gsrData :: Vector a
+  }
+  deriving (Show, Eq, Ord, Generic)
+  deriving (JSON.FromJSON) via (JSONEncoding (GetStreamsResponse a))
 
 data ClientEnv = ClientEnv
   { ceClientID :: ClientID,

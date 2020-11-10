@@ -126,6 +126,8 @@ tests = H.describe "Parser" $ do
         LC.P.parseCommand "&help yt_search" `T.M.shouldParse` LC.Cmd.Help LC.Hlp.YTSearch Nothing
         LC.P.parseCommand "&help ytSearch" `T.M.shouldParse` LC.Cmd.Help LC.Hlp.YTSearch Nothing
         LC.P.parseCommand "&help ytsearch" `T.M.shouldParse` LC.Cmd.Help LC.Hlp.YTSearch Nothing
+      H.it "parses liveStreams" $ do
+        LC.P.parseCommand "&help live" `T.M.shouldParse` LC.Cmd.Help LC.Hlp.LiveStreams Nothing
 
     H.describe "pr command" $ do
       H.it "parses bare command" $
@@ -389,3 +391,9 @@ tests = H.describe "Parser" $ do
       LC.P.parseCommand "s/foo/bar/" `T.M.shouldParse` LC.Cmd.Sed "foo" "bar"
     H.it "can parse sed without final slash" $
       LC.P.parseCommand "s/foo/bar" `T.M.shouldParse` LC.Cmd.Sed "foo" "bar"
+
+  H.describe "liveStreams" $ do
+    H.it "can parse simple liveStreams command" $
+      LC.P.parseCommand "λlive" `T.M.shouldParse` LC.Cmd.LiveStreams Nothing
+    H.it "can parse liveStreams command with target" $
+      LC.P.parseCommand "λlive > charlie" `T.M.shouldParse` LC.Cmd.LiveStreams (Just "charlie")

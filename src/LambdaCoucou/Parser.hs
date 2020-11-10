@@ -35,7 +35,8 @@ commandParser =
         M.try jokeCommandParser,
         M.try remindCommandParser,
         M.try settingsCommandParser,
-        M.try ytSearchCommandParser
+        M.try ytSearchCommandParser,
+        M.try liveStreamsCommandParser
       ]
     <|> pure LC.Cmd.Nop
 
@@ -105,6 +106,7 @@ helpCommandParser = do
       M.try (f "settings" LC.Hlp.Settings),
       M.try (f "ytSearch" LC.Hlp.YTSearch),
       M.try (f "yt_search" LC.Hlp.YTSearch),
+      M.try (f "live" LC.Hlp.LiveStreams),
       M.try (LC.P.spaces *> (LC.Cmd.Help LC.Hlp.General <$> targetParser) <* M.eof),
       LC.P.spaces *> (LC.Cmd.Help . LC.Hlp.Unknown <$> LC.P.utf8Word <*> targetParser)
     ]
@@ -293,6 +295,13 @@ sedCommandParser = do
   rawRegex <- T.pack <$> M.anySingle `someTill` C.char '/'
   replacement <- T.pack <$> M.anySingle `someTill` ((C.char '/' *> M.eof) <|> M.eof)
   pure $ LC.Cmd.Sed rawRegex replacement
+
+-------------------- Sed --------------------
+liveStreamsCommandParser :: Parser LC.Cmd.CoucouCmd
+liveStreamsCommandParser = do
+  C.string "live"
+  LC.P.spaces
+  LC.Cmd.LiveStreams <$> targetParser
 
 -------------------- Utils --------------------
 

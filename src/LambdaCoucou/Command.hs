@@ -24,5 +24,6 @@ data CoucouCmd
   | YTSearch [Text] Target
   | Sed Text Text
   -- | (raw regex) (replacement text)
+  | LiveStreams Target
   | Nop
   deriving (Show, Eq)

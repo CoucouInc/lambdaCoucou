@@ -4,6 +4,7 @@ import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM.TBMChan as Chan
 import qualified Control.Monad.STM as STM
 import qualified Data.Aeson as JSON
+import qualified LambdaCoucou.HandlerUtils as LC.Hdl
 import qualified LambdaCoucou.Http as LC.HTTP
 import qualified LambdaCoucou.State as LC.St
 import qualified LambdaCoucou.TwitchHook as Hook
@@ -14,10 +15,13 @@ import qualified Network.HTTP.Req as Req
 import qualified Network.IRC.Client as IRC.C
 import qualified Network.IRC.Client.Events as IRC.Ev
 import RIO
+import qualified RIO.Set as Set
+import qualified RIO.State as St
 import qualified RIO.Text as T
 import qualified RIO.Time as Time
+import qualified RIO.Vector as V
+import Say
 import qualified System.Environment as Env
-import System.IO (putStr)
 import qualified UnliftIO.Async as Async
 
 getClientCredentials ::
@@ -51,55 +55,65 @@ getClientCredentials clientID clientSecret = do
 
 -- | returns a valid auth token. If the existing token is nearing expiration, it will be
 -- replaced and the updated token will be returned
-ensureClientToken :: ClientEnv -> IO ClientAuthToken
+ensureClientToken :: MonadIO m => ClientEnv -> m ClientAuthToken
 ensureClientToken ClientEnv {ceClientID, ceClientSecret, ceClientCredentials} =
-  MVar.modifyMVar ceClientCredentials $ \case
-    Nothing -> renewCreds
-    Just creds -> do
-      now <- Time.getCurrentTime
-      if now >= Time.addUTCTime 10 (ccExpiresAt creds)
-        then renewCreds
-        else pure (Just creds, ccClientAuthToken creds)
+  liftIO $
+    MVar.modifyMVar ceClientCredentials $ \case
+      Nothing -> renewCreds
+      Just creds -> do
+        now <- Time.getCurrentTime
+        if now >= Time.addUTCTime 10 (ccExpiresAt creds)
+          then renewCreds
+          else pure (Just creds, ccClientAuthToken creds)
   where
     renewCreds = do
       newCreds <- getClientCredentials ceClientID ceClientSecret
       pure (Just newCreds, ccClientAuthToken newCreds)
 
-getSingleTwitchData ::
+-- Note: this doesn't handle pagination at all.
+-- But for this bot's usecase, there is no need for it.
+getTwitchAPI ::
   (MonadIO m, MonadThrow m, JSON.FromJSON a) =>
+  ClientEnv ->
   Text ->
-  ClientID ->
-  ClientAuthToken ->
   Req.Option 'Req.Https ->
-  m a
-getSingleTwitchData urlPath clientId token options = do
-  resp <-
-    LC.HTTP.runFetchEx $
-      Req.req
-        Req.GET
-        (Req.https "api.twitch.tv" /: "helix" /: urlPath)
-        Req.NoReqBody
-        Req.jsonResponse
-        ( Req.oAuth2Bearer (T.encodeUtf8 $ getClientAuthToken token)
-            <> Req.header "Client-ID" (T.encodeUtf8 $ getClientID clientId)
-            <> options
-        )
+  m (Req.JsonResponse a)
+getTwitchAPI env urlPath options = do
+  token <- ensureClientToken env
+  LC.HTTP.runFetchEx $
+    Req.req
+      Req.GET
+      (Req.https "api.twitch.tv" /: "helix" /: urlPath)
+      Req.NoReqBody
+      Req.jsonResponse
+      ( Req.oAuth2Bearer (T.encodeUtf8 $ getClientAuthToken token)
+          <> Req.header "Client-ID" (T.encodeUtf8 $ getClientID $ ceClientID env)
+          <> options
+      )
+
+getTwitchStream :: (MonadIO m, MonadThrow m) => ClientEnv -> UserLogin -> m StreamData
+getTwitchStream env (UserLogin userLogin) = do
+  resp <- getTwitchAPI env "streams" ("user_login" =: userLogin)
   pure $ getSingleTwitchResponse $ Req.responseBody resp
 
-getTwitchStream :: (MonadIO m, MonadThrow m) => ClientID -> ClientAuthToken -> UserLogin -> m StreamData
-getTwitchStream clientId token (UserLogin userLogin) =
-  getSingleTwitchData "streams" clientId token ("user_login" =: userLogin)
+-- | returns a possibly empty vector of streams currently live from the given list of user id
+getLiveStreams :: (MonadIO m, MonadThrow m, Foldable t) => ClientEnv -> t UserId -> m (Vector StreamData)
+getLiveStreams env ids = do
+  let query = foldMap (\i -> "user_id" =: getUserId i) ids
+  resp <- getTwitchAPI env "streams" query
+  pure $ gsrData $ Req.responseBody resp
 
-getTwitchUser :: (MonadIO m, MonadThrow m) => ClientID -> ClientAuthToken -> UserLogin -> m User
-getTwitchUser clientId token (UserLogin userLogin) =
-  getSingleTwitchData "users" clientId token ("login" =: userLogin)
+getTwitchUser :: (MonadIO m, MonadThrow m) => ClientEnv -> UserLogin -> m User
+getTwitchUser env (UserLogin userLogin) = do
+  resp <- getTwitchAPI env "users" ("login" =: userLogin)
+  pure $ getSingleTwitchResponse $ Req.responseBody resp
 
-subscribeToChannel :: ClientEnv -> UserID -> IO ()
-subscribeToChannel env (UserID userID) =
+subscribeToChannel :: ClientEnv -> UserId -> IO ()
+subscribeToChannel env (UserId userID) =
   postWebhook Subscribe env (HubTopic $ "https://api.twitch.tv/helix/streams?user_id=" <> userID)
 
-unsubscribeFromChannel :: ClientEnv -> UserID -> IO ()
-unsubscribeFromChannel env (UserID userID) =
+unsubscribeFromChannel :: ClientEnv -> UserId -> IO ()
+unsubscribeFromChannel env (UserId userID) =
   postWebhook Unsubscribe env (HubTopic $ "https://api.twitch.tv/helix/streams?user_id=" <> userID)
 
 postWebhook :: HubMode -> ClientEnv -> HubTopic -> IO ()
@@ -128,8 +142,7 @@ postWebhook hubMode env topic = do
 
 startWatchChannel :: ClientEnv -> StreamWatcherSpec -> IO ()
 startWatchChannel env spec = do
-  token <- ensureClientToken env
-  twitchUser <- getTwitchUser (ceClientID env) token (swsTwitchUserLogin spec)
+  twitchUser <- liftIO $ getTwitchUser env (swsTwitchUserLogin spec)
   unsubscribeFromChannel env (usrID twitchUser)
   threadDelay (5 * 10 ^ 6)
   subscribeToChannel env (usrID twitchUser)
@@ -207,6 +220,54 @@ leaseExpiresAfter :: Time.UTCTime -> Int -> Lease -> Bool
 leaseExpiresAfter now intervalInSeconds lease =
   Time.addUTCTime (fromIntegral intervalInSeconds) now >= leaseExpiresAt lease
 
+-- To get the user_id from a userLogin:
+-- curl -H "Client-ID: $TWITCH_CLIENT_ID" -H "Authorization: Bearer $TOKEN" "https://api.twitch.tv/helix/users?login=<USER_LOGIN>"
+watchedStreams :: [StreamWatcherSpec]
+watchedStreams =
+  [ StreamWatcherSpec
+      { swsTwitchUserLogin = UserLogin "artart78",
+        swsIRCNick = "artart78",
+        swsIRCChan = "#arch-fr-free",
+        swsUserId = UserId "480815392"
+      },
+    StreamWatcherSpec
+      { swsTwitchUserLogin = UserLogin "gikiam",
+        swsIRCNick = "gikiam",
+        swsIRCChan = "#arch-fr-free",
+        swsUserId = UserId "77066482"
+      },
+    StreamWatcherSpec
+      { swsTwitchUserLogin = UserLogin "geekingfrog",
+        swsIRCNick = "Geekingfrog",
+        swsIRCChan = "#arch-fr-free",
+        swsUserId = UserId "482889678"
+      },
+    StreamWatcherSpec
+      { swsTwitchUserLogin = UserLogin "shampooingonthemove",
+        swsIRCNick = "Shampooing",
+        swsIRCChan = "#arch-fr-free",
+        swsUserId = UserId "535066880"
+      },
+    StreamWatcherSpec
+      { swsTwitchUserLogin = UserLogin "VertBrocoli",
+        swsIRCNick = "Armael",
+        swsIRCChan = "#arch-fr-free",
+        swsUserId = UserId "64172886"
+      },
+    StreamWatcherSpec
+      { swsTwitchUserLogin = UserLogin "therealbarul",
+        swsIRCNick = "barul",
+        swsIRCChan = "#arch-fr-free",
+        swsUserId = UserId "597231373"
+      },
+    StreamWatcherSpec
+      { swsTwitchUserLogin = UserLogin "juantitor",
+        swsIRCNick = "JuanTitor",
+        swsIRCChan = "#arch-fr-free",
+        swsUserId = UserId "42481408"
+      }
+  ]
+
 watchStreams ::
   IRC.C.IRCState LC.St.CoucouState ->
   MVar.MVar (Maybe ClientEnv) ->
@@ -214,46 +275,9 @@ watchStreams ::
 watchStreams botState clientEnvMvar = do
   env <- liftIO makeClientEnv
   MVar.swapMVar clientEnvMvar (Just env)
-  let specs =
-        [ StreamWatcherSpec
-            { swsTwitchUserLogin = UserLogin "artart78",
-              swsIRCNick = "artart78",
-              swsIRCChan = "#arch-fr-free"
-            },
-          StreamWatcherSpec
-            { swsTwitchUserLogin = UserLogin "gikiam",
-              swsIRCNick = "gikiam",
-              swsIRCChan = "#arch-fr-free"
-            },
-          StreamWatcherSpec
-            { swsTwitchUserLogin = UserLogin "geekingfrog",
-              swsIRCNick = "Geekingfrog",
-              swsIRCChan = "#arch-fr-free"
-            },
-          StreamWatcherSpec
-            { swsTwitchUserLogin = UserLogin "shampooingonthemove",
-              swsIRCNick = "Shampooing",
-              swsIRCChan = "#arch-fr-free"
-            },
-          StreamWatcherSpec
-            { swsTwitchUserLogin = UserLogin "VertBrocoli",
-              swsIRCNick = "Armael",
-              swsIRCChan = "#arch-fr-free"
-            },
-          StreamWatcherSpec
-            { swsTwitchUserLogin = UserLogin "therealbarul",
-              swsIRCNick = "barul",
-              swsIRCChan = "#arch-fr-free"
-            },
-          StreamWatcherSpec
-            { swsTwitchUserLogin = UserLogin "juantitor",
-              swsIRCNick = "JuanTitor",
-              swsIRCChan = "#arch-fr-free"
-            }
-        ]
   Async.runConc $
-    Async.conc (IRC.C.runIRCAction (processNotifications specs (ceNotifChan env)) botState)
-      <> Async.conc (traverse_ (startWatchChannel env) specs)
+    Async.conc (IRC.C.runIRCAction (processNotifications watchedStreams (ceNotifChan env)) botState)
+      <> Async.conc (traverse_ (startWatchChannel env) watchedStreams)
       <> Async.conc (Hook.runWebhookServer env)
       <> Async.conc (watchLeases env)
   logStr "Not watching streams anymore"
@@ -264,7 +288,7 @@ iso8601 = Time.formatTime Time.defaultTimeLocale "%FT%T%QZ"
 logStr :: (MonadIO m) => String -> m ()
 logStr msg = liftIO $ do
   now <- Time.getCurrentTime
-  putStr $ iso8601 now <> " " <> msg <> "\n"
+  sayString $ iso8601 now <> " " <> msg
 
 processTest :: ClientEnv -> IO ()
 processTest env = loop
@@ -276,6 +300,30 @@ processTest env = loop
           logStr $ "got notification:" <> show n
           loop
 
+liveStreamsCommandHandler ::
+  LC.St.ChannelName ->
+  Maybe Text ->
+  IRC.C.IRC LC.St.CoucouState (Maybe Text)
+liveStreamsCommandHandler (LC.St.ChannelName chanName) mbTarget = do
+  st <- St.gets LC.St.csTwitch
+  liftIO (MVar.readMVar st) >>= \case
+    Nothing -> pure $ Just $ LC.Hdl.addTarget mbTarget "Twitch module désactivé."
+    Just env -> do
+      allLiveStreams <- getLiveStreams env (map swsUserId watchedStreams)
+      let chanStreams =
+            Set.fromList $
+              map swsUserId $ filter ((== chanName) . swsIRCChan) watchedStreams
+      let chanLiveStreams = V.filter (\s -> sdUserId s `Set.member` chanStreams) allLiveStreams
+      pure $
+        Just $
+          LC.Hdl.addTarget mbTarget $
+            if null chanLiveStreams
+              then "Y'a personne qui stream ici çaynul !"
+              else "Stream(s) live: " <> (T.intercalate ", " $ V.toList $ V.map format chanLiveStreams)
+  where
+    format :: StreamData -> Text
+    format sd = getUserLogin (sdUserName sd) <> " commencé à " <> sdStartedAt sd
+
 test :: IO ()
 test = do
   clientID <- ClientID . T.pack <$> Env.getEnv "TWITCH_CLIENT_ID"
@@ -283,29 +331,13 @@ test = do
   getClientCredentials clientID clientSecret >>= logStr . show
   -- error "coucou"
   env <- makeClientEnv
-  -- let specs =
-  --       [ StreamWatcherSpec
-  --           { swsTwitchUserLogin = UserLogin "artart78",
-  --             swsIRCNick = "artart78",
-  --             swsIRCChan = "#arch-fr-free"
-  --           },
-  --         StreamWatcherSpec
-  --           { swsTwitchUserLogin = UserLogin "geekingfrog",
-  --             swsIRCNick = "geekingfrog",
-  --             swsIRCChan = "#gougoutest"
-  --           },
-  --         StreamWatcherSpec
-  --           { swsTwitchUserLogin = UserLogin "gikiam",
-  --             swsIRCNick = "gikiam",
-  --             swsIRCChan = "#arch-fr-free"
-  --           }
-  --       ]
 
   let specs =
         [ StreamWatcherSpec
             { swsTwitchUserLogin = UserLogin "geekingfrog",
               swsIRCNick = "geekingfrog",
-              swsIRCChan = "#gougoutest"
+              swsIRCChan = "#gougoutest",
+              swsUserId = UserId "482889678"
             }
         ]
   Async.runConc $

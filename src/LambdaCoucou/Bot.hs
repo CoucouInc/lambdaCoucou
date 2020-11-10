@@ -152,6 +152,9 @@ execCommand mbChanName nick = \case
   LC.Cmd.Sed rawRegex replacement -> case mbChanName of
     Nothing -> pure $ Just "Command not supported in private message"
     Just chanName -> LC.Sed.sedCommandHandler chanName rawRegex replacement
+  LC.Cmd.LiveStreams target -> case mbChanName of
+    Nothing -> pure $ Just "Command not supported in private message"
+    Just chanName -> LC.Twitch.liveStreamsCommandHandler chanName target
 
 addTarget :: Maybe Text -> Text -> Text
 addTarget mbTarget msg = case mbTarget of

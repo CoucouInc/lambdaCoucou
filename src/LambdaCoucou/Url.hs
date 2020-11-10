@@ -1,6 +1,5 @@
 {-# LANGUAGE StrictData #-}
 {-# LANGUAGE TypeApplications #-}
-{-# OPTIONS_GHC -Wwarn #-}
 
 module LambdaCoucou.Url where
 
