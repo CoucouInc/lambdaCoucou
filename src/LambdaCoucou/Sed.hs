@@ -1,3 +1,5 @@
+{-# LANGUAGE BangPatterns #-}
+
 module LambdaCoucou.Sed (saveMessage, sedCommandHandler) where
 
 import Data.Foldable
@@ -28,10 +30,7 @@ sedCommandHandler chanName rawRegex replacementText = case Re.compileM (encodeUt
           -- remove messages which look like sed commands
           filter (not . sedCommandLike)
             <$> (liftIO $ RB.toList (LC.St.cstLastMessages chanState))
-        -- TODO: run the following line where the regex replacement happen in a separate thread
-        -- with a timeout and an allocation limit to avoid denial of service through pathological regex
-        -- (and fool around the ghc memory module)
-        let result = foldl (\prev msg -> prev <|> replace regex replacementText msg) Nothing lastMessages
+        result <- liftIO $ findAndReplace regex replacementText lastMessages
         traverse (saveMessage chanName) result
         pure $ fmap ellipsis result
 
@@ -41,8 +40,34 @@ ellipsis txt = if T.length txt > 410 then T.take 409 txt <> "…" else txt
 sedCommandLike :: Text -> Bool
 sedCommandLike t = "s/" `T.isPrefixOf` t
 
+-- wrap the replace operation into a thread with timeout. In some cases
+-- the regex can eat all the cpu or behave similarly badly and will
+-- make the bot unresponsive (and eventually crash)
+-- https://github.com/CoucouInc/lambdaCoucou/issues/26
+findAndReplace :: (Traversable t) => Re.Regex -> Text -> t Text -> IO (Maybe Text)
+findAndReplace regex replacementText lastMessages = do
+  r <-
+    timeout
+      (10 ^ 4) -- in microseconds
+      ( do
+          let !r = foldl' (\prev msg -> prev <|> replace regex replacementText msg) Nothing lastMessages
+          pure r
+      )
+  case r of
+    Nothing ->
+      pure $
+        Just
+          "Timeout! Regex pourrie, ou moteur de regex pas top. Dans tout les cas samarchpa™ :("
+    Just x -> pure x
+  where
+    wtf prev msg =
+      let !replaced = replace regex replacementText msg
+       in prev <|> replaced
+
 replace :: Re.Regex -> Text -> Text -> Maybe Text
 replace regex replacementText msg =
   if msg =~ regex
-    then Just (Re.gsub regex replacementText msg)
+    then
+      let !r = Re.gsub regex replacementText msg
+       in Just r
     else Nothing
