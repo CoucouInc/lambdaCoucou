@@ -18,6 +18,7 @@ import RIO
 import qualified RIO.State as St
 import qualified RIO.Text as T
 import Say
+import LambdaCoucou.Utils.SQL (withConnection)
 
 data SettingsCmd
   = UserTZ (Maybe Text)
@@ -48,7 +49,7 @@ instance SQL.FromRow UserSettings where
 
 createTable :: MonadIO m => FilePath -> m ()
 createTable fp = liftIO $
-  SQL.withConnection fp $ \conn ->
+  withConnection fp $ \conn ->
     SQL.execute_
       conn
       "CREATE TABLE IF NOT EXISTS user_settings(\
@@ -66,7 +67,7 @@ getUserSettings ::
 getUserSettings nick = do
   fp <- St.gets (^. GPF.field' @"csSQLitePath")
   results <- liftIO $
-    SQL.withConnection fp $ \conn ->
+    withConnection fp $ \conn ->
       SQL.query conn "SELECT * FROM user_settings WHERE nick = ?" (SQL.Only nick)
   case results of
     [] -> pure Nothing
@@ -86,7 +87,7 @@ settingsCommandHandler nick cmd = do
   case cmd of
     UserTZ Nothing -> do
       liftIO $
-        SQL.withConnection fp $ \conn ->
+        withConnection fp $ \conn ->
           SQL.execute
             conn
             "UPDATE user_settings SET timezone=NULL WHERE nick = ?"
@@ -101,7 +102,7 @@ settingsCommandHandler nick cmd = do
                   usTimezone = Just tzLabel
                 }
         liftIO $
-          SQL.withConnection fp $ \conn ->
+          withConnection fp $ \conn ->
             SQL.execute
               conn
               "INSERT INTO user_settings(nick,timezone) VALUES (?,?) \
@@ -111,7 +112,7 @@ settingsCommandHandler nick cmd = do
         pure $ Just $ "Timezone set to " <> rawTZ <> "."
     Display -> do
       settings <- liftIO $
-        SQL.withConnection fp $ \conn ->
+        withConnection fp $ \conn ->
           SQL.query
             conn
             "SELECT * FROM user_settings WHERE nick = ?"

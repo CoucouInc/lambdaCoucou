@@ -26,6 +26,7 @@ import qualified RIO.Text as T
 import qualified RIO.Time as Time
 import System.IO (putStrLn)
 import Text.Printf (printf)
+import LambdaCoucou.Utils.SQL (withConnection)
 
 data CryptoError
   = CryptoNotFound CryptoCoin
@@ -215,7 +216,7 @@ saveRate conn =
 
 createTable :: MonadIO m => FilePath -> m ()
 createTable fp = liftIO $
-  SQL.withConnection fp $ \conn ->
+  withConnection fp $ \conn ->
     SQL.execute_ conn "CREATE TABLE IF NOT EXISTS crypto_rate(date DATETIME, coin TEXT, rate TEXT)"
 
 getRateAndSave ::
@@ -228,7 +229,7 @@ getRateAndSave fp coin =
     Left err -> liftIO $ T.IO.putStrLn $ "Error while fetching rate: " <> showCryptoError err
     Right rate -> void $
       liftIO $
-        SQL.withConnection fp $ \conn -> do
+        withConnection fp $ \conn -> do
           now <- Time.getCurrentTime
           let rateRecord =
                 Rate
@@ -267,7 +268,7 @@ getHistoricRate ::
   CryptoCoin ->
   Time.UTCTime ->
   IO (Maybe Rate)
-getHistoricRate fp coin time = SQL.withConnection fp $ \conn -> do
+getHistoricRate fp coin time = withConnection fp $ \conn -> do
   result <-
     SQL.queryNamed
       conn

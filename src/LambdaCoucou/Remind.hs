@@ -20,6 +20,7 @@ import qualified RIO.State as St
 import qualified RIO.Text as T
 import qualified RIO.Time as Time
 import Say (sayShow, sayString)
+import LambdaCoucou.Utils.SQL (withConnection)
 
 data RemindCmd
   = Reminder RemindSpec Text
@@ -123,7 +124,7 @@ deleteReminder conn reminderId =
 
 createTable :: MonadIO m => FilePath -> m ()
 createTable fp = liftIO $
-  SQL.withConnection fp $ \conn ->
+  withConnection fp $ \conn ->
     SQL.execute_
       conn
       "CREATE TABLE IF NOT EXISTS reminders(\
@@ -136,7 +137,7 @@ createTable fp = liftIO $
       \)"
 
 test :: IO ()
-test = SQL.withConnection "coucou.sqlite" $ \conn -> do
+test = withConnection "coucou.sqlite" $ \conn -> do
   createTable "coucou.sqlite"
   now <- Time.getCurrentTime
   sayString $ "now: " <> show now
@@ -175,7 +176,7 @@ handleSetReminder mbChanName nick spec text = do
             rrRemindAt = remindAt,
             rrContent = text
           }
-  liftIO $ SQL.withConnection connPath $ \conn -> createReminder conn reminder
+  liftIO $ withConnection connPath $ \conn -> createReminder conn reminder
   pure $ Just $ "Saved! Will remind at " <> prettyTs tz remindAt
 
 timeFromSpec :: Time.UTCTime -> TZ.TZ -> RemindSpec -> Time.UTCTime
@@ -281,7 +282,7 @@ processReminders' ::
 processReminders' connPath intervalSec now = do
   let beforeTime = Time.addUTCTime (fromInteger $ intervalSec) now
   reminders <- liftIO $
-    SQL.withConnection connPath $ \conn -> do
+    withConnection connPath $ \conn -> do
       rs <- getRemindersBefore beforeTime conn
       -- not quite safe to delete the reminders before they are sent out but I'm not going
       -- to bother for this project
@@ -328,7 +329,7 @@ handleListReminders ::
   IRC.C.IRC LC.St.CoucouState (Maybe Text)
 handleListReminders mbChanName nick = do
   connPath <- St.gets LC.St.csSQLitePath
-  reminders <- liftIO $ SQL.withConnection connPath (selectReminders mbChanName nick)
+  reminders <- liftIO $ withConnection connPath (selectReminders mbChanName nick)
   tz <- getUserTZ nick
   let result
         | null reminders = "No reminder set"
@@ -355,7 +356,7 @@ handleDeleteReminder ::
 handleDeleteReminder mbChanName nick rId = do
   connPath <- St.gets LC.St.csSQLitePath
   hasBeenDeleted <- liftIO $
-    SQL.withConnection connPath $ \conn -> do
+    withConnection connPath $ \conn -> do
       reminders <- selectReminders mbChanName nick conn
       if rId `elem` (map (\(Entity i _) -> i) reminders)
         then do

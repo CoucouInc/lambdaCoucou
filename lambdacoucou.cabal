@@ -44,6 +44,7 @@ library
     , LambdaCoucou.TwitchTypes
     , LambdaCoucou.Url
     , LambdaCoucou.UserSettings
+    , LambdaCoucou.Utils.SQL
     , LambdaCoucou.YTSearch
 
   default-extensions:
