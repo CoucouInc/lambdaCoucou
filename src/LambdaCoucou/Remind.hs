@@ -100,10 +100,19 @@ getRemindersBefore beforeTime conn =
 
 selectReminders :: Maybe LC.St.ChannelName -> Text -> SQL.Connection -> IO [Entity Int RemindRecord]
 selectReminders mbChanName nick conn =
-  SQL.query
-    conn
-    "SELECT * FROM reminders WHERE target_chan = ? AND nick = ? ORDER BY remind_at"
-    (mbChanName, nick)
+  case mbChanName of
+    Nothing ->
+      -- private message
+      SQL.query
+        conn
+        "SELECT * FROM reminders WHERE target_chan IS NULL AND nick = ? ORDER BY remind_at"
+        (SQL.Only nick)
+    Just chanName ->
+      -- regular channel command
+      SQL.query
+        conn
+        "SELECT * FROM reminders WHERE target_chan = ? AND nick = ? ORDER BY remind_at"
+        (chanName, nick)
 
 deleteReminder :: SQL.Connection -> Int -> IO ()
 deleteReminder conn reminderId =
