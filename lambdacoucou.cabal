@@ -39,6 +39,7 @@ library
     , LambdaCoucou.RepublicanCalendar
     , LambdaCoucou.Sed
     , LambdaCoucou.State
+    , LambdaCoucou.StupidCase
     , LambdaCoucou.Twitch
     , LambdaCoucou.TwitchHook
     , LambdaCoucou.TwitchTypes

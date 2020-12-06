@@ -17,6 +17,7 @@ data HelpCommand
   | Settings
   | YTSearch
   | LiveStreams
+  | StupidCase
   | Unknown Text
   deriving (Show, Eq)
 
@@ -25,7 +26,7 @@ helpCommandHandler ::
   Maybe Text ->
   IRC.C.IRC LC.St.CoucouState (Maybe Text)
 helpCommandHandler hlpCmd target = do
-  let generalMsg = "`&help cmd` with cmd one of [url, crypto, date, cancer, coucou, joke, remind, settings, ytSearch|yt_search, live]"
+  let generalMsg = "`&help cmd` with cmd one of [url, crypto, date, cancer, coucou, joke, remind, settings, ytSearch|yt_search, live, stupidcase]"
   let msg = case hlpCmd of
         Url ->
           "[λurl | λurl n] Grab the title of the last url seen in the chan. If n given > 0, gives the previous n url. λurl 1 is the second to last url."
@@ -49,6 +50,8 @@ helpCommandHandler hlpCmd target = do
           "Returns the first youtube video result for the query. Ex: &ytSearch je suis charlie"
         LiveStreams ->
           "List all the twitch streams currently live for this channel."
+        StupidCase ->
+          "CoNvErT a StRiNg To StUpIdCaSe."
         Unknown cmd ->
           "Unknown command: " <> cmd <> ". " <> generalMsg
   pure $ Just $ LC.Hdl.addTarget target msg
