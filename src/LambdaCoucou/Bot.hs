@@ -16,6 +16,7 @@ import qualified LambdaCoucou.Remind as LC.Remind
 import qualified LambdaCoucou.State as LC.St
 import qualified LambdaCoucou.Twitch as LC.Twitch
 import qualified LambdaCoucou.Sed as LC.Sed
+import qualified LambdaCoucou.StupidCase as LC.StupidCase
 import qualified LambdaCoucou.Url as LC.Url
 import qualified LambdaCoucou.UserSettings as LC.Settings
 import qualified Network.IRC.Client as IRC.C
@@ -155,6 +156,7 @@ execCommand mbChanName nick = \case
   LC.Cmd.LiveStreams target -> case mbChanName of
     Nothing -> pure $ Just "Command not supported in private message"
     Just chanName -> LC.Twitch.liveStreamsCommandHandler chanName target
+  LC.Cmd.StupidCase words target -> LC.StupidCase.stupidCommandHandler words target
 
 addTarget :: Maybe Text -> Text -> Text
 addTarget mbTarget msg = case mbTarget of

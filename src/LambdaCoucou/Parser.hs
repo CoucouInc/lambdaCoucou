@@ -36,7 +36,8 @@ commandParser =
         M.try remindCommandParser,
         M.try settingsCommandParser,
         M.try ytSearchCommandParser,
-        M.try liveStreamsCommandParser
+        M.try liveStreamsCommandParser,
+        M.try stupidCaseCommandParser
       ]
     <|> pure LC.Cmd.Nop
 
@@ -107,6 +108,7 @@ helpCommandParser = do
       M.try (f "ytSearch" LC.Hlp.YTSearch),
       M.try (f "yt_search" LC.Hlp.YTSearch),
       M.try (f "live" LC.Hlp.LiveStreams),
+      M.try (f "stupidcase" LC.Hlp.StupidCase),
       M.try (LC.P.spaces *> (LC.Cmd.Help LC.Hlp.General <$> targetParser) <* M.eof),
       LC.P.spaces *> (LC.Cmd.Help . LC.Hlp.Unknown <$> LC.P.utf8Word <*> targetParser)
     ]
@@ -296,12 +298,20 @@ sedCommandParser = do
   replacement <- T.pack <$> M.anySingle `manyTill` (C.char '/' *> LC.P.spaces *> M.eof)
   pure $ LC.Cmd.Sed rawRegex replacement
 
--------------------- Sed --------------------
+-------------------- Lives --------------------
 liveStreamsCommandParser :: Parser LC.Cmd.CoucouCmd
 liveStreamsCommandParser = do
   C.string "live"
   LC.P.spaces
   LC.Cmd.LiveStreams <$> targetParser
+
+------------------- StUpIdCaSe ----------------
+stupidCaseCommandParser :: Parser LC.Cmd.CoucouCmd
+stupidCaseCommandParser = do
+  C.string "stupidcase"
+  C.space1
+  (words, target) <- (LC.P.utf8Word <* C.space) `manyTill_` targetParser
+  pure $ LC.Cmd.StupidCase words target
 
 -------------------- Utils --------------------
 

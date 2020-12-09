@@ -25,5 +25,6 @@ data CoucouCmd
   | Sed Text Text
   -- | (raw regex) (replacement text)
   | LiveStreams Target
+  | StupidCase [Text] Target
   | Nop
   deriving (Show, Eq)
