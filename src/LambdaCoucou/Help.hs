@@ -26,7 +26,7 @@ helpCommandHandler ::
   Maybe Text ->
   IRC.C.IRC LC.St.CoucouState (Maybe Text)
 helpCommandHandler hlpCmd target = do
-  let generalMsg = "`&help cmd` with cmd one of [url, crypto, date, cancer, coucou, joke, remind, settings, ytSearch|yt_search, live, stupidcase]"
+  let generalMsg = "`&help cmd` with cmd one of [url, crypto, date, cancer, coucou, joke, remind, settings, ytSearch|yt_search, live, stupid|stupidcase]"
   let msg = case hlpCmd of
         Url ->
           "[λurl | λurl n] Grab the title of the last url seen in the chan. If n given > 0, gives the previous n url. λurl 1 is the second to last url."

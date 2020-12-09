@@ -109,6 +109,7 @@ helpCommandParser = do
       M.try (f "yt_search" LC.Hlp.YTSearch),
       M.try (f "live" LC.Hlp.LiveStreams),
       M.try (f "stupidcase" LC.Hlp.StupidCase),
+      M.try (f "stupid" LC.Hlp.StupidCase),
       M.try (LC.P.spaces *> (LC.Cmd.Help LC.Hlp.General <$> targetParser) <* M.eof),
       LC.P.spaces *> (LC.Cmd.Help . LC.Hlp.Unknown <$> LC.P.utf8Word <*> targetParser)
     ]
@@ -308,7 +309,7 @@ liveStreamsCommandParser = do
 ------------------- StUpIdCaSe ----------------
 stupidCaseCommandParser :: Parser LC.Cmd.CoucouCmd
 stupidCaseCommandParser = do
-  C.string "stupidcase"
+  C.string "stupidcase" <|> C.string "stupid"
   C.space1
   (words, target) <- (LC.P.utf8Word <* C.space) `manyTill_` targetParser
   pure $ LC.Cmd.StupidCase words target

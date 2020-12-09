@@ -401,9 +401,14 @@ tests = H.describe "Parser" $ do
       LC.P.parseCommand "λlive" `T.M.shouldParse` LC.Cmd.LiveStreams Nothing
     H.it "can parse liveStreams command with target" $
       LC.P.parseCommand "λlive > charlie" `T.M.shouldParse` LC.Cmd.LiveStreams (Just "charlie")
-  
+
   H.describe "stupidcase" $ do
     H.it "can parse simple stupidcase command" $
-      LC.P.parseCommand "&stupidcase coucou coucou coucoucou" `T.M.shouldParse` LC.Cmd.StupidCase ["coucou", "coucou", "coucoucou"] Nothing
-    H.it "can parse stupidcase command with target" $
-      LC.P.parseCommand "&stupidcase coucou coucou coucoucou > charlie" `T.M.shouldParse` LC.Cmd.StupidCase ["coucou", "coucou", "coucoucou"] (Just "charlie")
+      LC.P.parseCommand "&stupidcase coucou coucou coucoucou"
+        `T.M.shouldParse` LC.Cmd.StupidCase ["coucou", "coucou", "coucoucou"] Nothing
+    H.it "can parse simple stupid command" $
+      LC.P.parseCommand "&stupid coucou coucou coucoucou"
+        `T.M.shouldParse` LC.Cmd.StupidCase ["coucou", "coucou", "coucoucou"] Nothing
+    H.it "can parse stupid command with target" $
+      LC.P.parseCommand "&stupid coucou coucou coucoucou > charlie"
+        `T.M.shouldParse` LC.Cmd.StupidCase ["coucou", "coucou", "coucoucou"] (Just "charlie")
