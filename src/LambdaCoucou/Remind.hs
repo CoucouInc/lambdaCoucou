@@ -12,6 +12,7 @@ import qualified Database.SQLite.Simple.ToField as SQL
 import qualified LambdaCoucou.State as LC.St
 import qualified LambdaCoucou.Url as LC.Url
 import qualified LambdaCoucou.UserSettings as LC.Settings
+import LambdaCoucou.Utils.SQL (withConnection)
 import qualified Network.IRC.Client as IRC.C
 import qualified Network.IRC.Client.Events as IRC.Ev
 import qualified Network.IRC.Conduit.Internal as IRC.C
@@ -19,8 +20,7 @@ import RIO
 import qualified RIO.State as St
 import qualified RIO.Text as T
 import qualified RIO.Time as Time
-import Say (sayShow, sayString)
-import LambdaCoucou.Utils.SQL (withConnection)
+import Say (sayString)
 
 data RemindCmd
   = Reminder RemindSpec Text
@@ -136,16 +136,6 @@ createTable fp = liftIO $
       \content TEXT NOT NULL\
       \)"
 
-test :: IO ()
-test = withConnection "coucou.sqlite" $ \conn -> do
-  createTable "coucou.sqlite"
-  now <- Time.getCurrentTime
-  sayString $ "now: " <> show now
-  let beforeTs = Time.addUTCTime 10 now
-  sayString $ "before: " <> show beforeTs
-  rs <- getRemindersBefore beforeTs conn
-  forM_ rs sayShow
-
 remindCommandHandler ::
   Maybe LC.St.ChannelName ->
   Text ->
@@ -204,10 +194,10 @@ timeFromSpec now tz = \case
               (Mb.maybe ny fromIntegral $ dsYear ts)
               (fromMaybe nm $ dsMonth ts)
               (fromMaybe nd $ dsDay ts)
-          dayTime = mkDayTime (dsHour ts) (dsMinute ts)
+          (diffDay, dayTime) = mkDayTime (dsHour ts) (dsMinute ts) `divMod` (3600 * 24)
        in Time.UTCTime
-            { Time.utctDay = day',
-              Time.utctDayTime = dayTime
+            { Time.utctDay = Time.addDays (negate diffDay) day',
+              Time.utctDayTime = Time.secondsToDiffTime (fromIntegral dayTime)
             }
 
     tomorrowTime mbTs =
@@ -233,15 +223,22 @@ timeFromSpec now tz = \case
           (mbHour, mbMin) = case ts of
             Nothing -> (Nothing, Nothing)
             Just (a, b) -> (Just a, Just b)
-          dayTime = mkDayTime mbHour mbMin
-          newTime = Time.UTCTime {Time.utctDay = targetDay, Time.utctDayTime = dayTime}
+          (diffDay, dayTime) = mkDayTime mbHour mbMin `divMod` (3600 * 24)
+          newTime =
+            Time.UTCTime
+              { Time.utctDay = Time.addDays (negate diffDay) targetDay,
+                Time.utctDayTime = Time.secondsToDiffTime dayTime
+              }
           newTime' =
             if newTime <= now
               then newTime {Time.utctDay = Time.addDays 7 targetDay}
               else newTime
        in newTime'
 
-    mkDayTime :: Maybe Int -> Maybe Int -> Time.DiffTime
+    -- returns the number of seconds from the beginning of the UTC day with respect
+    -- to the time zone. This can be negative or greater than the number of
+    -- seconds in one day depending on the timezone.
+    mkDayTime :: Maybe Int -> Maybe Int -> Integer
     mkDayTime mbHour mbMin =
       let localNow = Time.utcToZonedTime (TZ.timeZoneForUTCTime tz now) now
           localTod = Time.localTimeOfDay $ Time.zonedTimeToLocalTime localNow
@@ -249,12 +246,10 @@ timeFromSpec now tz = \case
           nowMin = Time.todMin localTod
           tzDelta = Time.timeZoneMinutes $ TZ.timeZoneForUTCTime tz now
           dayTime =
-            Time.secondsToDiffTime $
-              fromIntegral $
-                (Mb.fromMaybe nowH mbHour) * 3600
-                  + (Mb.fromMaybe nowMin mbMin) * 60
-                  - tzDelta * 60
-       in dayTime
+            (Mb.fromMaybe nowH mbHour) * 3600
+              + (Mb.fromMaybe nowMin mbMin) * 60
+              - tzDelta * 60
+       in fromIntegral dayTime
 
 -- TODO: currently there's a bug. If a reminder should be sent to a channel
 -- but the bot hasn't joined that channel yet, it will be sent into the
@@ -395,3 +390,6 @@ time
   | HH:MM
 
 -}
+
+test :: IO ()
+test = sayString "nothing to test so far"
