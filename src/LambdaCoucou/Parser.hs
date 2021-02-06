@@ -26,8 +26,8 @@ commandParser =
   <|> prefix
     *> M.choice
       [ M.try urlCommandParser,
-        M.try cryptoCommandParser,
-        M.try dateCommandParser,
+        -- M.try cryptoCommandParser,
+        -- M.try dateCommandParser,
         M.try cancerCommandParser,
         M.try miscCoucouCommandParser,
         M.try helpCommandParser,
@@ -98,8 +98,8 @@ helpCommandParser = do
   C.string "help"
   M.choice
     [ M.try (f "url" LC.Hlp.Url),
-      M.try (f "crypto" LC.Hlp.Crypto),
-      M.try (f "date" LC.Hlp.Date),
+      -- M.try (f "crypto" LC.Hlp.Crypto),
+      -- M.try (f "date" LC.Hlp.Date),
       M.try (f "cancer" LC.Hlp.Cancer),
       M.try (f "coucou" LC.Hlp.ShoutCoucou),
       M.try (f "joke" LC.Hlp.Joke),

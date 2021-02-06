@@ -2,7 +2,7 @@ module LambdaCoucou.ParserSpec where
 
 import qualified LambdaCoucou.Cancer as LC.Cancer
 import qualified LambdaCoucou.Command as LC.Cmd
-import qualified LambdaCoucou.Crypto as LC.C
+-- import qualified LambdaCoucou.Crypto as LC.C
 import qualified LambdaCoucou.Help as LC.Hlp
 import qualified LambdaCoucou.Parser as LC.P
 import qualified LambdaCoucou.Remind as LC.R
@@ -52,26 +52,26 @@ tests = H.describe "Parser" $ do
       H.it "doesn't parses a target when multi words after delimiter" $
         LC.P.parseCommand `T.M.shouldFailOn` "&url  >   foo bar"
 
-    H.describe "crypto command" $ do
-      H.it "parses bitcoin" $
-        LC.P.parseCommand "&crypto  btc" `T.M.shouldParse` LC.Cmd.Crypto (Right LC.C.Bitcoin) Nothing
-      H.it "xbt is the same as btc" $
-        LC.P.parseCommand "&crypto  xbt" `T.M.shouldParse` LC.Cmd.Crypto (Right LC.C.Bitcoin) Nothing
-      H.it "parses ethereum" $
-        LC.P.parseCommand "&crypto  eth" `T.M.shouldParse` LC.Cmd.Crypto (Right LC.C.Ethereum) Nothing
-      H.it "requires an argument" $
-        LC.P.parseCommand `T.M.shouldFailOn` "&crypto  "
-      H.it "only parses known coin" $
-        LC.P.parseCommand "&crypto doge  " `T.M.shouldParse` LC.Cmd.Crypto (Left "doge") Nothing
-      H.it "parses a target" $
-        LC.P.parseCommand "&crypto  eth  >  foo "
-          `T.M.shouldParse` LC.Cmd.Crypto (Right LC.C.Ethereum) (Just "foo")
+    -- H.describe "crypto command" $ do
+    --   H.it "parses bitcoin" $
+    --     LC.P.parseCommand "&crypto  btc" `T.M.shouldParse` LC.Cmd.Crypto (Right LC.C.Bitcoin) Nothing
+    --   H.it "xbt is the same as btc" $
+    --     LC.P.parseCommand "&crypto  xbt" `T.M.shouldParse` LC.Cmd.Crypto (Right LC.C.Bitcoin) Nothing
+    --   H.it "parses ethereum" $
+    --     LC.P.parseCommand "&crypto  eth" `T.M.shouldParse` LC.Cmd.Crypto (Right LC.C.Ethereum) Nothing
+    --   H.it "requires an argument" $
+    --     LC.P.parseCommand `T.M.shouldFailOn` "&crypto  "
+    --   H.it "only parses known coin" $
+    --     LC.P.parseCommand "&crypto doge  " `T.M.shouldParse` LC.Cmd.Crypto (Left "doge") Nothing
+    --   H.it "parses a target" $
+    --     LC.P.parseCommand "&crypto  eth  >  foo "
+    --       `T.M.shouldParse` LC.Cmd.Crypto (Right LC.C.Ethereum) (Just "foo")
 
-    H.describe "date command" $ do
-      H.it "parses date command" $
-        LC.P.parseCommand "&date " `T.M.shouldParse` LC.Cmd.Date Nothing
-      H.it "parses date with target" $
-        LC.P.parseCommand "&date  > foo" `T.M.shouldParse` LC.Cmd.Date (Just "foo")
+    -- H.describe "date command" $ do
+    --   H.it "parses date command" $
+    --     LC.P.parseCommand "&date " `T.M.shouldParse` LC.Cmd.Date Nothing
+    --   H.it "parses date with target" $
+    --     LC.P.parseCommand "&date  > foo" `T.M.shouldParse` LC.Cmd.Date (Just "foo")
 
     H.describe "cancer command" $ do
       H.it "parses random cancer" $
@@ -100,10 +100,10 @@ tests = H.describe "Parser" $ do
         LC.P.parseCommand "&help" `T.M.shouldParse` LC.Cmd.Help LC.Hlp.General Nothing
       H.it "parses url" $
         LC.P.parseCommand "&help url" `T.M.shouldParse` LC.Cmd.Help LC.Hlp.Url Nothing
-      H.it "parses crypto" $
-        LC.P.parseCommand "&help crypto" `T.M.shouldParse` LC.Cmd.Help LC.Hlp.Crypto Nothing
-      H.it "parses date" $
-        LC.P.parseCommand "&help date" `T.M.shouldParse` LC.Cmd.Help LC.Hlp.Date Nothing
+      -- H.it "parses crypto" $
+      --   LC.P.parseCommand "&help crypto" `T.M.shouldParse` LC.Cmd.Help LC.Hlp.Crypto Nothing
+      -- H.it "parses date" $
+      --   LC.P.parseCommand "&help date" `T.M.shouldParse` LC.Cmd.Help LC.Hlp.Date Nothing
       H.it "parses cancer" $
         LC.P.parseCommand "&help cancer" `T.M.shouldParse` LC.Cmd.Help LC.Hlp.Cancer Nothing
       H.it "parses coucou" $
@@ -115,9 +115,9 @@ tests = H.describe "Parser" $ do
           `T.M.shouldParse` LC.Cmd.Help (LC.Hlp.Unknown "foobar") Nothing
       H.it "parses general with a target" $
         LC.P.parseCommand "&help > foo" `T.M.shouldParse` LC.Cmd.Help LC.Hlp.General (Just "foo")
-      H.it "parses a command with a target" $
-        LC.P.parseCommand "&help date > foo"
-          `T.M.shouldParse` LC.Cmd.Help LC.Hlp.Date (Just "foo")
+      -- H.it "parses a command with a target" $
+      --   LC.P.parseCommand "&help date > foo"
+      --     `T.M.shouldParse` LC.Cmd.Help LC.Hlp.Date (Just "foo")
       H.it "parses remind" $
         LC.P.parseCommand "&help remind" `T.M.shouldParse` LC.Cmd.Help LC.Hlp.Remind Nothing
       H.it "parses settings" $
