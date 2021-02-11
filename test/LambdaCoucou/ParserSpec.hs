@@ -108,8 +108,8 @@ tests = H.describe "Parser" $ do
         LC.P.parseCommand "&help cancer" `T.M.shouldParse` LC.Cmd.Help LC.Hlp.Cancer Nothing
       H.it "parses coucou" $
         LC.P.parseCommand "&help coucou" `T.M.shouldParse` LC.Cmd.Help LC.Hlp.ShoutCoucou Nothing
-      H.it "parses joke" $
-        LC.P.parseCommand "&help joke" `T.M.shouldParse` LC.Cmd.Help LC.Hlp.Joke Nothing
+      -- H.it "parses joke" $
+      --   LC.P.parseCommand "&help joke" `T.M.shouldParse` LC.Cmd.Help LC.Hlp.Joke Nothing
       H.it "parses unknown command" $
         LC.P.parseCommand "&help foobar"
           `T.M.shouldParse` LC.Cmd.Help (LC.Hlp.Unknown "foobar") Nothing
@@ -135,11 +135,11 @@ tests = H.describe "Parser" $ do
       H.it "parses command with target" $
         LC.P.parseCommand "&pr  > foo" `T.M.shouldParse` LC.Cmd.PR (Just "foo")
 
-    H.describe "dadJoke command" $ do
-      H.it "parses bare command" $
-        LC.P.parseCommand "&joke" `T.M.shouldParse` LC.Cmd.Joke Nothing
-      H.it "parses with target" $
-        LC.P.parseCommand "&joke > foo" `T.M.shouldParse` LC.Cmd.Joke (Just "foo")
+    -- H.describe "dadJoke command" $ do
+    --   H.it "parses bare command" $
+    --     LC.P.parseCommand "&joke" `T.M.shouldParse` LC.Cmd.Joke Nothing
+    --   H.it "parses with target" $
+    --     LC.P.parseCommand "&joke > foo" `T.M.shouldParse` LC.Cmd.Joke (Just "foo")
 
   H.describe "Url" $ do
     let url = "https://foo.bar.com"

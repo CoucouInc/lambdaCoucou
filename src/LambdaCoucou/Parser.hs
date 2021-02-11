@@ -32,7 +32,7 @@ commandParser =
         M.try miscCoucouCommandParser,
         M.try helpCommandParser,
         M.try prCommandParser,
-        M.try jokeCommandParser,
+        -- M.try jokeCommandParser,
         M.try remindCommandParser,
         M.try settingsCommandParser,
         M.try ytSearchCommandParser,
@@ -102,7 +102,7 @@ helpCommandParser = do
       -- M.try (f "date" LC.Hlp.Date),
       M.try (f "cancer" LC.Hlp.Cancer),
       M.try (f "coucou" LC.Hlp.ShoutCoucou),
-      M.try (f "joke" LC.Hlp.Joke),
+      -- M.try (f "joke" LC.Hlp.Joke),
       M.try (f "remind" LC.Hlp.Remind),
       M.try (f "settings" LC.Hlp.Settings),
       M.try (f "ytSearch" LC.Hlp.YTSearch),
@@ -122,11 +122,11 @@ prCommandParser = do
   C.string "pr"
   LC.Cmd.PR <$> targetParser
 
--------------------- Joke --------------------
-jokeCommandParser :: Parser LC.Cmd.CoucouCmd
-jokeCommandParser = do
-  C.string "joke"
-  LC.Cmd.Joke <$> targetParser
+-- -------------------- Joke --------------------
+-- jokeCommandParser :: Parser LC.Cmd.CoucouCmd
+-- jokeCommandParser = do
+--   C.string "joke"
+--   LC.Cmd.Joke <$> targetParser
 
 -------------------- Remind --------------------
 remindCommandParser :: Parser LC.Cmd.CoucouCmd

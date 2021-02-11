@@ -18,7 +18,7 @@ data CoucouCmd
   | HeyCoucou
   | Help HelpCommand Target
   | PR Target
-  | Joke Target
+  -- | Joke Target
   | Remind RemindCmd
   | Settings SettingsCmd
   | YTSearch [Text] Target

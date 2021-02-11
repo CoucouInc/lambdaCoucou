@@ -9,7 +9,6 @@ import qualified LambdaCoucou.CoucouTrain as LC.C.Coucou
 import qualified LambdaCoucou.Crypto as LC.C
 import qualified LambdaCoucou.Date as LC.Date
 import qualified LambdaCoucou.Help as LC.Hlp
-import qualified LambdaCoucou.Joke as LC.Joke
 import qualified LambdaCoucou.PR as LC.PR
 import qualified LambdaCoucou.Parser as LC.P
 import qualified LambdaCoucou.Remind as LC.Remind
@@ -146,7 +145,6 @@ execCommand mbChanName nick = \case
   LC.Cmd.HeyCoucou -> pure $ Just $ "écoucou " <> nick
   LC.Cmd.PR target -> LC.PR.prCommandHandler target
   LC.Cmd.Help hlpCmd target -> LC.Hlp.helpCommandHandler hlpCmd target
-  LC.Cmd.Joke target -> LC.Joke.jokeCommandHandler target
   LC.Cmd.Remind remindCommand -> LC.Remind.remindCommandHandler mbChanName nick remindCommand
   LC.Cmd.Settings cmd -> LC.Settings.settingsCommandHandler nick cmd
   LC.Cmd.YTSearch query target -> LC.YTSearch.ytSearchCommandHandler query target

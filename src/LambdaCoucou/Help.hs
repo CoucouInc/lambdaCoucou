@@ -12,7 +12,7 @@ data HelpCommand
   | Cancer
   | ShoutCoucou
   | General
-  | Joke
+  -- | Joke
   | Remind
   | Settings
   | YTSearch
@@ -26,7 +26,7 @@ helpCommandHandler ::
   Maybe Text ->
   IRC.C.IRC LC.St.CoucouState (Maybe Text)
 helpCommandHandler hlpCmd target = do
-  let generalMsg = "`&help cmd` with cmd one of [url, cancer, coucou, joke, remind, settings, ytSearch|yt_search, live, stupid|stupidcase]"
+  let generalMsg = "`&help cmd` with cmd one of [url, cancer, coucou, remind, settings, ytSearch|yt_search, live, stupid|stupidcase]"
   let msg = case hlpCmd of
         Url ->
           "[λurl | λurl n] Grab the title of the last url seen in the chan. If n given > 0, gives the previous n url. λurl 1 is the second to last url."
@@ -40,8 +40,8 @@ helpCommandHandler hlpCmd target = do
           "Say 'coucou X' where X is a random member/lurker of the chan."
         General ->
           generalMsg
-        Joke ->
-          "Gives a random (bad) joke."
+        -- Joke ->
+        --   "Gives a random (bad) joke."
         Remind ->
           "Reminder. &remind (in <duration>|at <time>|tomorrow (at <time>)). ex: &remind at 2020-06-28 12:34 coucou. &remind à 19:00 text. &remind in 1y 10M 1d 2h10m another coucou. &remind lundi coucou. &remind tuesday at 12 manger. The timezone depends on the user settings, defaults to UTC. See λhelp settings. &remind list. &remind del <ID>"
         Settings ->
