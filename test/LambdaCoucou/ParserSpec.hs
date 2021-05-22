@@ -245,8 +245,21 @@ tests = H.describe "Parser" $ do
                 "text"
             )
 
-      H.it "parse `at` with only hours and minutes" $
+      H.it "parse `at` with only hours and minutes with `:`" $
         LC.P.parseCommand "&remind at 12:34 text"
+          `T.M.shouldParse` LC.Cmd.Remind
+            ( LC.R.Reminder
+                ( LC.R.RemindTime $
+                    tsNothing
+                      { LC.R.dsHour = Just 12,
+                        LC.R.dsMinute = Just 34
+                      }
+                )
+                "text"
+            )
+
+      H.it "parse `at` with only hours and minutes with `h`" $
+        LC.P.parseCommand "&remind at 12h34 text"
           `T.M.shouldParse` LC.Cmd.Remind
             ( LC.R.Reminder
                 ( LC.R.RemindTime $
