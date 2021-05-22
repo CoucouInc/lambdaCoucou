@@ -6,7 +6,9 @@ import qualified Options.Applicative as O
 import RIO
 
 data Config = Config
-  { chan :: Text,
+  { hostname :: ByteString,
+    port :: Int,
+    chan :: Text,
     nick :: Text,
     sqlitePath :: FilePath
   }
@@ -16,6 +18,19 @@ configOptions :: O.Parser Config
 configOptions =
   Config
     <$> ( O.strOption
+            ( O.long "hostname"
+                <> O.help "Hostname of the irc server to connect to"
+                <> O.value "irc.libera.chat"
+            )
+        )
+    <*> ( O.option
+            O.auto
+            ( O.long "port"
+                <> O.help "Port to connect to (assume TLS)"
+                <> O.value 6697
+            )
+        )
+    <*> ( O.strOption
             ( O.long "chan"
                 <> O.short 'c'
                 <> O.help "Channel to connect to"
@@ -35,12 +50,13 @@ configOptions =
             )
         )
 
-opts = O.info
-  (configOptions O.<**> O.helper)
-  (O.fullDesc
-    <> O.progDesc "Industrial strength IRC bot for more coucou"
-    <> O.header "IRC bot"
-  )
+opts =
+  O.info
+    (configOptions O.<**> O.helper)
+    ( O.fullDesc
+        <> O.progDesc "Industrial strength IRC bot for more coucou"
+        <> O.header "IRC bot"
+    )
 
 getConfig :: IO Config
 getConfig = O.execParser opts

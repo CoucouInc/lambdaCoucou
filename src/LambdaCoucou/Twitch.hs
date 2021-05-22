@@ -227,43 +227,43 @@ watchedStreams =
   [ StreamWatcherSpec
       { swsTwitchUserLogin = UserLogin "artart78",
         swsIRCNick = "artart78",
-        swsIRCChan = "#arch-fr-free",
+        swsIRCChan = "##arch-fr-free",
         swsUserId = UserId "480815392"
       },
     StreamWatcherSpec
       { swsTwitchUserLogin = UserLogin "gikiam",
         swsIRCNick = "gikiam",
-        swsIRCChan = "#arch-fr-free",
+        swsIRCChan = "##arch-fr-free",
         swsUserId = UserId "77066482"
       },
     StreamWatcherSpec
       { swsTwitchUserLogin = UserLogin "geekingfrog",
         swsIRCNick = "Geekingfrog",
-        swsIRCChan = "#arch-fr-free",
+        swsIRCChan = "##arch-fr-free",
         swsUserId = UserId "482889678"
       },
     StreamWatcherSpec
       { swsTwitchUserLogin = UserLogin "shampooingonthemove",
         swsIRCNick = "Shampooing",
-        swsIRCChan = "#arch-fr-free",
+        swsIRCChan = "##arch-fr-free",
         swsUserId = UserId "535066880"
       },
     StreamWatcherSpec
       { swsTwitchUserLogin = UserLogin "VertBrocoli",
         swsIRCNick = "Armael",
-        swsIRCChan = "#arch-fr-free",
+        swsIRCChan = "##arch-fr-free",
         swsUserId = UserId "64172886"
       },
     StreamWatcherSpec
       { swsTwitchUserLogin = UserLogin "therealbarul",
         swsIRCNick = "barul",
-        swsIRCChan = "#arch-fr-free",
+        swsIRCChan = "##arch-fr-free",
         swsUserId = UserId "597231373"
       },
     StreamWatcherSpec
       { swsTwitchUserLogin = UserLogin "juantitor",
         swsIRCNick = "JuanTitor",
-        swsIRCChan = "#arch-fr-free",
+        swsIRCChan = "##arch-fr-free",
         swsUserId = UserId "42481408"
       }
   ]

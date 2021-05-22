@@ -180,8 +180,9 @@ timeAtParser = do
 
 dateTimeP :: Parser (Int, Int)
 dateTimeP = do
-  h <- LC.P.int <* optional (C.char 'h')
-  m <- fromMaybe 0 <$> optional (C.char ':' *> LC.P.int)
+  h <- LC.P.int
+  void $ optional (C.char 'h' <|> C.char ':')
+  m <- fromMaybe 0 <$> optional LC.P.int
   pure (h, m)
 
 durationParser :: Parser LC.R.RemindSpec

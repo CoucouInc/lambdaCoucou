@@ -30,7 +30,7 @@ import qualified UnliftIO.Async as Async
 runBot :: IO ()
 runBot = do
   config <- LC.Cli.getConfig
-  let tlsConfig = IRC.C.WithDefaultConfig "chat.freenode.net" 6697
+  let tlsConfig = IRC.C.WithDefaultConfig (LC.Cli.hostname config) (LC.Cli.port config)
   let connectionConfig =
         IRC.C.tlsConnection tlsConfig
           & IRC.L.logfunc .~ IRC.C.stdoutLogger
