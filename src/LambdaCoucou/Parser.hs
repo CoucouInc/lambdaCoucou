@@ -9,7 +9,7 @@ import qualified LambdaCoucou.Remind as LC.R
 import qualified LambdaCoucou.UserSettings as LC.Settings
 import RIO
 import qualified RIO.Text as T
-import qualified RIO.Partial as RIO'
+-- import qualified RIO.Partial as RIO'
 import qualified RIO.Time as Time
 import qualified Text.Megaparsec as M
 import qualified Text.Megaparsec.Char as C
@@ -25,10 +25,10 @@ commandParser =
   M.try sedCommandParser
   <|> prefix
     *> M.choice
-      [ M.try urlCommandParser,
+      -- [ M.try urlCommandParser,
         -- M.try cryptoCommandParser,
         -- M.try dateCommandParser,
-        M.try cancerCommandParser,
+      [ M.try cancerCommandParser,
         M.try miscCoucouCommandParser,
         M.try helpCommandParser,
         M.try prCommandParser,
@@ -44,16 +44,16 @@ commandParser =
 prefix :: Parser Char
 prefix = C.char 'λ' <|> C.char '&' <|> C.char 'Σ' -- Σ for sigma_g
 
--------------------- URL --------------------
-urlCommandParser :: Parser LC.Cmd.CoucouCmd
-urlCommandParser = do
-  C.string "url"
-  LC.Cmd.Url <$> (M.try offsetParser <|> pure 0) <*> targetParser
-  where
-    offsetParser = do
-      M.some C.spaceChar
-      d <- M.some C.digitChar
-      pure $ RIO'.read d
+-- -------------------- URL --------------------
+-- urlCommandParser :: Parser LC.Cmd.CoucouCmd
+-- urlCommandParser = do
+--   C.string "url"
+--   LC.Cmd.Url <$> (M.try offsetParser <|> pure 0) <*> targetParser
+--   where
+--     offsetParser = do
+--       M.some C.spaceChar
+--       d <- M.some C.digitChar
+--       pure $ RIO'.read d
 
 -------------------- Crypto --------------------
 cryptoCommandParser :: Parser LC.Cmd.CoucouCmd
@@ -97,10 +97,10 @@ helpCommandParser :: Parser LC.Cmd.CoucouCmd
 helpCommandParser = do
   C.string "help"
   M.choice
-    [ M.try (f "url" LC.Hlp.Url),
+    -- [ M.try (f "url" LC.Hlp.Url),
       -- M.try (f "crypto" LC.Hlp.Crypto),
       -- M.try (f "date" LC.Hlp.Date),
-      M.try (f "cancer" LC.Hlp.Cancer),
+    [ M.try (f "cancer" LC.Hlp.Cancer),
       M.try (f "coucou" LC.Hlp.ShoutCoucou),
       -- M.try (f "joke" LC.Hlp.Joke),
       M.try (f "remind" LC.Hlp.Remind),

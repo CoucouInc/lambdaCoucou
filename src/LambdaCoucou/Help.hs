@@ -6,10 +6,10 @@ import qualified Network.IRC.Client as IRC.C
 import RIO
 
 data HelpCommand
-  = Url
+  -- = Url
   -- | Crypto
   -- | Date
-  | Cancer
+  = Cancer
   | ShoutCoucou
   | General
   -- | Joke
@@ -26,10 +26,10 @@ helpCommandHandler ::
   Maybe Text ->
   IRC.C.IRC LC.St.CoucouState (Maybe Text)
 helpCommandHandler hlpCmd target = do
-  let generalMsg = "`&help cmd` with cmd one of [url, cancer, coucou, remind, settings, ytSearch|yt_search, live, stupid|stupidcase]"
+  let generalMsg = "`&help cmd` with cmd one of [cancer, coucou, remind, settings, ytSearch|yt_search, live, stupid|stupidcase]"
   let msg = case hlpCmd of
-        Url ->
-          "[λurl | λurl n] Grab the title of the last url seen in the chan. If n given > 0, gives the previous n url. λurl 1 is the second to last url."
+        -- Url ->
+        --   "[λurl | λurl n] Grab the title of the last url seen in the chan. If n given > 0, gives the previous n url. λurl 1 is the second to last url."
         -- Crypto ->
         --   "Get the current exchange rate for the given crypto coin."
         -- Date ->

@@ -73,11 +73,13 @@ updateLastUrl chanName msg =
       Just url -> do
         let url' = withoutTracker url
         liftIO $ RB.append (fromMaybe url url') (LC.St.cstLastUrls chanState)
-        case url' of
-          Nothing -> pure Nothing
-          Just updatedUrl ->
-            let response = updatedUrl <> " <- cette URL n'a pas de trackers de merde, utilisez ça plutôt (https://en.wikipedia.org/wiki/UTM_parameters)"
-             in pure $ Just response
+        pure Nothing
+        -- the tracker detection is completely broken, disable fully until fixed
+        -- case url' of
+        --   Nothing -> pure Nothing
+        --   Just updatedUrl ->
+        --     let response = updatedUrl <> " <- cette URL n'a pas de trackers de merde, utilisez ça plutôt (https://en.wikipedia.org/wiki/UTM_parameters)"
+        --      in pure $ Just response
 
 -- | return a (Just url) if the given raw Url had any tracking shit in the query.
 -- The returned url is stripped off the tracking markers

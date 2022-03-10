@@ -16,7 +16,7 @@ import qualified LambdaCoucou.State as LC.St
 import qualified LambdaCoucou.Twitch as LC.Twitch
 import qualified LambdaCoucou.Sed as LC.Sed
 import qualified LambdaCoucou.StupidCase as LC.StupidCase
-import qualified LambdaCoucou.Url as LC.Url
+-- import qualified LambdaCoucou.Url as LC.Url
 import qualified LambdaCoucou.UserSettings as LC.Settings
 import qualified Network.IRC.Client as IRC.C
 import qualified Network.IRC.Client.Events as IRC.Ev
@@ -77,8 +77,8 @@ runBot = do
 
 handlers :: [IRC.Ev.EventHandler LC.St.CoucouState]
 handlers =
-  [ LC.Url.updateLastUrlHandler,
-    LC.Date.ctcpTimeHandler,
+  -- [ LC.Url.updateLastUrlHandler,
+  [ LC.Date.ctcpTimeHandler,
     commandHandler
   ]
     ++ LC.Chan.channelStateHandlers
@@ -133,9 +133,9 @@ execCommand ::
   IRC.C.IRC LC.St.CoucouState (Maybe Text)
 execCommand mbChanName nick = \case
   LC.Cmd.Nop -> pure Nothing
-  LC.Cmd.Url offset mbTarget -> case mbChanName of
-    Nothing -> pure $ Just "Command not supported in private message"
-    Just chanName -> LC.Url.fetchUrlCommandHandler chanName offset mbTarget
+  -- LC.Cmd.Url offset mbTarget -> case mbChanName of
+  --   Nothing -> pure $ Just "Command not supported in private message"
+  --   Just chanName -> LC.Url.fetchUrlCommandHandler chanName offset mbTarget
   LC.Cmd.Crypto coin target -> LC.C.cryptoCommandHandler coin target
   LC.Cmd.Date target -> LC.Date.dateCommandHandler target
   LC.Cmd.Cancer cancer target -> LC.Cancer.cancerCommandHandler mbChanName cancer target

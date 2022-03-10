@@ -6,7 +6,7 @@ import qualified LambdaCoucou.Command as LC.Cmd
 import qualified LambdaCoucou.Help as LC.Hlp
 import qualified LambdaCoucou.Parser as LC.P
 import qualified LambdaCoucou.Remind as LC.R
-import qualified LambdaCoucou.Url as LC.Url
+-- import qualified LambdaCoucou.Url as LC.Url
 import qualified LambdaCoucou.UserSettings as LC.Settings
 import RIO
 import qualified RIO.Time as Time
@@ -29,28 +29,28 @@ tests = H.describe "Parser" $ do
     H.it "parses no op when no command" $
       LC.P.parseCommand "whatever" `T.M.shouldParse` LC.Cmd.Nop
     H.it "parses different prefixes" $ do
-      LC.P.parseCommand "λurl" `T.M.shouldParse` LC.Cmd.Url 0 Nothing
-      LC.P.parseCommand "Σurl" `T.M.shouldParse` LC.Cmd.Url 0 Nothing
+      LC.P.parseCommand "λpr" `T.M.shouldParse` LC.Cmd.PR Nothing
+      LC.P.parseCommand "Σpr" `T.M.shouldParse` LC.Cmd.PR Nothing
 
-    H.describe "url command" $ do
-      H.it "parses url command" $
-        LC.P.parseCommand "&url" `T.M.shouldParse` LC.Cmd.Url 0 Nothing
-      H.it "parses url command with an offset" $
-        LC.P.parseCommand "&url 4" `T.M.shouldParse` LC.Cmd.Url 4 Nothing
-      H.it "parses url command with multi digit offset" $
-        LC.P.parseCommand "&url 42" `T.M.shouldParse` LC.Cmd.Url 42 Nothing
-      H.it "parses url command with multi digit offset and some trailing space" $
-        LC.P.parseCommand "&url 42  " `T.M.shouldParse` LC.Cmd.Url 42 Nothing
-      H.it "parses a target" $
-        LC.P.parseCommand "&url > foo" `T.M.shouldParse` LC.Cmd.Url 0 (Just "foo")
-      H.it "parses a target with an offset" $
-        LC.P.parseCommand "&url 3 > foo" `T.M.shouldParse` LC.Cmd.Url 3 (Just "foo")
-      H.it "parses a target with multiple space around >" $
-        LC.P.parseCommand "&url  >   foo" `T.M.shouldParse` LC.Cmd.Url 0 (Just "foo")
-      H.it "parses a target and an offset with multiple space around >" $
-        LC.P.parseCommand "&url  2 >   foo" `T.M.shouldParse` LC.Cmd.Url 2 (Just "foo")
-      H.it "doesn't parses a target when multi words after delimiter" $
-        LC.P.parseCommand `T.M.shouldFailOn` "&url  >   foo bar"
+    -- H.describe "url command" $ do
+    --   H.it "parses url command" $
+    --     LC.P.parseCommand "&url" `T.M.shouldParse` LC.Cmd.Url 0 Nothing
+    --   H.it "parses url command with an offset" $
+    --     LC.P.parseCommand "&url 4" `T.M.shouldParse` LC.Cmd.Url 4 Nothing
+    --   H.it "parses url command with multi digit offset" $
+    --     LC.P.parseCommand "&url 42" `T.M.shouldParse` LC.Cmd.Url 42 Nothing
+    --   H.it "parses url command with multi digit offset and some trailing space" $
+    --     LC.P.parseCommand "&url 42  " `T.M.shouldParse` LC.Cmd.Url 42 Nothing
+    --   H.it "parses a target" $
+    --     LC.P.parseCommand "&url > foo" `T.M.shouldParse` LC.Cmd.Url 0 (Just "foo")
+    --   H.it "parses a target with an offset" $
+    --     LC.P.parseCommand "&url 3 > foo" `T.M.shouldParse` LC.Cmd.Url 3 (Just "foo")
+    --   H.it "parses a target with multiple space around >" $
+    --     LC.P.parseCommand "&url  >   foo" `T.M.shouldParse` LC.Cmd.Url 0 (Just "foo")
+    --   H.it "parses a target and an offset with multiple space around >" $
+    --     LC.P.parseCommand "&url  2 >   foo" `T.M.shouldParse` LC.Cmd.Url 2 (Just "foo")
+    --   H.it "doesn't parses a target when multi words after delimiter" $
+    --     LC.P.parseCommand `T.M.shouldFailOn` "&url  >   foo bar"
 
     -- H.describe "crypto command" $ do
     --   H.it "parses bitcoin" $
@@ -98,8 +98,8 @@ tests = H.describe "Parser" $ do
     H.describe "help command" $ do
       H.it "parses general" $
         LC.P.parseCommand "&help" `T.M.shouldParse` LC.Cmd.Help LC.Hlp.General Nothing
-      H.it "parses url" $
-        LC.P.parseCommand "&help url" `T.M.shouldParse` LC.Cmd.Help LC.Hlp.Url Nothing
+      -- H.it "parses url" $
+      --   LC.P.parseCommand "&help url" `T.M.shouldParse` LC.Cmd.Help LC.Hlp.Url Nothing
       -- H.it "parses crypto" $
       --   LC.P.parseCommand "&help crypto" `T.M.shouldParse` LC.Cmd.Help LC.Hlp.Crypto Nothing
       -- H.it "parses date" $
@@ -141,38 +141,38 @@ tests = H.describe "Parser" $ do
     --   H.it "parses with target" $
     --     LC.P.parseCommand "&joke > foo" `T.M.shouldParse` LC.Cmd.Joke (Just "foo")
 
-  H.describe "Url" $ do
-    let url = "https://foo.bar.com"
-    let urlParser = M.parse LC.Url.urlParser ""
-    H.it "fails on one word, not url" $
-      urlParser `T.M.shouldFailOn` "foo"
-    H.it "fails on only spaces" $
-      urlParser `T.M.shouldFailOn` "   "
-    H.it "succeed on a single http url" $ do
-      let url' = "http://foo.bar.com"
-      urlParser url' `T.M.shouldParse` url'
-    H.it "succeed regardless of protocol case" $
-      urlParser `T.M.shouldSucceedOn` "hTtP://foo.bar.com"
-    H.it "succeed on a single https url" $
-      urlParser url `T.M.shouldParse` url
-    H.it "succeed on a url with some spaces before" $
-      urlParser ("  " <> url) `T.M.shouldParse` url
-    H.it "succeed on a url with a word before" $
-      urlParser ("coucou  " <> url) `T.M.shouldParse` url
-    H.it "succeed on a url with some spaces and a word before" $
-      urlParser ("  coucou  " <> url) `T.M.shouldParse` url
-    H.it "succeed on a url with many words before" $
-      urlParser ("coucou charlie " <> url) `T.M.shouldParse` url
-    H.it "succeed on a url with words, punctuation and '>' before" $
-      urlParser ("coucou: bla mo>o/  " <> url) `T.M.shouldParse` url
-    H.it "succeed on a url with many words and spaces before" $
-      urlParser ("  coucou charlie " <> url) `T.M.shouldParse` url
-    H.it "suceed regardless of what is after the url" $
-      urlParser (url <> " whatever") `T.M.shouldParse` url
-    H.it "suceed with some querystring" $
-      urlParser (url <> "?query=1") `T.M.shouldParse` (url <> "?query=1")
-    H.it "succeed with parens around the url" $
-      urlParser (url <> ")") `T.M.shouldParse` url
+  -- H.describe "Url" $ do
+  --   let url = "https://foo.bar.com"
+  --   let urlParser = M.parse LC.Url.urlParser ""
+  --   H.it "fails on one word, not url" $
+  --     urlParser `T.M.shouldFailOn` "foo"
+  --   H.it "fails on only spaces" $
+  --     urlParser `T.M.shouldFailOn` "   "
+  --   H.it "succeed on a single http url" $ do
+  --     let url' = "http://foo.bar.com"
+  --     urlParser url' `T.M.shouldParse` url'
+  --   H.it "succeed regardless of protocol case" $
+  --     urlParser `T.M.shouldSucceedOn` "hTtP://foo.bar.com"
+  --   H.it "succeed on a single https url" $
+  --     urlParser url `T.M.shouldParse` url
+  --   H.it "succeed on a url with some spaces before" $
+  --     urlParser ("  " <> url) `T.M.shouldParse` url
+  --   H.it "succeed on a url with a word before" $
+  --     urlParser ("coucou  " <> url) `T.M.shouldParse` url
+  --   H.it "succeed on a url with some spaces and a word before" $
+  --     urlParser ("  coucou  " <> url) `T.M.shouldParse` url
+  --   H.it "succeed on a url with many words before" $
+  --     urlParser ("coucou charlie " <> url) `T.M.shouldParse` url
+  --   H.it "succeed on a url with words, punctuation and '>' before" $
+  --     urlParser ("coucou: bla mo>o/  " <> url) `T.M.shouldParse` url
+  --   H.it "succeed on a url with many words and spaces before" $
+  --     urlParser ("  coucou charlie " <> url) `T.M.shouldParse` url
+  --   H.it "suceed regardless of what is after the url" $
+  --     urlParser (url <> " whatever") `T.M.shouldParse` url
+  --   H.it "suceed with some querystring" $
+  --     urlParser (url <> "?query=1") `T.M.shouldParse` (url <> "?query=1")
+  --   H.it "succeed with parens around the url" $
+  --     urlParser (url <> ")") `T.M.shouldParse` url
 
   H.describe "Remind" $ do
     let ts =

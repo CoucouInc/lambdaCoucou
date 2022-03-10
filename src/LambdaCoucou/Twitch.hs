@@ -307,7 +307,9 @@ liveStreamsCommandHandler ::
 liveStreamsCommandHandler (LC.St.ChannelName chanName) mbTarget = do
   st <- St.gets LC.St.csTwitch
   liftIO (MVar.readMVar st) >>= \case
-    Nothing -> pure $ Just $ LC.Hdl.addTarget mbTarget "Twitch module désactivé."
+    -- rustygolem now handles twitch. So until I remove the relevant code, just
+    -- ignore the λlive command
+    Nothing -> pure Nothing
     Just env -> do
       allLiveStreams <- getLiveStreams env (map swsUserId watchedStreams)
       let chanStreams =
